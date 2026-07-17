@@ -1,0 +1,129 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { SESSION_THEMES } from "../lib/themes";
+
+const icon = (symbol: string) => <span aria-hidden="true">{symbol}</span>;
+
+export default function Home() {
+  const [themeId, setThemeId] = useState(SESSION_THEMES[0].id);
+  const [duration, setDuration] = useState("75 minutes");
+  const [aroma, setAroma] = useState("Lavender");
+  const [saved, setSaved] = useState(false);
+  const theme = useMemo(() => SESSION_THEMES.find((item) => item.id === themeId) ?? SESSION_THEMES[0], [themeId]);
+
+  return (
+    <main>
+      <header className="topbar">
+        <a className="brand" href="#top">Session<span>Scape</span></a>
+        <nav aria-label="Main navigation">
+          <a href="#builder">Builder</a>
+          <a href="#library">Theme library</a>
+          <a href="#checklist">Room checklist</a>
+        </nav>
+        <button className="avatar" aria-label="Open account menu">IM</button>
+      </header>
+
+      <section className="hero" id="top">
+        <p className="eyebrow">YOUR SESSION-DESIGN WORKSPACE</p>
+        <h1>Make every massage feel <em>intentionally yours.</em></h1>
+        <p className="hero-copy">Build a complete, professional experience around the client—not just a sequence of techniques.</p>
+        <div className="hero-actions">
+          <a className="button primary" href="#builder">Build a session {icon("→")}</a>
+          <a className="button text" href="#library">Explore themes</a>
+        </div>
+      </section>
+
+      <section className="workspace" id="builder" aria-label="Session Builder">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">SESSION BUILDER</p>
+            <h2>Shape today&apos;s experience</h2>
+          </div>
+          <div className="status">● Draft session</div>
+        </div>
+
+        <div className="builder-grid">
+          <aside className="controls">
+            <label>
+              Starting theme
+              <select value={themeId} onChange={(event) => setThemeId(event.target.value)}>
+                {SESSION_THEMES.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
+              </select>
+            </label>
+            <label>
+              Session duration
+              <select value={duration} onChange={(event) => setDuration(event.target.value)}>
+                <option>60 minutes</option><option>75 minutes</option><option>90 minutes</option>
+              </select>
+            </label>
+            <label>
+              Aroma preference
+              <select value={aroma} onChange={(event) => setAroma(event.target.value)}>
+                <option>Lavender</option><option>Fresh citrus</option><option>Unscented</option><option>Client&apos;s choice</option>
+              </select>
+            </label>
+            <div className="client-note">
+              <strong>{icon("✦")} Client preference check</strong>
+              <p>Confirm scent, pressure, focus areas, and any boundaries before beginning.</p>
+            </div>
+          </aside>
+
+          <article className="blueprint">
+            <div className="blueprint-title">
+              <div>
+                <p className="theme-type">{theme.category}</p>
+                <h3>{theme.name}</h3>
+              </div>
+              <span className="duration">{duration}</span>
+            </div>
+            <p className="summary">{theme.summary}</p>
+            <div className="attributes">
+              <div><span>PACE</span><strong>{theme.pace}</strong></div>
+              <div><span>PRESSURE</span><strong>{theme.pressure}</strong></div>
+              <div><span>FLOW</span><strong>{theme.flow}</strong></div>
+            </div>
+            <div className="sequence">
+              <h4>Suggested flow</h4>
+              <ol>{theme.sequence.map((step) => <li key={step}>{step}</li>)}</ol>
+            </div>
+            <div className="actions">
+              <button className="button secondary" onClick={() => setSaved(true)}>{saved ? "Saved to your sessions" : "Save session"}</button>
+              <button className="button text" onClick={() => window.print()}>Print blueprint</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="preparation" id="checklist">
+        <div>
+          <p className="eyebrow">ROOM PREPARATION</p>
+          <h2>Details that make the feeling.</h2>
+          <p>Use this as a starting point, then adjust to the client&apos;s preferences and your professional judgment.</p>
+        </div>
+        <div className="checklist">
+          <label><input type="checkbox" /> Warm, low lighting prepared</label>
+          <label><input type="checkbox" /> Music queued: {theme.music}</label>
+          <label><input type="checkbox" /> {aroma} option offered and approved</label>
+          <label><input type="checkbox" /> Bolsters and warm towels ready</label>
+          <label><input type="checkbox" /> Consent and comfort check planned</label>
+        </div>
+      </section>
+
+      <section className="library" id="library">
+        <p className="eyebrow">THEME LIBRARY</p>
+        <h2>Professional foundations, made personal.</h2>
+        <div className="theme-grid">
+          {SESSION_THEMES.map((item) => (
+            <button className={`theme-card ${item.id === themeId ? "selected" : ""}`} key={item.id} onClick={() => { setThemeId(item.id); document.getElementById("builder")?.scrollIntoView({ behavior: "smooth" }); }}>
+              <span>{item.category}</span><strong>{item.name}</strong><small>{item.tagline}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <footer>SessionScape is an experience-design tool, not medical advice. Always practice within your training, local regulations, and professional standards.</footer>
+    </main>
+  );
+}
+
