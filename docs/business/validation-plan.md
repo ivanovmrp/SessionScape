@@ -21,6 +21,9 @@ The goal is evidence for decisions, not favorable comments about the visual prot
 8. Would they replace a scheduler, connect it, or prefer an external link?
 9. What would they pay for the core and booking add-on after using them?
 10. What local terminology, rules, and expectations affect global use?
+11. Which articles would providers seek out, save, share, or trust the owner to curate?
+12. Would a moderated provider forum reduce isolation or improve practical work enough to drive return visits?
+13. What identity, privacy, moderation, and participation conditions are required before a provider will contribute?
 
 ## Participants
 
@@ -50,6 +53,9 @@ Use past behavior before opinions:
 9. "What do reminders, cancellations, and no-shows require from you?"
 10. "Which information would you never store in this product?"
 11. "What software did you last pay for, and what made it worth paying for?"
+12. "Tell me about the last time another provider helped you solve a practice or session-design problem."
+13. "Where do you currently exchange professional ideas, and what makes you participate or stay silent?"
+14. "What would make you trust or distrust an owner-run provider community?"
 
 Do not lead with "Would you use this?" Record workflow frequency, current workaround, time/cost, consequence, and evidence of prior attempts to solve it.
 
@@ -63,6 +69,9 @@ Give the participant a fictional client scenario containing only non-clinical pr
 4. Save or print the plan and explain what they expect registration to do.
 5. Return to the fictional client and reuse the plan with one changed preference.
 6. Use a clickable booking-to-blueprint concept and compare it with their current process.
+7. Find and read a public article, then explain whether it changes trust in SessionScape.
+8. Review a provider-community preview, identify what belongs there, register for preview access, and create a fictional non-client-specific discussion.
+9. Locate the community rules, privacy reminder, report action, and distinction between member opinion and official editorial content.
 
 Observe completion, errors, hesitation, language concerns, perceived scope, and whether the user invents value not shown in the interface.
 
@@ -75,6 +84,7 @@ Test three value messages at the save moment:
 | "Save and reuse this blueprint" | Repeat efficiency is the main registration driver. |
 | "Keep client preferences private and ready for next time" | Continuity and personalization drive registration. |
 | "Create your branded session library" | Practice differentiation drives registration. |
+| "Join a moderated provider community" | Peer connection and professional learning create a repeat registration reason. |
 
 Measure registration start, completion, stated concern, and successful second-session reuse. Do not optimize only email capture; an account that never returns is not validation.
 
@@ -115,6 +125,8 @@ Score each interview separately before discussing themes.
 | Registration value | No reason | Would save for later | Creates account to save/reuse during test |
 | Payment evidence | Says maybe | Chooses a price | Starts realistic checkout/deposit/trial |
 | Booking handoff | No problem | Convenient | Recurring pain with active workaround |
+| Community value | Generic content or no participation intent | Would read occasionally | Returns, contributes, or follows a useful professional topic |
+| Community trust | Will not join | Joins but will only read | Understands rules and will contribute under the stated identity/privacy model |
 
 ## Decision criteria
 
@@ -143,6 +155,20 @@ Score each interview separately before discussing themes.
 - Price willingness does not cover support, messaging, payment, and reliability costs.
 - The feature distracts from proving repeat value in session design.
 
+### Proceed with a production community beta when
+
+- The launch conditions in [Blog and provider community requirements](community-requirements.md) are met.
+- At least 6 of 10 target providers return for a second community visit during a four-week facilitated concept test.
+- At least 5 contribute a useful thread or reply without staff prompting.
+- Providers consistently distinguish member opinion from reviewed owner/editor content and avoid client-identifying information.
+- Named moderation coverage, response targets, security controls, retention rules, and viable unit cost are in place.
+
+### Keep the blog public but defer the forum when
+
+- Providers value the editorial content but prefer established communities for discussion.
+- The forum produces mostly product support requests, promotion, or unsafe client-case discussion.
+- Useful participation depends on unsustainable staff seeding or moderation effort.
+
 ## Four-week beta measures
 
 | Measure | Definition | Initial directional target |
@@ -153,6 +179,9 @@ Score each interview separately before discussing themes.
 | Time to repeat plan | Median active time to reuse and prepare a blueprint. | Under 3 minutes |
 | Registration completion | Completed accounts / registration starts. | Establish baseline; investigate every major drop-off |
 | Booking-to-preparation | Confirmed pilot appointments that reach preparation mode. | 60% if tested |
+| Community return | Registered community testers who return in days 22-28. | 60% for the small facilitated concept test |
+| Meaningful contribution | Returning testers who create a useful thread or substantive reply. | 50% for the small facilitated concept test |
+| Community privacy | Sampled posts containing client-identifying information. | 0% |
 | Safety guardrail | Critical scope, consent, privacy, or cross-tenant incident. | 0 |
 
 Targets are hypotheses for a small beta and must be reset after observing a reliable baseline.
@@ -181,3 +210,5 @@ Produce a one-page decision report containing:
 6. Privacy/safety findings.
 7. Segment and first-market recommendation.
 8. The next smallest product change to test.
+9. Public blog continue/iterate decision and its strongest trust or acquisition signal.
+10. Provider community launch, facilitate further, integrate elsewhere, or defer decision.

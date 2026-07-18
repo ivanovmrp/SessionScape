@@ -14,6 +14,8 @@ Global use must be defined as a matrix:
 | Public theme content and temporary builder | High | Localized, culturally reviewed, accessible, and clearly non-clinical |
 | Therapist accounts and saved private blueprints | Moderate | Privacy terms, security, support, deletion, export, and data-transfer basis approved |
 | Client preference profiles | Higher risk | Data-role, sensitive-data, retention, consent, and market review approved |
+| Public blog | Moderate | Localized editorial review, claims, copyright, accessibility, and correction process approved |
+| Provider forum | Higher risk | Community rules, moderation, reporting, privacy, retention, and local platform obligations approved |
 | Booking and transactional messages | Market dependent | Local time, consumer, messaging, and professional rules approved |
 | Payments, deposits, payouts, and taxes | Strongly market dependent | Payment-provider coverage and financial/legal operations approved |
 | Credential verification | Jurisdiction specific | Integrate only with authoritative registries; otherwise use clear attestation |
@@ -42,6 +44,7 @@ Each user workspace shall have a home market. A market configuration controls:
 - Local emergency, consumer-support, and complaint information if required.
 - Prohibited or restricted content and services.
 - Approved subprocessors and data regions.
+- Blog publication and provider-community availability, rules, moderation language, and response coverage.
 
 Changing a workspace's home market shall trigger review of affected terms, data, payment accounts, and capabilities rather than functioning as a cosmetic setting.
 
@@ -109,6 +112,17 @@ Payment coverage is not universal. Stripe's current availability page lists supp
 | GL-30 | Critical safety and privacy help is available in every released interface language. |
 | GL-31 | The product supports low-bandwidth and mobile use and avoids relying on color, animation, audio, or fine motor precision. |
 
+### Editorial and community
+
+| ID | Requirement |
+| --- | --- |
+| GL-32 | Editorial content and member discussions carry language, market relevance, author type, publication state, and review metadata. |
+| GL-33 | Community participation is activated only where localized rules, reporting, moderation, appeals, privacy notices, retention, and emergency disablement are operational. |
+| GL-34 | Provider-only content is not indexed publicly or exposed through public feeds, translation services, analytics, or search caches. |
+| GL-35 | Automated translation of member content is disabled until disclosure, privacy, accuracy, and cross-border processing have been reviewed. |
+| GL-36 | Market review addresses platform/intermediary duties, illegal-content reporting, law-enforcement handling, defamation, professional claims, and moderator support. |
+| GL-37 | Community profiles use market-appropriate professional terms and never imply license verification from language choice or self-attestation alone. |
+
 WCAG 2.2 is a W3C Recommendation and is also ISO/IEC 40500:2025, making it a suitable global baseline even though local legal standards still require review ([W3C WCAG 2 overview](https://www.w3.org/WAI/standards-guidelines/wcag/)).
 
 ## Jurisdiction readiness checklist
@@ -126,6 +140,7 @@ A capability may be activated for a new market only when the release record incl
 - Email/SMS consent, sender, opt-out, and recordkeeping rules if messaging is enabled.
 - Accessibility acceptance report.
 - Incident response, support, complaint, and capability-disable procedure.
+- Community rules, moderation coverage, report/appeal process, illegal-content escalation, and retention behavior if the forum is enabled.
 - A dated go/no-go decision and next review date.
 
 This checklist is a product-control requirement, not legal advice. Qualified counsel and in-market professional review are required before launch.
@@ -145,6 +160,7 @@ This checklist is a product-control requirement, not legal advice. Qualified cou
 - Therapist accounts, saved blueprints, deletion/export, and no clinical records.
 - English first unless another language has equal support and review readiness.
 - External booking links only.
+- Public articles may be tested; the provider forum remains a small invite-only, moderated concept until its separate gate passes.
 
 ### Stage 3: small English-language expansion
 
@@ -168,5 +184,6 @@ This checklist is a product-control requirement, not legal advice. Qualified cou
 - Cross-tenant data incidents: target 0.
 - Bookings shown in the wrong time zone or currency: target 0.
 - Unsupported payment or messaging activation: target 0.
+- Unsupported or unmoderated community activation: target 0.
 
 External regulatory and provider facts were checked on 2026-07-18 and require review before each market decision.

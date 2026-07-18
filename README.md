@@ -30,6 +30,8 @@ Visit `http://localhost:3000`.
 - [Technical architecture](docs/technical-architecture.md)
 - [Privacy, safety, and boundaries](docs/privacy-safety.md)
 - [Business requirements](docs/business/README.md)
+- [Data persistence and security](docs/data-persistence-security.md)
+- [Product backlog](BACKLOG.md)
 
 ## Current scope boundary
 

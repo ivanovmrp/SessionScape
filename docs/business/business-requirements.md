@@ -68,6 +68,7 @@ Primary jobs to be done:
 | Practice differentiation | Service menus often describe duration or modality, not the complete experience. | A therapist publishes or prints a clear, branded, non-medical experience description. |
 | Learning loop | Useful client preferences and experience feedback are easily lost. | The next blueprint reflects prior, client-given preferences without storing clinical notes. |
 | Team consistency | Small teams rely on verbal instructions or static manuals. | Approved templates are used and adapted with a visible revision history. |
+| Professional learning and connection | Solo providers can lack trusted peers and practical places to exchange non-client-specific ideas. | Providers return to read reviewed articles, contribute useful discussions, and build professional connections. |
 
 Professional trust is part of the value, not only a compliance task. AMTA's Code of Ethics emphasizes privacy, professionalism, truthfulness, legal scope of practice, and avoiding harm; SessionScape should reinforce those behaviors in the workflow ([AMTA Core Documents](https://www.amtamassage.org/about/core-documents/)).
 
@@ -87,6 +88,7 @@ An account shall unlock:
 6. Version history for a blueprint and its source theme.
 7. Optional feedback that helps improve a future session.
 8. Later, connections to an existing calendar or the optional booking module.
+9. A provider community with saved topics, bookmarks, notification controls, and accountable participation.
 
 The registration screen shall state what is stored, why it is stored, whether it is visible to clients, and how it can be exported or deleted.
 
@@ -109,6 +111,8 @@ Pricing is a test range, not a launch commitment.
 | Booking add-on | Connected availability, booking context, reminders, and session-preparation automation. | Test an additional USD 9-15/month plus disclosed usage/payment costs |
 | Team | Shared approved templates, roles, staff workspaces, and change history. | Later, per workspace plus active practitioner seats |
 
+Published blog articles remain public. Provider community access is included with a registered account during beta so network participation can develop; paid-plan packaging shall be tested only after the community demonstrates sustained value and viable moderation cost.
+
 The price study must compare not only willingness to pay but also the cost of replacing existing tools. Current booking competitors set a low reference point: Square offers a no-monthly-cost tier in the US and paid plans per location, while Fresha lists an independent plan at USD 19.95/month as of this document date ([Square Appointments pricing](https://squareup.com/us/en/appointments/pricing), [Fresha pricing](https://www.fresha.com/pricing)). SessionScape therefore should not charge for a generic calendar alone.
 
 ## Business requirements
@@ -127,6 +131,14 @@ The price study must compare not only willingness to pay but also the cost of re
 | BR-10 | Booking remains modular and can be disabled without reducing the core planning workflow. | Core acceptance tests pass for workspaces without the add-on. |
 | BR-11 | Global expansion is controlled by a capability-by-market configuration. | Unsupported payment, messaging, and legal-content features cannot be enabled for an unapproved market. |
 | BR-12 | Accessibility is a release requirement. | Critical journeys meet WCAG 2.2 AA through automated and manual testing. |
+| BR-13 | Published owner/editor blog content is available without registration and supports stable links, search discovery, revision history, and source attribution. | A visitor can find, read, and share a published article without creating an account. |
+| BR-14 | Full forum reading and participation require a provider account; public visitors see only purpose, rules, and intentionally selected previews. | Authorization tests prevent anonymous access to full provider-only content and search indexes. |
+| BR-15 | Community participation reinforces professional scope, client privacy, respectful conduct, and the distinction between member opinion and official content. | Rules, author labels, preventive prompts, reporting, and moderation acceptance tests pass. |
+| BR-16 | Community value is measured through useful contribution and return behavior, not registrations or raw page views alone. | Dashboard reports meaningful contributors, return rate, zero-response threads, and moderation health without ingesting post bodies. |
+| BR-17 | Community data persistence and security meet the dedicated production baseline. | The release gate in [Data persistence and security](../data-persistence-security.md) is complete. |
+| BR-18 | Community features can be disabled independently during abuse, legal, security, or staffing incidents without disabling the core builder or public safety information. | A tested feature-control procedure removes participation while preserving required evidence and service continuity. |
+| BR-19 | Providers can register, log in, see their display name while authenticated, and log out; account-gated registration returns them to their intended workflow. | Identity acceptance tests cover registration, redirect, display-name rendering, returning login, logout, session expiry, and access revocation. |
+| BR-20 | Commercial launch supports paid registration for the Professional plan while preserving free public content and limited exploration. | Hosted checkout shows price, renewal, taxes where applicable, cancellation terms, and privacy disclosures; successful payment grants the correct entitlement and failed or canceled payment does not. |
 
 ## North-star outcome and funnel
 
@@ -169,6 +181,7 @@ Supporting funnel:
 | Preference data drifts into health records. | Higher privacy, security, and regulatory exposure. | Enforce field-level scope, content warnings, retention controls, and no free-form clinical fields. |
 | Global language availability is mistaken for legal readiness. | Regulatory and reputation risk. | Separate localization from market activation and use jurisdiction release gates. |
 | Safety prompts feel like the platform is directing practice. | Scope-of-practice and liability concern. | Use reminders and client-choice language; preserve practitioner judgment and override. |
+| An empty or unsafe forum reduces professional trust. | Lower retention, misinformation, privacy incidents, or reputational harm. | Use a small seeded taxonomy, provider accounts, trained moderation, reporting, privacy prompts, and the community launch gate. |
 
 ## Decision gates
 
@@ -177,6 +190,7 @@ Supporting funnel:
 3. **Paid core gate:** at least five beta therapists independently indicate willingness to pay in a realistic checkout or deposit test, not only in an interview.
 4. **Booking build gate:** the conditions in [Booking add-on requirements](booking-addon-requirements.md) are met.
 5. **New-market gate:** the conditions in [Global readiness requirements](global-readiness-requirements.md) are met for that market and capability set.
+6. **Community gate:** participation, moderation, privacy, security, staffing, and return-use conditions in [Blog and provider community requirements](community-requirements.md) are met before production forum launch.
 
 ## Research basis
 
