@@ -12,6 +12,8 @@ type LocalAccount = {
   email: string;
 };
 
+type AppView = "builder" | "library" | "checklist" | "journal" | "community";
+
 const FlagIcon = ({ locale }: { locale: Locale }) => locale === "ru" ? (
   <svg className="flag-icon" viewBox="0 0 24 16" aria-hidden="true">
     <rect width="24" height="16" fill="#fff" />
@@ -50,6 +52,7 @@ export default function Home() {
   const [discussionTitle, setDiscussionTitle] = useState("");
   const [discussionBody, setDiscussionBody] = useState("");
   const [discussionTopic, setDiscussionTopic] = useState("");
+  const [activeView, setActiveView] = useState<AppView>("builder");
 
   const t = UI_COPY[locale];
   const c = COMMUNITY_COPY[locale];
@@ -181,6 +184,12 @@ export default function Home() {
     setCurrentUser(null);
   };
 
+  const showView = (view: AppView) => {
+    setActiveView(view);
+    setMobileMenuOpen(false);
+    window.setTimeout(() => document.getElementById(view)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
   const handleDiscussion = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const nextThread: LocalCommunityThread = {
@@ -202,11 +211,11 @@ export default function Home() {
       <header className="topbar">
         <a className="brand" href="#top">Session<span>Scape</span></a>
         <nav id="main-navigation" className={mobileMenuOpen ? "open" : ""} aria-label={t.mainNavigation}>
-          <a href="#builder" onClick={() => setMobileMenuOpen(false)}>{t.builderNav}</a>
-          <a href="#library" onClick={() => setMobileMenuOpen(false)}>{t.libraryNav}</a>
-          <a href="#checklist" onClick={() => setMobileMenuOpen(false)}>{t.checklistNav}</a>
-          <a href="#journal" onClick={() => setMobileMenuOpen(false)}>{c.insightsNav}</a>
-          <a href="#community" onClick={() => setMobileMenuOpen(false)}>{c.communityNav}</a>
+          <a href="#builder" aria-current={activeView === "builder" ? "page" : undefined} onClick={() => showView("builder")}>{t.builderNav}</a>
+          <a href="#library" aria-current={activeView === "library" ? "page" : undefined} onClick={() => showView("library")}>{t.libraryNav}</a>
+          <a href="#checklist" aria-current={activeView === "checklist" ? "page" : undefined} onClick={() => showView("checklist")}>{t.checklistNav}</a>
+          <a href="#journal" aria-current={activeView === "journal" ? "page" : undefined} onClick={() => showView("journal")}>{c.insightsNav}</a>
+          <a href="#community" aria-current={activeView === "community" ? "page" : undefined} onClick={() => showView("community")}>{c.communityNav}</a>
         </nav>
         <div className="account-actions">
           <button
@@ -257,16 +266,20 @@ export default function Home() {
       </header>
 
       <section className="hero" id="top">
-        <p className="eyebrow">{t.heroEyebrow}</p>
-        <h1>{t.heroTitle} <em>{t.heroTitleAccent}</em></h1>
-        <p className="hero-copy">{t.heroCopy}</p>
-        <div className="hero-actions">
-          <a className="button primary" href="#builder">{t.buildSession} {icon("→")}</a>
-          <a className="button text" href="#library">{t.exploreThemes}</a>
+        <div className="hero-heading">
+          <p className="eyebrow">{t.heroEyebrow}</p>
+          <h1>{t.heroTitle} <em>{t.heroTitleAccent}</em></h1>
+        </div>
+        <div className="hero-details">
+          <p className="hero-copy">{t.heroCopy}</p>
+          <div className="hero-actions">
+            <a className="button primary" href="#builder" onClick={() => showView("builder")}>{t.buildSession} {icon("→")}</a>
+            <a className="button text" href="#library" onClick={() => showView("library")}>{t.exploreThemes}</a>
+          </div>
         </div>
       </section>
 
-      <section className="workspace" id="builder" aria-label={t.builderNav}>
+      <section className="workspace view-panel" id="builder" aria-label={t.builderNav} hidden={activeView !== "builder"}>
         <div className="section-heading">
           <div>
             <p className="eyebrow">{t.builderLabel}</p>
@@ -327,7 +340,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="preparation" id="checklist">
+      <section className="preparation view-panel" id="checklist" hidden={activeView !== "checklist"}>
         <div>
           <p className="eyebrow">{t.roomPreparation}</p>
           <h2>{t.preparationTitle}</h2>
@@ -342,14 +355,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="library" id="library">
+      <section className="library view-panel" id="library" hidden={activeView !== "library"}>
         <p className="eyebrow">{t.libraryLabel}</p>
         <h2>{t.libraryTitle}</h2>
         <div className="theme-grid">
           {SESSION_THEMES.map((item) => {
             const itemCopy = item.copy[locale];
             return (
-              <button className={`theme-card experience-${item.id} ${item.id === themeId ? "selected" : ""}`} key={item.id} onClick={() => { setThemeId(item.id); document.getElementById("builder")?.scrollIntoView({ behavior: "smooth" }); }}>
+              <button className={`theme-card experience-${item.id} ${item.id === themeId ? "selected" : ""}`} key={item.id} onClick={() => { setThemeId(item.id); showView("builder"); }}>
                 <span>{itemCopy.category}</span><strong>{itemCopy.name}</strong><small>{itemCopy.tagline}</small>
               </button>
             );
@@ -357,7 +370,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="journal" id="journal">
+      <section className="journal view-panel" id="journal" hidden={activeView !== "journal"}>
         <div className="content-heading">
           <div>
             <p className="eyebrow">{c.journalEyebrow}</p>
@@ -385,7 +398,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className={`community ${providerAccess ? "member" : "preview"}`} id="community">
+      <section className={`community view-panel ${providerAccess ? "member" : "preview"}`} id="community" hidden={activeView !== "community"}>
         <div className="community-heading">
           <div>
             <p className="eyebrow">{c.communityEyebrow}</p>
@@ -439,26 +452,28 @@ export default function Home() {
               <span>{providerAccess ? c.providerAccess : c.previewAccess}</span>
             </div>
 
-            {providerAccess && localThreads.map((thread) => (
-              <article className="discussion-card local" key={thread.id}>
-                <div className="discussion-meta"><span>{thread.topic}</span><small>{c.localPostStatus}</small></div>
-                <h4>{thread.title}</h4>
-                <p>{thread.body}</p>
-                <div className="discussion-author"><span className="mini-avatar">{userInitials}</span><div><strong>{currentUser?.name}</strong><small>{c.providerAccess}</small></div></div>
-              </article>
-            ))}
+            <div className="discussion-grid">
+              {providerAccess && localThreads.map((thread) => (
+                <article className="discussion-card local" key={thread.id}>
+                  <div className="discussion-meta"><span>{thread.topic}</span><small>{c.localPostStatus}</small></div>
+                  <h4>{thread.title}</h4>
+                  <p>{thread.body}</p>
+                  <div className="discussion-author"><span className="mini-avatar">{userInitials}</span><div><strong>{currentUser?.name}</strong><small>{c.providerAccess}</small></div></div>
+                </article>
+              ))}
 
-            {COMMUNITY_THREADS.slice(0, providerAccess ? COMMUNITY_THREADS.length : 2).map((thread) => (
-              <article className="discussion-card" key={thread.id}>
-                <div className="discussion-meta"><span>{thread.topic[locale]}</span><small>{thread.posted[locale]}</small></div>
-                <h4>{thread.title[locale]}</h4>
-                <p>{thread.excerpt[locale]}</p>
-                <div className="discussion-footer">
-                  <div className="discussion-author"><span className="mini-avatar">{thread.author.split(" ").map((part) => part[0]).join("")}</span><div><strong>{thread.author}</strong><small>{thread.role[locale]}</small></div></div>
-                  <span>{c.replies(String(thread.replies))}</span>
-                </div>
-              </article>
-            ))}
+              {COMMUNITY_THREADS.slice(0, providerAccess ? COMMUNITY_THREADS.length : 2).map((thread) => (
+                <article className="discussion-card" key={thread.id}>
+                  <div className="discussion-meta"><span>{thread.topic[locale]}</span><small>{thread.posted[locale]}</small></div>
+                  <h4>{thread.title[locale]}</h4>
+                  <p>{thread.excerpt[locale]}</p>
+                  <div className="discussion-footer">
+                    <div className="discussion-author"><span className="mini-avatar">{thread.author.split(" ").map((part) => part[0]).join("")}</span><div><strong>{thread.author}</strong><small>{thread.role[locale]}</small></div></div>
+                    <span>{c.replies(String(thread.replies))}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
 
             {!providerAccess && (
               <div className="community-lock">

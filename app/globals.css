@@ -118,3 +118,54 @@ nav { display:flex; gap:clamp(16px,2.3vw,30px); } nav a { color:var(--muted); te
 
 @media (max-width:1050px) { nav { display:none; }.topbar { position:relative; overflow:visible; }.mobile-menu-toggle { display:grid; }.topbar nav.open { position:absolute; z-index:15; top:76px; right:0; left:0; display:flex; flex-direction:column; align-items:stretch; gap:0; padding:10px clamp(18px,6vw,64px) 16px; background:var(--paper); border-bottom:1px solid var(--line); box-shadow:0 12px 28px rgba(37,34,30,.14); }.topbar nav.open a { padding:12px 0; border-bottom:1px solid var(--line); font-size:14px; }.topbar nav.open a:last-child { border-bottom:0; }.article-grid { grid-template-columns:1fr 1fr; }.article-card.featured { grid-column:1/-1; }.community-layout { grid-template-columns:1fr; }.community-rules { position:static; } }
 @media (max-width:720px) { .journal,.community { padding:58px 24px; }.content-heading,.community-heading { align-items:flex-start; flex-direction:column; gap:18px; }.article-grid { grid-template-columns:1fr; }.article-card.featured { grid-column:auto; }.community-layout { grid-template-columns:1fr; }.discussion-fields { grid-template-columns:1fr; }.discussion-form-heading { flex-direction:column; }.moderation-state { text-align:left; }.community-lock { grid-template-columns:auto 1fr; }.community-lock .button { grid-column:1/-1; }.article-modal { padding:42px 24px 28px; }.article-review { flex-direction:column; gap:6px; } }
+
+/* Focused application shell: persistent navigation and one workspace at a time. */
+body { padding-top:76px; }
+main { overflow-x:clip; }
+.topbar { position:fixed; z-index:50; inset:0 0 auto; width:100%; box-shadow:0 4px 18px rgba(37,34,30,.06); }
+.topbar nav a { position:relative; padding:29px 0 27px; transition:color .15s ease; }
+.topbar nav a:hover,.topbar nav a[aria-current="page"] { color:var(--ink); }
+.topbar nav a[aria-current="page"]::after { position:absolute; right:0; bottom:-1px; left:0; height:2px; content:""; background:var(--sage); }
+.account-actions { gap:0; }
+.mobile-menu-toggle { margin-right:8px; }
+.account-profile { display:grid; min-width:34px; align-items:center; justify-items:center; gap:1px; }
+.account-identity,.account-links { justify-content:center; gap:0; }
+.language-switch + .account-profile { margin-left:10px; }
+.view-panel { scroll-margin-top:76px; animation:view-in .22s ease-out; }
+.view-panel[hidden] { display:none !important; }
+@keyframes view-in { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
+
+.hero { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr); align-items:end; gap:clamp(34px,7vw,110px); padding:52px clamp(24px,8vw,128px) 58px; }
+.hero h1 { max-width:680px; font-size:clamp(40px,5vw,66px); }
+.hero-details { align-self:end; padding-bottom:5px; }
+.hero-copy { margin:0 0 24px; font-size:16px; }
+.workspace,.library,.journal,.community { padding-top:52px; padding-bottom:56px; }
+.preparation { padding-top:56px; padding-bottom:56px; }
+.section-heading,.content-heading,.community-heading { margin-bottom:25px; }
+.discussion-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.discussion-grid .discussion-card { display:flex; min-width:0; flex-direction:column; margin-top:0; }
+.discussion-grid .discussion-footer,.discussion-grid .discussion-author:last-child { margin-top:auto; }
+.community-rules { top:96px; }
+
+@media (max-width:1050px) {
+  .topbar { position:fixed; }
+  .topbar nav.open a { padding:12px 0; }
+  .topbar nav.open a[aria-current="page"]::after { display:none; }
+}
+
+@media (max-width:820px) {
+  .hero { grid-template-columns:1fr; align-items:start; gap:24px; padding-top:46px; padding-bottom:48px; }
+  .hero-details { max-width:560px; }
+  .discussion-grid { grid-template-columns:1fr; }
+}
+
+@media (max-width:720px) {
+  .account-profile { gap:5px; }
+  .account-links { display:none; }
+  .hero { padding:40px 24px 44px; }
+  .workspace,.library,.journal,.community { padding-top:44px; padding-bottom:48px; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .view-panel { animation:none; }
+}
