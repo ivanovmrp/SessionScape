@@ -29,8 +29,8 @@ Visit `http://localhost:3000`.
 - [Experience design](docs/experience-design.md)
 - [Technical architecture](docs/technical-architecture.md)
 - [Privacy, safety, and boundaries](docs/privacy-safety.md)
+- [Business requirements](docs/business/README.md)
 
 ## Current scope boundary
 
 SessionScape is not a medical device, therapy record system, booking product, or payment processor. It provides experience-design guidance; therapists remain responsible for working within their training, local rules, professional standards, and client-specific needs.
-
