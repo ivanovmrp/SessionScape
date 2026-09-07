@@ -1,58 +1,98 @@
 # Technical architecture
 
+Status: Target architecture for the redefined MVP
+Last updated: 2026-09-06
+
 ## Decision summary
 
-Build the MVP as a responsive web application with a modular monolith architecture. The first scaffold uses Next.js and TypeScript; it keeps sample content local so user experience and the domain model can be validated before connecting accounts or client data.
+Build SessionScape as a responsive web application and modular monolith with asynchronous provider synchronization. Keep provider adapters, normalized operational data, analytics, recommendations, action eligibility, and outcome attribution as separate modules. This supports a one-provider MVP without coupling the product to that provider.
+
+The current front-end prototype predates this architecture and contains no production connection or data boundary.
 
 ## System shape
 
 ```mermaid
 flowchart LR
-  T[Therapist] --> W[Next.js web app]
-  W --> A[Application/API layer]
-  A --> D[(PostgreSQL)]
-  A --> S[Object storage: exports/assets]
-  A --> I[Authentication provider]
-  A --> Q[Background jobs: export/reminders]
+  O[Owner] --> W[SessionScape web app]
+  W --> A[Application API]
+  A --> DB[(PostgreSQL)]
+  A --> J[Job queue and scheduler]
+  J --> C[Booking-provider connector]
+  C <--> P[Existing booking platform]
+  P --> H[Verified webhooks]
+  H --> J
+  J --> E[Analytics and opportunity engine]
+  E --> DB
+  A --> G[Eligibility and action service]
+  G --> L[Provider booking links or approved delivery]
+  L --> P
 ```
 
 ## Bounded modules
 
 | Module | Responsibility | Key data |
 | --- | --- | --- |
-| Identity & workspace | Therapist, spa, role, tenant boundaries | User, workspace, membership |
-| Theme library | Reviewed reusable foundations | Theme, revision, safety guidance |
-| Session Builder | A therapist’s working blueprint | Session, configuration, checklist |
-| Preferences | Minimal, client-stated personalization | Client profile, preference, exclusion |
-| Consent prompts | In-session safety confirmations | Consent checkpoint, timestamp, wording version |
-| Reflection | Repeatable quality learning | Session rating, private note |
-| Export | Branded printable output | Export request, document reference |
-| Editorial | Versioned owner/editor articles and public publishing | Blog post, revision, topic, review state |
-| Provider community | Account-gated professional discussions | Category, thread, post, follow, reaction |
-| Trust & safety | Reporting, moderation, appeals, and auditability | Report, action, policy version, appeal |
+| Identity and workspace | Users, roles, tenancy, entitlements | User, workspace, membership |
+| Provider connections | OAuth state, encrypted credentials, scopes, capability manifest | Connection, credential reference, capability |
+| Connector | Provider API/webhook behavior and provider-to-normalized mapping | Sync cursor, source reference, webhook receipt |
+| Normalized booking data | Minimum operational projection used by SessionScape | Location, practitioner, service, customer reference, appointment, availability |
+| Synchronization | Initial import, incremental jobs, retry, reconciliation, freshness | Sync run, checkpoint, error, completeness |
+| Analytics | Metric definitions and period calculations | Metric observation, definition version |
+| Opportunity engine | Deterministic detection and later model-assisted ranking | Opportunity, rule version, rationale, estimate |
+| Eligibility and suppression | Consent basis, exclusions, contact eligibility, suppression | Eligibility decision, suppression, evidence |
+| Actions | Owner review, edits, approval, audience snapshot, booking link | Action, audience snapshot, content version, approval |
+| Attribution | Link/action correlation with bookings and completion | Touchpoint, attribution rule, outcome |
+| Audit and operations | Security and business event history, health, support diagnostics | Audit event, operational alert |
 
-## Data model (initial)
+## Connector boundary
 
-`Workspace` owns `User`, `Theme`, `ClientProfile`, and `SessionBlueprint`. A blueprint references a theme revision but stores a snapshot of the selected configuration so it remains historically accurate. `ConsentCheckpoint` and `Feedback` belong to a blueprint. Client profiles hold only minimal preference fields in the MVP. Editorial content is versioned separately from its published projection. Community content records author, visibility, moderation state, and policy version without sharing free-form fields or search indexes with client preferences.
+The connector returns stable domain objects and a per-merchant capability manifest. Missing provider capabilities remain explicit; the system must not manufacture availability or completion data.
 
-## API conventions
+Provider credentials are encrypted and separated from application records. Webhooks require signature verification, replay protection, idempotent processing, and reconciliation because delivery cannot be assumed complete or ordered.
 
-Use authenticated, tenant-scoped endpoints or server actions. Validate all input at the boundary, authorize every record by workspace, and return stable domain objects rather than database shapes. Example resources: `/themes`, `/sessions`, `/clients/:id/preferences`, `/sessions/:id/checkpoints`, `/sessions/:id/export`, `/articles`, `/community/threads`, `/community/posts`, and `/community/reports`. Public article reads and provider-only community reads use separate authorization and cache rules.
+## Data principles
+
+- Store provider identifiers with provider, merchant, and tenant namespace.
+- Use an allowlist for source fields; do not ingest free-form notes, intake answers, health data, or payment card data.
+- Preserve source timestamps and statuses alongside normalized states for reconciliation.
+- Record metric and rule versions so an owner can understand historical results.
+- Separate contact eligibility from opportunity ranking.
+- Snapshot an approved action's audience and content for audit and attribution.
+- Apply retention and deletion to raw provider payloads, normalized records, credentials, and derived analytics separately.
+- Exclude customer identifiers from product analytics and telemetry.
+
+## API shape
+
+Representative resources:
+
+- `/workspaces/:id/provider-connections`
+- `/provider-connections/:id/sync-runs`
+- `/dashboard?period=...`
+- `/metrics/:id/explanation`
+- `/opportunities`
+- `/opportunities/:id/dismiss`
+- `/actions/:id/review`
+- `/actions/:id/approve`
+- `/actions/:id/outcomes`
+- `/suppressions`
+
+All private endpoints are authenticated, tenant-scoped, authorized by role, rate-limited where appropriate, and protected against cross-workspace cache or job access.
 
 ## Delivery phases
 
-1. **Prototype:** curated themes, local builder, preparation screen, print output, and browser-local account-flow validation (this repository).
-2. **Private beta:** managed authentication, secure server-side sessions, encrypted hosted database, save/duplicate/favorite, and basic feedback.
-3. **Team readiness:** workspace roles, shared approved themes, change history, brand settings.
-4. **Production hardening:** privacy review, accessibility audit, threat modeling, backup/restore tests, observability, legal content review.
-5. **Community beta:** public versioned articles, registered-provider threads and replies, reporting, moderation, audit history, notification controls, and measured facilitation.
+1. **Discovery prototype:** synthetic dashboard, metric definitions, opportunity rules, action review, and provider-link handoff.
+2. **Connector spike:** current provider API verification, sandbox fixtures, normalization, capability manifest, and reconciliation.
+3. **Private connected beta:** managed identity, tenant isolation, one read-only provider connection, initial sync, dashboard, and explainable opportunities.
+4. **Action pilot:** owner-reviewed drafts or exports, booking links, eligibility controls, and conservative outcome attribution.
+5. **Production hardening:** accessibility, privacy, security, backup/restore, observability, provider outage handling, and support procedures.
+6. **Expansion:** direct delivery or provider write capabilities only after their gates pass; a second connector only after the connector boundary is proven.
 
 ## Architecture decisions
 
-- Start with a modular monolith to keep early development inexpensive and comprehensible.
-- Keep curated content versioned, reviewed, and separate from a user’s custom sessions.
-- Do not integrate booking, payments, or clinical records until their domain and compliance requirements have been separately designed.
-- Use managed PostgreSQL when persistence begins because sessions, themes, preferences, permissions, content revisions, community discussions, and auditability have strong relationships. PostgreSQL row-level security and full-text search support the initial tenancy and content-discovery needs.
-- Keep the current static export only for prototype behavior. Production authentication, private content, moderation, and durable writes require a server/API deployment.
-- The browser-local preview account stores only a display name, email, and session marker. It deliberately stores no password and provides no security boundary; replace it with managed identity before private beta.
-- Follow [Data persistence and security requirements](data-persistence-security.md) for schema controls, backups, retention, authentication, tenancy, content security, audit, and production release gates.
+- Use deterministic rules for initial metrics and opportunity detection. Models may later help rank or draft, but must not define contact eligibility or silently change metrics.
+- Keep booking-provider writes outside the MVP.
+- Use PostgreSQL for relational tenancy, normalized operational data, auditability, and analytical queries.
+- Use background jobs for imports, webhooks, reconciliation, calculations, and outcome updates.
+- Treat freshness, completeness, and provider capability as product-visible state.
+- Require managed authentication and server-side authorization before any real provider connection.
+- Reassess the existing [data persistence and security requirements](data-persistence-security.md) against provider credentials, synchronized customer references, background jobs, action audiences, and attribution before connected beta.

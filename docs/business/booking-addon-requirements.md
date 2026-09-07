@@ -1,168 +1,111 @@
-# Booking add-on requirements
+# Booking-platform integration requirements
 
-Status: Conditional proposal; not approved for implementation
-Last updated: 2026-07-18
+Status: Core MVP proposal; provider selection pending validation
+Last updated: 2026-09-06
 
-## Recommendation
+## Decision
 
-SessionScape should support booking, but it should not begin by building a full booking and payment platform.
+SessionScape will integrate with existing booking platforms. It will not build a booking engine for the MVP. The connected platform remains the system of record and owns availability, appointments, client booking, rescheduling, cancellation, payments, and transactional booking messages.
 
-Recommended sequence:
+The first connector should target one provider. Square is the leading candidate, subject to customer concentration, production API access, merchant-plan constraints, and technical validation. Vagaro and Mindbody are candidates for later connectors. Boulevard is a later-stage possibility where enterprise access makes commercial sense.
 
-1. **External booking bridge:** each therapist can add a link to the booking tool they already use. This is a core integration, not a paid add-on.
-2. **Calendar connection:** import or synchronize busy times and associate an appointment with a SessionScape preparation workflow, with explicit permission.
-3. **Native Booking Lite:** offer an optional paid module only after demand is proven. It covers availability, service selection, requests/confirmation, reminders, rescheduling, cancellation, and preparation context.
-4. **Deposits and payments:** add through a hosted, marketplace-capable payment provider only in approved markets; SessionScape never handles raw card data.
+## Connector contract
 
-A generic calendar is not a strong differentiator. Square and Fresha already offer online booking, reminders, payments, cancellation protection, and other practice-management features at low monthly prices or with a free tier ([Square Appointments pricing](https://squareup.com/us/en/appointments/pricing), [Fresha pricing](https://www.fresha.com/pricing)). The reason to choose SessionScape booking must be the connected workflow.
+Provider integrations must map into a stable internal model. Business logic must not depend directly on a provider's field names or status codes.
 
-## Therapist benefit
-
-The add-on creates value when it closes this loop:
-
-```mermaid
-flowchart LR
-  A["Client chooses service and time"] --> B["Client states non-clinical preferences"]
-  B --> C["Therapist receives preparation context"]
-  C --> D["Therapist creates or reuses blueprint"]
-  D --> E["Room and consent preparation"]
-  E --> F["Optional experience feedback"]
-  F --> G["Next session starts better prepared"]
+```text
+BookingProvider
+  connect()
+  disconnect()
+  syncLocations()
+  syncStaff()
+  syncServices()
+  syncCustomers()
+  syncAppointments()
+  syncAvailability()
+  subscribeToChanges()
+  buildBookingLink(context)
 ```
 
-Expected benefits:
-
-- Fewer messages and calls needed to find a time.
-- A single transition from appointment to session preparation.
-- Earlier visibility into non-clinical preferences such as scent, music, pressure range, communication style, and exclusions.
-- Reminders that can include arrival and preparation information.
-- Better calendar protection through a clear cancellation policy and, later, deposits or authorized no-show fees.
-- Less duplicate entry across scheduling, preference, and planning tools.
-- More consistent rebooking after a successful session.
-
-Square documents that reminders can prompt clients to confirm or change plans and that deposits, prepayments, or an authorized card hold can support cancellation policies and cash flow ([Square reminders](https://squareup.com/us/en/appointments/features/reminders), [Square cancellation and prepayment policies](https://squareup.com/help/us/en/article/5493-manage-booking-cancellations-and-prepayment-policies)). These are useful baseline benefits, not unique SessionScape claims.
-
-## When the add-on is not beneficial
-
-- The therapist is satisfied with an existing scheduler and does not want to migrate.
-- The practice requires complex resources, classes, payroll, memberships, inventory, or point of sale.
-- Calendar synchronization cannot reliably prevent double booking.
-- The therapist serves a market where the chosen payment or messaging provider is unsupported.
-- Building it would delay validation of the core session-design value.
-
-For these cases, SessionScape shall support an external booking URL and later consider integrations rather than forced replacement.
-
-## Scope by phase
-
-| Capability | External bridge | Booking Lite | Payments phase |
-| --- | --- | --- | --- |
-| Therapist booking URL | Yes | Yes | Yes |
-| Services, duration, buffers, availability | No | Yes | Yes |
-| Request or instant confirmation | No | Yes | Yes |
-| Time-zone-safe calendar | No | Yes | Yes |
-| Email confirmations and reminders | Existing provider | Yes | Yes |
-| Client self-reschedule/cancel | Existing provider | Yes | Yes |
-| Preference questions | SessionScape link | Yes, minimal fields | Yes, minimal fields |
-| Appointment-to-blueprint action | Link/import where possible | Native | Native |
-| Deposits, prepayment, no-show fee | Existing provider | No | Yes, approved markets only |
-| SMS | Existing provider | Optional usage feature | Optional usage feature |
-| SOAP notes or clinical intake | No | No | No |
-| Marketplace discovery | No | No | No |
+Write operations such as `createBooking`, `updateBooking`, and `cancelBooking` are outside the MVP contract. They may be added as optional provider capabilities after the direct-booking gate passes.
 
 ## Functional requirements
 
-### Provider configuration
-
 | ID | Requirement |
 | --- | --- |
-| BK-01 | A provider can enable or disable booking without changing access to core SessionScape features. |
-| BK-02 | A provider can define services, duration, cleanup/preparation buffers, location or remote status, price display, and whether requests need approval. |
-| BK-03 | A provider can set working hours, breaks, lead time, maximum advance window, and per-day limits in the provider's IANA time zone. |
-| BK-04 | A provider can publish a booking page and preview exactly what a client will see. |
-| BK-05 | A provider can connect an external calendar using least-privilege authorization and can disconnect it at any time. |
-| BK-06 | Busy-time synchronization must fail closed: an uncertain or stale slot is not offered as available. |
-| BK-07 | A provider can define a plain-language cancellation, late-arrival, rescheduling, and refund policy appropriate to the activated market. |
+| INT-01 | A workspace connects through provider-supported OAuth or an equivalent approved authorization flow. |
+| INT-02 | The consent screen explains every requested scope and the SessionScape feature that needs it. |
+| INT-03 | The connector requests the minimum scopes and fields required for enabled metrics and actions. |
+| INT-04 | Source identifiers are namespaced by provider and tenant; retries and webhook replays are idempotent. |
+| INT-05 | Provider locations, staff, services, customers, appointments, status changes, cancellations, and availability are normalized where accessible. |
+| INT-06 | Free-form notes, intake answers, health details, card data, and unrelated provider records are excluded from ingestion. |
+| INT-07 | Initial historical import and incremental synchronization expose progress, last success, errors, freshness, and partial-data conditions. |
+| INT-08 | Webhook signatures are verified, secrets are protected, duplicate events are safe, and missed events are reconciled. |
+| INT-09 | Provider status values map to documented internal states without treating requested, canceled, no-show, and completed appointments as equivalent. |
+| INT-10 | Availability-derived metrics are disabled when availability is inaccessible, stale, or cannot account for staff and service constraints. |
+| INT-11 | A booking call to action uses a provider-supported URL and preserves available location, service, practitioner, or time context without promising a slot. |
+| INT-12 | Disconnecting revokes or deletes credentials, stops synchronization, marks data stale, and begins the approved retention/deletion process. |
+| INT-13 | Connector access failures, rate limits, provider outages, and merchant-plan restrictions are visible to the owner and operations team. |
+| INT-14 | Sync and analytical processing preserve tenant isolation and are covered by cross-workspace authorization tests. |
+| INT-15 | A connector capability manifest declares which data, webhooks, booking links, and write operations are supported for that merchant. |
 
-### Client booking
+## Metric data dependencies
 
-| ID | Requirement |
-| --- | --- |
-| BK-08 | A client can view services and availability without creating a SessionScape client account. |
-| BK-09 | The booking flow displays date, time, time zone, duration, location, total price, payment timing, and cancellation policy before confirmation. |
-| BK-10 | The client provides only contact data required to fulfill the appointment and receive transactional messages. |
-| BK-11 | Marketing consent is separate, optional, and never bundled with booking acceptance. |
-| BK-12 | Preference questions remain optional unless a field is genuinely required for safe service delivery; they do not request diagnoses, medications, or SOAP-note content. |
-| BK-13 | The client can decline aroma, choose not to state preferences, and communicate exclusions without selecting a sensitive-area service. |
-| BK-14 | The client receives confirmation and can reschedule or cancel according to the disclosed policy. |
-| BK-15 | The flow does not accept bookings for minors in the first release. |
+| Product metric or action | Minimum source data | Fallback behavior |
+| --- | --- | --- |
+| Appointments and cancellations | Appointment identifier, time, status, service/location/staff references | Show only periods covered by a successful sync. |
+| Open appointment hours | Staff/service availability plus active appointments and buffers | Mark unavailable; do not infer from business hours alone. |
+| Estimated unused capacity | Open capacity plus price or expected-value rule | Show hours only if a defensible value is unavailable. |
+| Rebooking rate | Completed appointments and stable customer reference | Exclude records without reliable customer or completion state. |
+| Overdue clients | Customer reference, eligible completed dates, configurable interval | Use business-defined intervals when history is insufficient. |
+| Cancellation recovery | Cancellation time, original slot, later appointment occupying the slot | Report unknown when provider data cannot establish refill. |
+| Campaign attribution | Eligible audience, action timestamp, later booking and completion | Label as influenced or attributed only under documented rules. |
 
-### Preparation connection
+## First-provider validation
 
-| ID | Requirement |
-| --- | --- |
-| BK-16 | A confirmed appointment creates a preparation task but does not automatically generate hands-on technique recommendations. |
-| BK-17 | The therapist can start from a prior blueprint, a service template, a curated theme, or a blank blueprint. |
-| BK-18 | Appointment contact data and client-stated preferences are visible only to authorized members of that workspace. |
-| BK-19 | Cancellation removes the appointment from active preparation views while preserving only the minimum audit and financial records required by policy or law. |
-| BK-20 | Booking analytics do not include message bodies, preference values, client names, or contact details. |
+Before implementation commitment, verify with current official provider documentation and a production-access test:
 
-### Payments, deposits, and fees
+- application approval and partner requirements;
+- OAuth scopes and merchant consent;
+- read access by merchant subscription level;
+- historical range, pagination, rate limits, and data latency;
+- appointment, customer, catalog, team, location, availability, and webhook coverage;
+- stable booking-link options;
+- sandbox fidelity and production review requirements;
+- data-use, caching, deletion, branding, and marketplace terms; and
+- expected per-merchant infrastructure and support cost.
 
-| ID | Requirement |
-| --- | --- |
-| BK-21 | Payment capability is controlled per market and shall remain unavailable where provider onboarding, payout, refund, tax, or consumer requirements have not been approved. |
-| BK-22 | Checkout uses provider-hosted or tokenized payment components; SessionScape systems never receive raw primary account numbers or card security codes. |
-| BK-23 | The provider is shown processor fees, SessionScape fees, taxes if applicable, payout timing, refund behavior, dispute responsibility, and negative-balance handling before activation. |
-| BK-24 | Deposits, prepayments, and no-show charges require a displayed policy and the client's affirmative authorization. |
-| BK-25 | A provider can issue full or partial refunds and see an immutable financial event history. |
-| BK-26 | SessionScape shall complete a PCI scope assessment even when hosted payment components are used; PCI DSS applies to entities that store, process, or transmit cardholder data and may affect connected systems ([PCI SSC merchant guidance](https://listings.pcisecuritystandards.org/merchants/)). |
+## Direct-booking gate
 
-## Non-functional requirements
+Creating or changing appointments through an API is a later capability. It requires all of the following:
 
-| ID | Requirement |
-| --- | --- |
-| BK-NF-01 | Slot reservation and confirmation operations are idempotent and resistant to concurrent double booking. |
-| BK-NF-02 | Dates are stored as instants plus the booking time zone; daylight-saving transitions are covered by automated tests. |
-| BK-NF-03 | Booking, cancellation, refund, policy-version, and authorization events are auditable. |
-| BK-NF-04 | Transactional delivery failures are visible to the provider and support safe retry. |
-| BK-NF-05 | Critical booking flows meet WCAG 2.2 AA and work with keyboard and screen-reader navigation. |
-| BK-NF-06 | Availability and booking status have defined service-level objectives before public launch. |
-| BK-NF-07 | Data export, deletion, retention, and incident-response procedures include appointment data. |
+1. Owners demonstrate that provider links materially limit conversion or workflow value.
+2. The provider supports reliable seller-level write access for the target merchant plans.
+3. Availability, concurrency, idempotency, time zones, service/staff constraints, cancellations, and audit behavior pass acceptance testing.
+4. The business can support appointment failures and disputes.
+5. Clients see and accept the connected provider's price, policy, location, time zone, and booking terms.
+6. The feature has a measurable commercial benefit beyond the link-based experience.
 
-## Commercial model hypothesis
+Payments remain with the booking provider. SessionScape must not receive raw card data.
 
-### Recommended experiment
+## Second-provider gate
 
-- External booking link: included in the free or core plan.
-- Calendar connection and appointment-to-blueprint shortcut: include in Professional during beta to test usage.
-- Native Booking Lite: test at USD 9, USD 12, and USD 15 per month as an add-on.
-- SMS: pass through usage cost with a clearly disclosed allowance or rate.
-- Payments: pass through processor fees; do not add a platform percentage until therapists understand the value and unit economics are known.
+A second connector may begin only when:
 
-An add-on is preferable to forcing every subscriber to fund booking because many therapists already have a scheduler. Annual and bundle discounts can be tested after standalone willingness to pay is measured.
-
-## Build gate
-
-Native Booking Lite shall not enter implementation until all of the following are true:
-
-1. At least 8 target therapists have been interviewed, including at least 5 who currently use booking software.
-2. At least 60% of interviewed target therapists identify booking-to-preparation handoff as a recurring problem, not merely a desirable feature.
-3. At least 5 therapists complete an external-link or clickable booking-to-blueprint pilot.
-4. At least 3 agree to a realistic paid pilot or refundable deposit within the proposed range.
-5. The business chooses whether to build, integrate, or partner after comparing 24-month total cost, support load, migration risk, and differentiation.
-6. Calendar, messaging, privacy, consumer-policy, tax, and payment dependencies are approved for the first market.
-
-If the gate fails, retain the external booking bridge and focus on session design.
+- the first connector has stable production sync and an acceptable support burden;
+- normalized metrics and actions operate without provider-specific branching outside the connector;
+- customer evidence shows the new provider materially expands the paid market;
+- its access terms and economics are viable; and
+- automated contract tests can be reused against both connectors.
 
 ## Success measures
 
-- Percentage of confirmed appointments that reach preparation mode.
-- Median therapist time from opening an appointment to a ready blueprint.
-- Booking completion rate and abandonment by step.
-- Reschedule, cancellation, and no-show rates compared with the therapist's prior baseline.
-- Percentage of users who keep the add-on after two paid months.
-- Support contacts per 100 bookings.
-- Calendar conflicts and duplicate bookings: target 0.
-- Payment, refund, or message failures by market and provider.
+- Successful initial connections and time to first usable insight.
+- Sync success, latency, freshness, and reconciliation mismatch rate.
+- Percentage of connected merchants with sufficient data for each core metric.
+- Connector-related support contacts per 100 connected businesses.
+- Booking-link clicks that produce attributable bookings and completed appointments.
+- Duplicate or cross-tenant source records: target 0.
+- Prohibited fields ingested: target 0.
 
-External facts and prices were checked on 2026-07-18 and should be rechecked before implementation or launch.
+Provider facts must be checked again against current official documentation before implementation or launch.

@@ -1,39 +1,42 @@
 # SessionScape business requirements
 
-Status: Draft for therapist discovery
-Last updated: 2026-07-18
+Status: Redefined product direction; ready for customer discovery
+Last updated: 2026-09-06
 
-This folder turns the current proof of concept into a set of testable business decisions and requirements. It does not authorize production collection of client health information, native payments, or a worldwide launch.
+SessionScape is being redefined as the intelligence and action layer for massage businesses. It connects to an existing booking platform, detects unused capacity and retention opportunities, recommends focused actions, and measures booking outcomes. The connected booking platform remains the system of record.
 
 ## Documents
 
 | Document | Purpose |
 | --- | --- |
-| [Core business requirements](business-requirements.md) | Defines target users, value, registration reasons, packaging, outcomes, and business requirements. |
-| [Booking add-on requirements](booking-addon-requirements.md) | Evaluates whether booking should exist, what makes it valuable, and the gates for a paid add-on. |
-| [Blog and provider community requirements](community-requirements.md) | Defines public editorial content, registered-provider discussion, moderation, access, and launch gates. |
-| [Global readiness requirements](global-readiness-requirements.md) | Defines how the service can expand globally without treating legal, payment, and professional rules as universal. |
-| [Validation plan](validation-plan.md) | Provides interviews, prototype tests, pricing tests, metrics, and go/no-go criteria. |
-| [Data persistence and security](../data-persistence-security.md) | Selects PostgreSQL and defines storage, tenancy, retention, backup, authentication, and application-security requirements. |
+| [Core business requirements](business-requirements.md) | Defines the customer, problem, MVP, dashboard, value, scope, metrics, pricing hypotheses, and decision gates. |
+| [Booking-platform integration requirements](booking-addon-requirements.md) | Defines the connector model, provider selection, source-data rules, link-based booking, and gates for future write capabilities. |
+| [Validation plan](validation-plan.md) | Tests the revenue problem, dashboard usefulness, data trust, provider selection, actions, and willingness to pay. |
+| [Blog and provider community requirements](community-requirements.md) | Historical expansion proposal; outside the redefined MVP. |
+| [Global readiness requirements](global-readiness-requirements.md) | Requirements for activating data, messaging, and commercial capabilities by market. |
+| [Data persistence and security](../data-persistence-security.md) | Storage, tenancy, retention, backup, authentication, and security baseline; must be revised against the connected-data model before production. |
 
-## Current recommendation
-
-1. Keep session design and preparation as the product's core identity.
-2. Let visitors explore themes without an account. Ask them to register when they want durable value: save, reuse, synchronize, brand, and improve their work.
-3. Add a free external booking link or lightweight calendar connection before building a booking engine.
-4. Treat native booking as an optional paid module only if therapists demonstrate demand for the connected booking-to-blueprint workflow.
-5. Make the planning product globally adaptable, but activate booking, payments, messaging, and client-data features market by market.
-6. Keep the owner-run blog public; offer a moderated discussion community to registered providers and validate participation before treating it as paid-plan value.
-
-## Decision status
+## Current decisions
 
 | Decision | Status |
 | --- | --- |
-| Core value proposition | Hypothesis ready for therapist validation |
-| Registration value exchange | Recommended for private beta |
-| Native booking | Conditional; not approved for build yet |
-| Public blog | Recommended; owner/editor published content |
-| Provider forum | Conditional beta; registration and moderation required |
-| Booking price | Experiment range only; not a published price |
-| Global availability | Conditional, phased by capability and jurisdiction |
-| Clinical records / SOAP notes | Out of scope |
+| Product role | Intelligence and action layer for massage businesses |
+| Booking strategy | Integrate with existing platforms; no MVP scheduler |
+| Initial provider | One provider; Square is the leading candidate pending validation |
+| Initial buyer | Owner/operator of an independent practice or small studio |
+| Core outcomes | Fill capacity, improve retention, recover cancellations, grow attributable revenue |
+| Initial booking action | Return clients to the existing provider's booking flow |
+| Client outreach | Owner-reviewed; direct delivery gated by consent and market controls |
+| Clinical and health data | Out of scope |
+| Session-theme builder | Earlier prototype; outside the redefined MVP |
+| Community and editorial | Outside the redefined MVP |
+| Name | Working name pending availability review |
+
+## Historical documents
+
+The previous session-design direction is retained for traceability:
+
+- [Legacy session-design business requirements](legacy-session-design-business-requirements.md)
+- [Legacy booking add-on requirements](legacy-booking-addon-requirements.md)
+- [Legacy session-design validation plan](legacy-session-design-validation-plan.md)
+- [Legacy business requirements index](legacy-business-requirements-index.md)

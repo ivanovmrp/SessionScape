@@ -1,214 +1,163 @@
 # Business validation plan
 
-Status: Ready to run
-Last updated: 2026-07-18
+Status: Ready to run for the redefined product
+Last updated: 2026-09-06
 
 ## Objective
 
-Determine whether SessionScape solves a recurring, valuable problem for massage professionals; which outcomes justify registration; and whether a connected booking add-on deserves investment.
+Determine whether massage-business owners have a frequent, valuable revenue-operations problem that SessionScape can solve from existing booking data, which insights cause action, which booking provider should be supported first, and whether owners will pay for measurable outcomes.
 
-The goal is evidence for decisions, not favorable comments about the visual prototype.
+The research must test behavior and economics. Positive reactions to a dashboard are insufficient.
 
 ## Questions to answer
 
-1. How do therapists currently design, remember, and prepare individualized sessions?
-2. Which parts of that work are frequent, slow, inconsistent, risky, or frustrating?
-3. Does SessionScape save time, improve confidence, support professional boundaries, or differentiate a practice?
-4. What would therapists trust SessionScape to store?
-5. What specific outcome makes account creation worthwhile?
-6. Which booking tool do they use, what does it cost, and what do they dislike about it?
-7. Is appointment-to-preparation handoff a real problem?
-8. Would they replace a scheduler, connect it, or prefer an external link?
-9. What would they pay for the core and booking add-on after using them?
-10. What local terminology, rules, and expectations affect global use?
-11. Which articles would providers seek out, save, share, or trust the owner to curate?
-12. Would a moderated provider forum reduce isolation or improve practical work enough to drive return visits?
-13. What identity, privacy, moderation, and participation conditions are required before a provider will contribute?
+1. How does the owner currently monitor open capacity, cancellations, rebooking, returning clients, and practitioner utilization?
+2. When was the last preventable empty slot, and what did it cost?
+3. How are overdue clients identified and contacted today?
+4. Which reports, spreadsheets, exports, or manual routines are used?
+5. Which actions have produced bookings, and can the business measure them?
+6. Which booking platform and merchant plan does the business use?
+7. What data can the owner authorize, and what data should SessionScape never import?
+8. Which dashboard numbers are trusted, misunderstood, or already available elsewhere?
+9. Which recommendations are specific enough to act on?
+10. Is a provider booking link sufficient for MVP outreach?
+11. What review and control does the owner require before contacting clients?
+12. What amount would the business pay after seeing realistic recovered-revenue evidence?
 
 ## Participants
 
-Recruit 8-12 participants for the first round:
+Recruit 8-12 owners or operators:
 
-- At least 6 solo practitioners.
-- At least 2 owners or leads from a 2-10 practitioner business.
-- A mix of therapists who currently use dedicated booking software, a general calendar, and manual scheduling.
-- At least 2 newer practitioners and 2 with more than five years in practice.
-- At least 2 who deliberately offer branded or sensory experiences.
-- Include one or more participants outside the intended first launch jurisdiction for global discovery, but do not treat that as market approval.
+- at least four solo practices and four businesses with 2-10 practitioners;
+- a mix of booking platforms, with at least four users of the leading integration candidate;
+- businesses with recurring-client services and at least six months of appointment history;
+- a mix of utilization levels and approaches to rebooking; and
+- participants who personally control software purchasing and client outreach.
 
-Avoid recruiting only friends or enthusiastic early supporters. Compensate participants consistently and do not ask them to reveal identifiable client information.
+Do not collect identifiable client exports during discovery. Use synthetic or owner-redacted data until a reviewed data agreement and secure research process exist.
 
 ## Discovery interview
 
-Use past behavior before opinions:
+Use recent examples and ask to see the current workflow when possible:
 
-1. "Walk me through the last time you prepared for a returning client."
-2. "What did you check, remember, write down, or set up?"
-3. "Where did that information live?"
-4. "What has gone wrong or been forgotten in the last month?"
-5. "How do you decide whether to repeat or adjust a session?"
-6. "How do you describe a signature service to a new client?"
-7. "Show me how appointments reach your calendar today."
-8. "What happens between a booking and the moment the client arrives?"
-9. "What do reminders, cancellations, and no-shows require from you?"
-10. "Which information would you never store in this product?"
-11. "What software did you last pay for, and what made it worth paying for?"
-12. "Tell me about the last time another provider helped you solve a practice or session-design problem."
-13. "Where do you currently exchange professional ideas, and what makes you participate or stay silent?"
-14. "What would make you trust or distrust an owner-run provider community?"
+1. “Walk me through the last week when you had appointment hours you wanted to fill.”
+2. “When did you notice the openings, and what did you do?”
+3. “What was the approximate value of the unused time?”
+4. “Show me how you know whether clients are returning on schedule.”
+5. “Tell me about the last cancellation you successfully refilled.”
+6. “Which booking reports do you check, and how often?”
+7. “What do you copy into a spreadsheet or calculate yourself?”
+8. “Tell me about the last client campaign you sent and how you chose recipients.”
+9. “How did you know whether it worked?”
+10. “Which customer or appointment information should another tool never receive?”
+11. “What would make you disconnect an analytics product?”
+12. “Which software purchase most recently paid for itself?”
 
-Do not lead with "Would you use this?" Record workflow frequency, current workaround, time/cost, consequence, and evidence of prior attempts to solve it.
+Record frequency, current effort, financial consequence, current workaround, ability to act, source platform, purchasing authority, and evidence of prior spending.
 
-## Prototype tasks
+## Prototype test
 
-Give the participant a fictional client scenario containing only non-clinical preferences.
+Use a realistic synthetic dataset and an interactive dashboard. Ask the participant to:
 
-1. Find or create an appropriate session blueprint.
-2. Adjust duration, pace, pressure range, atmosphere, focus, and exclusions.
-3. Prepare the room and identify the consent conversation.
-4. Save or print the plan and explain what they expect registration to do.
-5. Return to the fictional client and reuse the plan with one changed preference.
-6. Use a clickable booking-to-blueprint concept and compare it with their current process.
-7. Find and read a public article, then explain whether it changes trust in SessionScape.
-8. Review a provider-community preview, identify what belongs there, register for preview access, and create a fictional non-client-specific discussion.
-9. Locate the community rules, privacy reminder, report action, and distinction between member opinion and official editorial content.
+1. Explain what happened in the business this week.
+2. Identify the most important revenue problem.
+3. Verify the meaning and freshness of each number used in the decision.
+4. Review an underbooked-period recommendation and refine its audience.
+5. Review an overdue-client recommendation and explain exclusions.
+6. Approve, edit, or dismiss a message draft.
+7. Follow the booking call to action into a representative provider flow.
+8. Distinguish estimated opportunity, attributed booking, completed appointment, and realized revenue.
+9. Respond to a stale-sync or partial-data warning.
+10. Choose whether the product is worth connecting and paying for.
 
-Observe completion, errors, hesitation, language concerns, perceived scope, and whether the user invents value not shown in the interface.
+Measure task completion, time to first useful insight, interpretation errors, trust concerns, actions selected, and information the participant requests but cannot find.
 
-## Registration experiments
+## Data feasibility test
 
-Test three value messages at the save moment:
+For the leading provider, create a field-and-capability matrix from current official documentation and a sandbox or production-access test. Verify:
 
-| Message | Hypothesis |
-| --- | --- |
-| "Save and reuse this blueprint" | Repeat efficiency is the main registration driver. |
-| "Keep client preferences private and ready for next time" | Continuity and personalization drive registration. |
-| "Create your branded session library" | Practice differentiation drives registration. |
-| "Join a moderated provider community" | Peer connection and professional learning create a repeat registration reason. |
+- merchant eligibility and approval;
+- appointments, customers, locations, services, staff, availability, status, and cancellations;
+- stable identifiers and historical coverage;
+- webhooks, pagination, rate limits, and reconciliation;
+- provider booking links and contextual parameters;
+- subscription-level restrictions;
+- prohibited fields that must be blocked; and
+- deletion, caching, and data-use terms.
 
-Measure registration start, completion, stated concern, and successful second-session reuse. Do not optimize only email capture; an account that never returns is not validation.
+Use synthetic fixtures to calculate every proposed metric. Reconcile results against independently calculated expected values.
 
-## Pricing experiments
+## Offer and pricing test
 
-### Core plan
+After an owner has used the dashboard with realistic data, present a concrete paid pilot:
 
-After a participant completes both an initial and repeat workflow, show a real choice:
+- one supported booking connection;
+- weekly dashboard and alerts;
+- underbooked-period and overdue-client recommendations;
+- owner-reviewed action workflow; and
+- outcome tracking where supported.
 
-- Continue with Explorer.
-- Start a time-limited Professional trial that will convert at USD 12, USD 15, or USD 19 per month.
-- Choose an annual option with a visible discount.
-
-Use randomized or sequential price cohorts when sample size allows. A checkout click, trial with payment authorization, or refundable deposit is stronger evidence than a 1-10 willingness score.
-
-### Booking add-on
-
-Compare:
-
-1. Free external booking link.
-2. Existing calendar connection included with Professional.
-3. Native Booking Lite at an additional USD 9, USD 12, or USD 15 per month.
-
-Ask users to choose while viewing exact features and any message or payment fees. Record whether they would replace, connect, or keep their current scheduler.
-
-No price should be published as final until unit costs for authentication, storage, email/SMS, support, payment disputes, taxes, and privacy operations are modeled.
+Test offers around USD 49, USD 99, and USD 199 per month with clear limits and no invented savings claim. Strong evidence is a signed pilot agreement, paid pilot, checkout authorization, or refundable deposit. A willingness score is weak evidence.
 
 ## Evidence scorecard
 
-Score each interview separately before discussing themes.
-
 | Signal | 0 | 1 | 2 |
 | --- | --- | --- | --- |
-| Problem frequency | Rare or hypothetical | Monthly | Weekly/daily |
-| Current effort | No workaround | Minor workaround | Multiple tools, repeated effort, or paid workaround |
-| Consequence | No meaningful effect | Irritation or small delay | Lost time/revenue, inconsistency, or client experience risk |
-| Core prototype value | Cosmetic | Helpful | Changes preparation or repeat workflow |
-| Registration value | No reason | Would save for later | Creates account to save/reuse during test |
-| Payment evidence | Says maybe | Chooses a price | Starts realistic checkout/deposit/trial |
-| Booking handoff | No problem | Convenient | Recurring pain with active workaround |
-| Community value | Generic content or no participation intent | Would read occasionally | Returns, contributes, or follows a useful professional topic |
-| Community trust | Will not join | Joins but will only read | Understands rules and will contribute under the stated identity/privacy model |
+| Problem frequency | Rare or hypothetical | Monthly | Weekly or daily |
+| Financial consequence | Unknown or immaterial | Noticeable | Repeated and quantified |
+| Current effort | No action | Manual report or occasional outreach | Repeated multi-step workaround or paid tool |
+| Insight value | Merely interesting | Confirms a suspicion | Changes priority or reveals a missed opportunity |
+| Actionability | Cannot act | Needs substantial extra work | Can approve or act in minutes |
+| Data trust | Rejects connection | Connects with reservations | Understands scopes and accepts minimum-data connection |
+| Provider fit | Unsupported or insufficient data | Partial data | Core metrics supported reliably |
+| Payment evidence | Verbal interest | Accepts a price in a forced choice | Enters a realistic paid pilot |
 
 ## Decision criteria
 
-### Proceed with persistent core beta when
+Proceed to a connected MVP when:
 
-- At least 7 of 10 representative participants score 2 on core prototype value.
-- At least 6 complete a second-session reuse task without prompting.
-- At least 5 register at a durable-value moment in the test.
-- No unresolved critical privacy, boundary, or scope misunderstanding remains.
+- at least 7 of 10 owners show weekly or financially meaningful capacity or retention problems;
+- at least 6 identify and correctly explain a useful opportunity from the prototype;
+- at least 5 choose and complete an action without staff intervention;
+- at least 5 target businesses use the selected provider or the provider reaches a justified initial market;
+- source data supports the two core opportunity types with acceptable accuracy; and
+- no unresolved critical privacy, consent, or attribution misunderstanding remains.
 
-### Iterate the positioning when
+Proceed to a paid pilot when at least three representative businesses accept a realistic paid commitment and projected contribution margin remains positive after provider, infrastructure, messaging, onboarding, and support costs.
 
-- Users like themes but do not return to reuse a plan.
-- The strongest value is consistently branding, team standards, or another segment rather than solo preparation.
-- Participants interpret blueprints as clinical advice or rigid protocols.
+Change the first provider when access, customer concentration, data quality, merchant-plan restrictions, or support economics fail the connector gate.
 
-### Proceed with Booking Lite discovery/build gate when
+Defer direct messaging when consent and suppression data cannot be established reliably. Continue with reviewed drafts, exports, or provider-supported workflows.
 
-- The quantitative conditions in [Booking add-on requirements](booking-addon-requirements.md) are met.
-- The connected workflow is preferred over a generic scheduling feature.
-- Integration and partner alternatives have been costed before a custom build.
+Stop or reposition when owners already receive and act on equivalent insights, recommendations do not change behavior, data cannot support trustworthy metrics, or willingness to pay does not cover delivery cost.
 
-### Stop or defer native booking when
+## Four-week pilot measures
 
-- Most therapists prefer their existing scheduler plus a link or integration.
-- Price willingness does not cover support, messaging, payment, and reliability costs.
-- The feature distracts from proving repeat value in session design.
+| Measure | Initial directional target |
+| --- | --- |
+| Connected businesses reaching a usable dashboard | 80% |
+| Median time from authorization to first trustworthy insight | Under 15 minutes after initial sync |
+| Owners reviewing recommendations each week | 60% |
+| Qualified recommendations acted on | 30% |
+| Pilot businesses with at least one attributable booking | Establish baseline; inspect every attribution manually |
+| Estimated versus actual value reporting errors | 0 critical errors |
+| Prohibited source fields ingested | 0 |
+| Ineligible or suppressed clients contacted | 0 |
+| Cross-workspace data incidents | 0 |
 
-### Proceed with a production community beta when
+Targets must be reset after a reliable baseline exists.
 
-- The launch conditions in [Blog and provider community requirements](community-requirements.md) are met.
-- At least 6 of 10 target providers return for a second community visit during a four-week facilitated concept test.
-- At least 5 contribute a useful thread or reply without staff prompting.
-- Providers consistently distinguish member opinion from reviewed owner/editor content and avoid client-identifying information.
-- Named moderation coverage, response targets, security controls, retention rules, and viable unit cost are in place.
+## Research output
 
-### Keep the blog public but defer the forum when
+Produce a decision report containing:
 
-- Providers value the editorial content but prefer established communities for discussion.
-- The forum produces mostly product support requests, promotion, or unsafe client-case discussion.
-- Useful participation depends on unsustainable staff seeding or moderation effort.
-
-## Four-week beta measures
-
-| Measure | Definition | Initial directional target |
-| --- | --- | --- |
-| Activation | Registered therapist saves a complete blueprint within 24 hours. | 60% |
-| Repeat preparation | Activated therapist reuses or creates another prepared session within 14 days. | 50% |
-| Week-four retention | Activated therapist has a prepared session in days 22-28. | 40% |
-| Time to repeat plan | Median active time to reuse and prepare a blueprint. | Under 3 minutes |
-| Registration completion | Completed accounts / registration starts. | Establish baseline; investigate every major drop-off |
-| Booking-to-preparation | Confirmed pilot appointments that reach preparation mode. | 60% if tested |
-| Community return | Registered community testers who return in days 22-28. | 60% for the small facilitated concept test |
-| Meaningful contribution | Returning testers who create a useful thread or substantive reply. | 50% for the small facilitated concept test |
-| Community privacy | Sampled posts containing client-identifying information. | 0% |
-| Safety guardrail | Critical scope, consent, privacy, or cross-tenant incident. | 0 |
-
-Targets are hypotheses for a small beta and must be reset after observing a reliable baseline.
-
-## Research artifacts
-
-For every session retain only:
-
-- Participant code and segment attributes.
-- Consent to research and recording status.
-- Workflow observations and non-identifying quotes.
-- Task completion, time, errors, scorecard, and decisions.
-- Product changes or assumptions invalidated.
-
-Do not place real client records, names, medical histories, or identifiable booking screenshots in research notes.
-
-## Output after the first round
-
-Produce a one-page decision report containing:
-
-1. Confirmed and rejected assumptions.
-2. Top three recurring jobs and their frequency.
-3. Registration trigger that performed best.
-4. Core pricing evidence.
-5. Booking build, integration, or defer decision.
-6. Privacy/safety findings.
-7. Segment and first-market recommendation.
-8. The next smallest product change to test.
-9. Public blog continue/iterate decision and its strongest trust or acquisition signal.
-10. Provider community launch, facilitate further, integrate elsewhere, or defer decision.
+1. Confirmed and rejected business-problem assumptions.
+2. Best initial customer segment and buyer.
+3. Frequency and estimated cost of the top three problems.
+4. First-provider decision and capability gaps.
+5. Metric accuracy and trust findings.
+6. Recommendations owners acted on and ignored.
+7. Link, draft/export, or direct-message delivery decision.
+8. Paid-pilot evidence and viable price range.
+9. Privacy, consent, security, and attribution blockers.
+10. The smallest next experiment or build commitment.
