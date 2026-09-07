@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SessionScape | Design better massage experiences",
-  description: "A professional session-design workspace for massage therapists."
+  title: "SessionScape | Revenue intelligence for massage businesses",
+  description: "Find empty capacity, bring clients back, and grow revenue using your existing booking data."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -13,4 +13,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
-

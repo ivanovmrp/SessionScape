@@ -1,606 +1,130 @@
 "use client";
 
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import { BLOG_ARTICLES, COMMUNITY_COPY, COMMUNITY_THREADS, type LocalCommunityThread } from "../lib/community";
-import { AROMA_OPTIONS, DURATION_OPTIONS, UI_COPY } from "../lib/translations";
-import { type Locale, SESSION_THEMES } from "../lib/themes";
+import { useMemo, useState } from "react";
+import { DASHBOARD_FIXTURES, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 
-const icon = (symbol: string) => <span aria-hidden="true">{symbol}</span>;
-
-type LocalAccount = {
-  name: string;
-  email: string;
+const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
+  const paths: Record<string, React.ReactNode> = {
+    grid: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
+    spark: <><path d="M4 19V9m6 10V5m6 14v-7m4 7V3"/><path d="m3 11 6-6 6 7 6-9"/></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    action: <><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-5"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V20h-3v-.09a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 14.7a1.7 1.7 0 0 0-1.55-1H5v-3h.09A1.7 1.7 0 0 0 6.64 9.6 1.7 1.7 0 0 0 6.3 7.72l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1-1.55V4h3v.09a1.7 1.7 0 0 0 1.1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.55 1H21v3h-.09A1.7 1.7 0 0 0 19.4 15Z"/></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></>,
+    refresh: <><path d="M20 7h-5V2"/><path d="M4 17a8 8 0 0 0 14.9-2M4 7a8 8 0 0 1 14.9 2"/></>,
+    info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
+    arrow: <><path d="M5 12h14M13 6l6 6-6 6"/></>,
+    chevron: <path d="m9 18 6-6-6-6"/>,
+    trend: <><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></>,
+    warning: <><path d="M10.3 3.7 2.5 17.2A2 2 0 0 0 4.2 20h15.6a2 2 0 0 0 1.7-2.8L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></>,
+    close: <path d="m6 6 12 12M18 6 6 18"/>,
+  };
+  return <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 };
 
-type AppView = "builder" | "library" | "checklist" | "journal" | "community";
-
-const FlagIcon = ({ locale }: { locale: Locale }) => locale === "ru" ? (
-  <svg className="flag-icon" viewBox="0 0 24 16" aria-hidden="true">
-    <rect width="24" height="16" fill="#fff" />
-    <rect y="5.33" width="24" height="5.34" fill="#1c57a7" />
-    <rect y="10.67" width="24" height="5.33" fill="#d52b1e" />
-  </svg>
-) : (
-  <svg className="flag-icon" viewBox="0 0 24 16" aria-hidden="true">
-    <rect width="24" height="16" fill="#21468b" />
-    <path d="M0 0l24 16M24 0L0 16" stroke="#fff" strokeWidth="4" />
-    <path d="M0 0l24 16M24 0L0 16" stroke="#cf142b" strokeWidth="1.8" />
-    <path d="M12 0v16M0 8h24" stroke="#fff" strokeWidth="5" />
-    <path d="M12 0v16M0 8h24" stroke="#cf142b" strokeWidth="2.6" />
-  </svg>
-);
+const scenarioLabels: Record<DataScenario, string> = { current: "Current data", partial: "Partial data", stale: "Stale data" };
 
 export default function Home() {
-  const [locale, setLocale] = useState<Locale>("en");
-  const [themeId, setThemeId] = useState(SESSION_THEMES[0].id);
-  const [duration, setDuration] = useState("75");
-  const [aroma, setAroma] = useState("lavender");
-  const [saved, setSaved] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [subscribeOpen, setSubscribeOpen] = useState(false);
-  const [subscriberEmail, setSubscriberEmail] = useState("");
-  const [subscriptionComplete, setSubscriptionComplete] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
-  const [accountMode, setAccountMode] = useState<"login" | "register">("login");
-  const [accountName, setAccountName] = useState("");
-  const [accountEmail, setAccountEmail] = useState("");
-  const [accountError, setAccountError] = useState("");
-  const [accountDestination, setAccountDestination] = useState<"app" | "community">("app");
-  const [currentUser, setCurrentUser] = useState<LocalAccount | null>(null);
-  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
-  const [localThreads, setLocalThreads] = useState<LocalCommunityThread[]>([]);
-  const [discussionTitle, setDiscussionTitle] = useState("");
-  const [discussionBody, setDiscussionBody] = useState("");
-  const [discussionTopic, setDiscussionTopic] = useState("");
-  const [activeView, setActiveView] = useState<AppView>("builder");
+  const [scenario, setScenario] = useState<DataScenario>("current");
+  const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
+  const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  const [notice, setNotice] = useState("");
+  const fixture = DASHBOARD_FIXTURES[scenario];
+  const opportunities = useMemo(() => fixture.opportunities.filter((item) => !dismissed.includes(item.id)), [dismissed, fixture.opportunities]);
 
-  const t = UI_COPY[locale];
-  const c = COMMUNITY_COPY[locale];
-  const durationOptions = DURATION_OPTIONS[locale];
-  const aromaOptions = AROMA_OPTIONS[locale];
-  const theme = useMemo(() => SESSION_THEMES.find((item) => item.id === themeId) ?? SESSION_THEMES[0], [themeId]);
-  const themeCopy = theme.copy[locale];
-  const durationLabel = durationOptions.find((item) => item.value === duration)?.label ?? durationOptions[0].label;
-  const aromaLabel = aromaOptions.find((item) => item.value === aroma)?.label ?? aromaOptions[0].label;
-  const selectedArticle = BLOG_ARTICLES.find((article) => article.id === selectedArticleId) ?? null;
-  const providerAccess = currentUser !== null;
-  const userInitials = currentUser?.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() ?? "";
-
-  useEffect(() => {
-    const storedLocale = window.localStorage.getItem("sessionscape-language");
-    if (storedLocale === "en" || storedLocale === "ru") setLocale(storedLocale);
-
-    setSubscriberEmail(window.localStorage.getItem("sessionscape-early-access-email") ?? "");
-    try {
-      const storedAccount = window.localStorage.getItem("sessionscape-preview-account");
-      const activeEmail = window.localStorage.getItem("sessionscape-preview-session");
-      if (storedAccount) {
-        const account = JSON.parse(storedAccount) as LocalAccount;
-        if (account.email === activeEmail) setCurrentUser(account);
-      }
-    } catch {
-      window.localStorage.removeItem("sessionscape-preview-account");
-      window.localStorage.removeItem("sessionscape-preview-session");
-    }
-    try {
-      const storedThreads = window.localStorage.getItem("sessionscape-community-threads");
-      if (storedThreads) setLocalThreads(JSON.parse(storedThreads) as LocalCommunityThread[]);
-    } catch {
-      window.localStorage.removeItem("sessionscape-community-threads");
-    }
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.lang = locale;
-    document.title = t.pageTitle;
-    document.querySelector('meta[name="description"]')?.setAttribute("content", t.pageDescription);
-  }, [locale, t.pageDescription, t.pageTitle]);
-
-  useEffect(() => {
-    if (!subscribeOpen && !accountOpen && !selectedArticleId && !mobileMenuOpen) return;
-
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSubscribeOpen(false);
-        setAccountOpen(false);
-        setSelectedArticleId(null);
-        setMobileMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [accountOpen, mobileMenuOpen, selectedArticleId, subscribeOpen]);
-
-  const changeLanguage = (nextLocale: Locale) => {
-    setLocale(nextLocale);
-    window.localStorage.setItem("sessionscape-language", nextLocale);
-  };
-
-  const openSubscribe = () => {
-    setSubscriptionComplete(false);
-    setSubscribeOpen(true);
-  };
-
-  const handleSubscribe = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    window.localStorage.setItem("sessionscape-early-access-email", subscriberEmail);
-    setSubscriptionComplete(true);
-  };
-
-  const openAccount = (mode: "login" | "register", destination: "app" | "community" = "app") => {
-    setAccountMode(mode);
-    setAccountDestination(destination);
-    setAccountError("");
-    setAccountOpen(true);
-    try {
-      const storedAccount = window.localStorage.getItem("sessionscape-preview-account");
-      if (storedAccount) {
-        const account = JSON.parse(storedAccount) as LocalAccount;
-        setAccountEmail(account.email);
-        if (mode === "register") setAccountName(account.name);
-      }
-    } catch {
-      window.localStorage.removeItem("sessionscape-preview-account");
-    }
-  };
-
-  const handleAccount = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setAccountError("");
-
-    if (accountMode === "register") {
-      const account = { name: accountName.trim(), email: accountEmail.trim().toLowerCase() };
-      window.localStorage.setItem("sessionscape-preview-account", JSON.stringify(account));
-      window.localStorage.setItem("sessionscape-preview-session", account.email);
-      setCurrentUser(account);
-      setAccountOpen(false);
-      if (accountDestination === "community") {
-        window.setTimeout(() => document.getElementById("community")?.scrollIntoView({ behavior: "smooth" }), 0);
-      }
-      return;
-    }
-
-    try {
-      const storedAccount = window.localStorage.getItem("sessionscape-preview-account");
-      const account = storedAccount ? JSON.parse(storedAccount) as LocalAccount : null;
-      if (!account || account.email !== accountEmail.trim().toLowerCase()) {
-        setAccountError(t.loginError);
-        return;
-      }
-      window.localStorage.setItem("sessionscape-preview-session", account.email);
-      setCurrentUser(account);
-      setAccountOpen(false);
-      if (accountDestination === "community") {
-        window.setTimeout(() => document.getElementById("community")?.scrollIntoView({ behavior: "smooth" }), 0);
-      }
-    } catch {
-      setAccountError(t.loginError);
-    }
-  };
-
-  const logOut = () => {
-    window.localStorage.removeItem("sessionscape-preview-session");
-    setCurrentUser(null);
-  };
-
-  const showView = (view: AppView) => {
-    setActiveView(view);
-    setMobileMenuOpen(false);
-    window.setTimeout(() => document.getElementById(view)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-  };
-
-  const handleDiscussion = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const nextThread: LocalCommunityThread = {
-      id: `local-${Date.now()}`,
-      topic: discussionTopic || c.topicOptions[0],
-      title: discussionTitle.trim(),
-      body: discussionBody.trim()
-    };
-    const nextThreads = [nextThread, ...localThreads];
-    setLocalThreads(nextThreads);
-    window.localStorage.setItem("sessionscape-community-threads", JSON.stringify(nextThreads));
-    setDiscussionTitle("");
-    setDiscussionBody("");
-    setDiscussionTopic("");
+  const dismiss = (id: string) => {
+    setDismissed((items) => [...items, id]);
+    setActiveOpportunity(null);
+    setNotice("Recommendation dismissed. You can restore it from Activity.");
   };
 
   return (
-    <main>
-      <header className="topbar">
-        <a className="brand" href="#top">Session<span>Scape</span></a>
-        <nav id="main-navigation" className={mobileMenuOpen ? "open" : ""} aria-label={t.mainNavigation}>
-          <a href="#builder" aria-current={activeView === "builder" ? "page" : undefined} onClick={() => showView("builder")}>{t.builderNav}</a>
-          <a href="#library" aria-current={activeView === "library" ? "page" : undefined} onClick={() => showView("library")}>{t.libraryNav}</a>
-          <a href="#checklist" aria-current={activeView === "checklist" ? "page" : undefined} onClick={() => showView("checklist")}>{t.checklistNav}</a>
-          <a href="#journal" aria-current={activeView === "journal" ? "page" : undefined} onClick={() => showView("journal")}>{c.insightsNav}</a>
-          <a href="#community" aria-current={activeView === "community" ? "page" : undefined} onClick={() => showView("community")}>{c.communityNav}</a>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <a className="wordmark" href="#top" aria-label="SessionScape home"><span className="mark">S</span><strong>SessionScape</strong></a>
+        <nav aria-label="Primary navigation">
+          <a className="active" href="#top"><Icon name="grid" />Overview</a>
+          <a href="#opportunities"><Icon name="spark" />Opportunities<span className="nav-count">{opportunities.length}</span></a>
+          <a href="#clients"><Icon name="users" />Clients</a>
+          <a href="#activity"><Icon name="action" />Activity</a>
         </nav>
-        <div className="account-actions">
-          <button
-            className="mobile-menu-toggle"
-            type="button"
-            aria-controls="main-navigation"
-            aria-expanded={mobileMenuOpen}
-            aria-label={mobileMenuOpen ? t.closeMenu : t.openMenu}
-            onClick={() => setMobileMenuOpen((open) => !open)}
-          >
-            <span /><span /><span />
-          </button>
-          <div className="language-switch" role="group" aria-label={t.languageSelector}>
-            <button
-              type="button"
-              className={locale === "en" ? "active" : ""}
-              aria-pressed={locale === "en"}
-              aria-label={t.switchToEnglish}
-              onClick={() => changeLanguage("en")}
-              lang="en"
-            >
-              <FlagIcon locale="en" /><span className="language-label">EN</span>
+        <div className="sidebar-bottom">
+          <a href="#settings"><Icon name="settings" />Settings</a>
+          <div className="account-card"><span className="avatar">IM</span><span><strong>Isla Morgan</strong><small>Willow & Stone</small></span><button aria-label="Open account menu">•••</button></div>
+        </div>
+      </aside>
+
+      <main id="top">
+        <header className="topbar">
+          <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
+          <div className="topbar-actions">
+            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { setScenario(event.target.value as DataScenario); setDismissed([]); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
+            <button className="date-button"><Icon name="calendar" />Sep 7 – 13<Icon name="chevron" size={15} /></button>
+          </div>
+        </header>
+
+        <section className={`data-banner ${fixture.status}`} aria-live="polite">
+          <span className="status-icon"><Icon name={fixture.status === "current" ? "refresh" : "warning"} /></span>
+          <div><strong>{fixture.bannerTitle}</strong><p>{fixture.bannerCopy}</p></div>
+          <button onClick={() => setNotice("Data source details opened for this prototype.")}>{fixture.bannerAction}<Icon name="arrow" size={15} /></button>
+        </section>
+
+        {notice && <div className="toast" role="status"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notification"><Icon name="close" size={16} /></button></div>}
+
+        <section className="summary-heading">
+          <div><p className="eyebrow">THIS WEEK AT A GLANCE</p><h2>Your business is <em>{fixture.headline}</em></h2><p>{fixture.subheadline}</p></div>
+          <div className="opportunity-total"><span>Identified opportunity</span><strong>{fixture.totalOpportunity}</strong><small><Icon name="trend" size={14} /> across {opportunities.length} actions</small></div>
+        </section>
+
+        <section className="metric-grid" aria-label="Weekly metrics">
+          {fixture.metrics.map((metric) => (
+            <button className={`metric-card ${metric.state === "partial" ? "metric-partial" : ""}`} key={metric.id} onClick={() => setActiveMetric(metric)}>
+              <span className="metric-label">{metric.label}<Icon name="info" size={16} /></span><strong>{metric.value}</strong>
+              <span className={`metric-change ${metric.tone}`}>{metric.change}</span><small>{metric.context}</small>
+              {metric.state === "partial" && <span className="partial-label"><Icon name="warning" size={13} />Partial coverage</span>}
             </button>
-            <button
-              type="button"
-              className={locale === "ru" ? "active" : ""}
-              aria-pressed={locale === "ru"}
-              aria-label={t.switchToRussian}
-              onClick={() => changeLanguage("ru")}
-              lang="ru"
-            >
-              <FlagIcon locale="ru" /><span className="language-label">RU</span>
-            </button>
-          </div>
-          <div className="account-profile" aria-label={t.accountMenu}>
-            <div className="account-identity">
-              <span className="avatar" aria-hidden="true">{userInitials || "IM"}</span>
-            </div>
-            <div className="account-links">
-              {currentUser ? (
-                <button className="logout-link" type="button" onClick={logOut}>{t.logOut}</button>
-              ) : (
-                <button className="login-link" type="button" onClick={() => openAccount("login")}>{t.logIn}</button>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <section className="hero" id="top">
-        <div className="hero-heading">
-          <p className="eyebrow">{t.heroEyebrow}</p>
-          <h1>{t.heroTitle} <em>{t.heroTitleAccent}</em></h1>
-        </div>
-        <div className="hero-details">
-          <p className="hero-copy">{t.heroCopy}</p>
-          <div className="hero-actions">
-            <a className="button primary" href="#builder" onClick={() => showView("builder")}>{t.buildSession} {icon("→")}</a>
-            <a className="button text" href="#library" onClick={() => showView("library")}>{t.exploreThemes}</a>
-          </div>
-        </div>
-      </section>
-
-      <section className="workspace view-panel" id="builder" aria-label={t.builderNav} hidden={activeView !== "builder"}>
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">{t.builderLabel}</p>
-            <h2>{t.builderTitle}</h2>
-          </div>
-          <div className="status">● {t.draftSession}</div>
-        </div>
-
-        <div className="builder-grid">
-          <aside className="controls">
-            <label>
-              {t.startingTheme}
-              <select value={themeId} onChange={(event) => setThemeId(event.target.value)}>
-                {SESSION_THEMES.map((item) => <option value={item.id} key={item.id}>{item.copy[locale].name}</option>)}
-              </select>
-            </label>
-            <label>
-              {t.sessionDuration}
-              <select value={duration} onChange={(event) => setDuration(event.target.value)}>
-                {durationOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
-              </select>
-            </label>
-            <label>
-              {t.aromaPreference}
-              <select value={aroma} onChange={(event) => setAroma(event.target.value)}>
-                {aromaOptions.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
-              </select>
-            </label>
-            <div className="client-note">
-              <strong>{icon("✦")} {t.clientCheck}</strong>
-              <p>{t.clientCheckCopy}</p>
-            </div>
-          </aside>
-
-          <article className={`blueprint experience-${theme.id}`}>
-            <div className="blueprint-title">
-              <div>
-                <p className="theme-type">{themeCopy.category}</p>
-                <h3>{themeCopy.name}</h3>
-              </div>
-              <span className="duration">{durationLabel}</span>
-            </div>
-            <p className="summary">{themeCopy.summary}</p>
-            <div className="attributes">
-              <div><span>{t.pace}</span><strong>{themeCopy.pace}</strong></div>
-              <div><span>{t.pressure}</span><strong>{themeCopy.pressure}</strong></div>
-              <div><span>{t.flow}</span><strong>{themeCopy.flow}</strong></div>
-            </div>
-            <div className="sequence">
-              <h4>{t.suggestedFlow}</h4>
-              <ol>{themeCopy.sequence.map((step) => <li key={step}>{step}</li>)}</ol>
-            </div>
-            <div className="actions">
-              <button className="button secondary" onClick={() => setSaved(true)}>{saved ? t.savedSession : t.saveSession}</button>
-              <button className="button text" onClick={() => window.print()}>{t.printBlueprint}</button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section className="preparation view-panel" id="checklist" hidden={activeView !== "checklist"}>
-        <div>
-          <p className="eyebrow">{t.roomPreparation}</p>
-          <h2>{t.preparationTitle}</h2>
-          <p>{t.preparationCopy}</p>
-        </div>
-        <div className="checklist">
-          <label><input type="checkbox" /> {t.lightingCheck}</label>
-          <label><input type="checkbox" /> {t.musicCheck(themeCopy.music)}</label>
-          <label><input type="checkbox" /> {t.aromaCheck(aromaLabel)}</label>
-          <label><input type="checkbox" /> {t.towelsCheck}</label>
-          <label><input type="checkbox" /> {t.consentCheck}</label>
-        </div>
-      </section>
-
-      <section className="library view-panel" id="library" hidden={activeView !== "library"}>
-        <p className="eyebrow">{t.libraryLabel}</p>
-        <h2>{t.libraryTitle}</h2>
-        <div className="theme-grid">
-          {SESSION_THEMES.map((item) => {
-            const itemCopy = item.copy[locale];
-            return (
-              <button className={`theme-card experience-${item.id} ${item.id === themeId ? "selected" : ""}`} key={item.id} onClick={() => { setThemeId(item.id); showView("builder"); }}>
-                <span>{itemCopy.category}</span><strong>{itemCopy.name}</strong><small>{itemCopy.tagline}</small>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="journal view-panel" id="journal" hidden={activeView !== "journal"}>
-        <div className="content-heading">
-          <div>
-            <p className="eyebrow">{c.journalEyebrow}</p>
-            <h2>{c.journalTitle}</h2>
-          </div>
-          <p>{c.journalIntro}</p>
-        </div>
-        <div className="article-grid">
-          {BLOG_ARTICLES.map((article, index) => (
-            <article className={`article-card ${index === 0 ? "featured" : ""}`} key={article.id}>
-              <div className="article-meta">
-                <span>{article.category[locale]}</span>
-                <span>{article.readTime[locale]}</span>
-              </div>
-              <h3>{article.title[locale]}</h3>
-              <p>{article.excerpt[locale]}</p>
-              <div className="article-footer">
-                <small>{article.published[locale]}</small>
-                <button type="button" className="button text" onClick={() => setSelectedArticleId(article.id)}>
-                  {c.readArticle} {icon("→")}
-                </button>
-              </div>
-            </article>
           ))}
-        </div>
-      </section>
+        </section>
 
-      <section className={`community view-panel ${providerAccess ? "member" : "preview"}`} id="community" hidden={activeView !== "community"}>
-        <div className="community-heading">
-          <div>
-            <p className="eyebrow">{c.communityEyebrow}</p>
-            <h2>{c.communityTitle}</h2>
-            <p>{c.communityIntro}</p>
-          </div>
-          <span className="community-access">{providerAccess ? c.memberBadge : c.previewAccess}</span>
-        </div>
-
-        <div className="community-layout">
-          <aside className="community-rules">
-            <span className="rule-icon" aria-hidden="true">◎</span>
-            <h3>{c.communityPrinciples}</h3>
-            <ul>{c.principles.map((principle) => <li key={principle}>{principle}</li>)}</ul>
-            <p>{c.privacyRule}</p>
-          </aside>
-
-          <div className="discussion-panel">
-            {providerAccess && (
-              <form className="discussion-form" onSubmit={handleDiscussion}>
-                <div className="discussion-form-heading">
-                  <div>
-                    <span>{c.providerAccess}</span>
-                    <h3>{c.startDiscussion}</h3>
-                  </div>
-                  <span className="moderation-state">{c.localPostStatus}</span>
-                </div>
-                <div className="discussion-fields">
-                  <label>
-                    {c.topic}
-                    <select value={discussionTopic} onChange={(event) => setDiscussionTopic(event.target.value)} required>
-                      <option value="">{c.selectTopic}</option>
-                      {c.topicOptions.map((topic) => <option value={topic} key={topic}>{topic}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    {c.discussionTitle}
-                    <input value={discussionTitle} onChange={(event) => setDiscussionTitle(event.target.value)} placeholder={c.discussionPlaceholder} maxLength={120} required />
-                  </label>
-                </div>
-                <label>
-                  {c.discussionBody}
-                  <textarea value={discussionBody} onChange={(event) => setDiscussionBody(event.target.value)} placeholder={c.bodyPlaceholder} maxLength={600} rows={3} required />
-                </label>
-                <button type="submit" className="button primary">{c.publishDiscussion}</button>
-              </form>
-            )}
-
-            <div className="discussion-list-heading">
-              <h3>{c.sampleDiscussions}</h3>
-              <span>{providerAccess ? c.providerAccess : c.previewAccess}</span>
+        <section className="dashboard-grid">
+          <div className="panel capacity-panel">
+            <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={() => setActiveMetric(fixture.capacityMetric)}>View calculation<Icon name="chevron" size={14} /></button></div>
+            <div className="capacity-visual">
+              <div className="donut" style={{ "--percentage": `${fixture.capacityPercent * 3.6}deg` } as React.CSSProperties}><span><strong>{fixture.capacityPercent ? `${fixture.capacityPercent}%` : "—"}</strong><small>booked</small></span></div>
+              <div className="capacity-key"><div><span className="key-dot booked"/><p><strong>{fixture.bookedHours}h</strong> booked</p></div><div><span className="key-dot open"/><p><strong>{fixture.openHours || "—"}h</strong> still open</p></div><div><span className="key-dot blocked"/><p><strong>{fixture.blockedHours}h</strong> unavailable</p></div></div>
             </div>
-
-            <div className="discussion-grid">
-              {providerAccess && localThreads.map((thread) => (
-                <article className="discussion-card local" key={thread.id}>
-                  <div className="discussion-meta"><span>{thread.topic}</span><small>{c.localPostStatus}</small></div>
-                  <h4>{thread.title}</h4>
-                  <p>{thread.body}</p>
-                  <div className="discussion-author"><span className="mini-avatar">{userInitials}</span><div><strong>{currentUser?.name}</strong><small>{c.providerAccess}</small></div></div>
-                </article>
-              ))}
-
-              {COMMUNITY_THREADS.slice(0, providerAccess ? COMMUNITY_THREADS.length : 2).map((thread) => (
-                <article className="discussion-card" key={thread.id}>
-                  <div className="discussion-meta"><span>{thread.topic[locale]}</span><small>{thread.posted[locale]}</small></div>
-                  <h4>{thread.title[locale]}</h4>
-                  <p>{thread.excerpt[locale]}</p>
-                  <div className="discussion-footer">
-                    <div className="discussion-author"><span className="mini-avatar">{thread.author.split(" ").map((part) => part[0]).join("")}</span><div><strong>{thread.author}</strong><small>{thread.role[locale]}</small></div></div>
-                    <span>{c.replies(String(thread.replies))}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            {!providerAccess && (
-              <div className="community-lock">
-                <span aria-hidden="true">◇</span>
-                <div><h3>{c.joinTitle}</h3><p>{c.joinCopy}</p></div>
-                <button type="button" className="button primary" onClick={() => openAccount("register", "community")}>{c.joinButton}</button>
-              </div>
-            )}
+            <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}><div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div><small>{day.label}</small></div>)}</div>
           </div>
-        </div>
-        <p className="prototype-note">{c.prototypeNote}</p>
-      </section>
 
-      <section className="coming-soon" id="subscribe">
-        <div>
-          <p className="eyebrow">{t.comingSoon}</p>
-          <h2>{t.comingSoonTitle}</h2>
-          <p>{t.comingSoonCopy}</p>
-        </div>
-        <button className="button primary" onClick={openSubscribe}>{t.registerUpdates} {icon("→")}</button>
-      </section>
+          <div className="panel pulse-panel" id="clients">
+            <div className="panel-heading"><div><p className="eyebrow">CLIENT PULSE</p><h3>Return health</h3></div><button><span className="legend-dot"/>6-month trend</button></div>
+            <div className="pulse-stat"><span><strong>{fixture.returnRate}%</strong><small>of eligible clients returned</small></span><span className="change-positive">↗ {fixture.returnChange}%</span></div>
+            <svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label="Client return rate rose over six months"><defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1b856f" stopOpacity=".22"/><stop offset="1" stopColor="#1b856f" stopOpacity="0"/></linearGradient></defs><path className="chart-area" d="M0 127 C50 120 65 100 112 105 S170 75 215 87 S280 60 322 67 S385 34 480 27 L480 150 L0 150Z" /><path className="chart-line" d="M0 127 C50 120 65 100 112 105 S170 75 215 87 S280 60 322 67 S385 34 480 27" /><circle cx="480" cy="27" r="5" /></svg>
+            <div className="chart-labels"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span></div>
+          </div>
+        </section>
 
-      <footer>{t.footer}</footer>
+        <section className="opportunities" id="opportunities">
+          <div className="section-title"><div><p className="eyebrow">PRIORITY ACTIONS</p><h2>Opportunities worth your attention</h2><p>Based on your availability, client patterns, and business rules.</p></div><button>View all <Icon name="arrow" size={16} /></button></div>
+          <div className="opportunity-list">
+            {opportunities.map((opportunity) => (
+              <article className="opportunity-card" key={opportunity.id}>
+                <div className={`opportunity-icon ${opportunity.type}`}><Icon name={opportunity.type === "capacity" ? "calendar" : "users"} size={22} /></div>
+                <div className="opportunity-main"><div className="opportunity-meta"><span>{opportunity.kicker}</span><i className={opportunity.urgency === "High priority" ? "high" : ""}>{opportunity.urgency}</i></div><h3>{opportunity.title}</h3><p>{opportunity.summary}</p><div className="reason"><span>Why this appeared</span><p>{opportunity.reason}</p></div></div>
+                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={() => setActiveOpportunity(opportunity)}>Review action<Icon name="arrow" size={15} /></button></div>
+              </article>
+            ))}
+            {opportunities.length === 0 && <div className="empty-state"><strong>You’re all caught up</strong><p>Dismissed recommendations remain available in Activity.</p></div>}
+          </div>
+        </section>
 
-      {selectedArticle && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setSelectedArticleId(null);
-        }}>
-          <article className="article-modal" role="dialog" aria-modal="true" aria-labelledby="article-title">
-            <button className="modal-close" onClick={() => setSelectedArticleId(null)} aria-label={c.closeArticle}>×</button>
-            <div className="article-meta"><span>{selectedArticle.category[locale]}</span><span>{selectedArticle.readTime[locale]}</span></div>
-            <h2 id="article-title">{selectedArticle.title[locale]}</h2>
-            <p className="article-deck">{selectedArticle.excerpt[locale]}</p>
-            <div className="article-body">{selectedArticle.body[locale].map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
-            <footer className="article-review"><span>{selectedArticle.published[locale]}</span><span>{c.reviewedNote}</span></footer>
-          </article>
-        </div>
-      )}
+        <footer id="activity"><span>SessionScape uses synthetic prototype data</span><span>Metric rules v1.0 · America/New_York</span></footer>
+      </main>
 
-      {subscribeOpen && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setSubscribeOpen(false);
-        }}>
-          <section className="subscribe-modal" role="dialog" aria-modal="true" aria-labelledby="subscribe-title">
-            <button className="modal-close" onClick={() => setSubscribeOpen(false)} aria-label={t.closeRegistration}>×</button>
-            {subscriptionComplete ? (
-              <div className="subscription-success" aria-live="polite">
-                <span aria-hidden="true">✓</span>
-                <p className="eyebrow">{t.onTheList}</p>
-                <h2 id="subscribe-title">{t.successTitle}</h2>
-                <p>{t.successCopy(subscriberEmail)}</p>
-                <button className="button secondary" onClick={() => setSubscribeOpen(false)}>{t.backToApp}</button>
-              </div>
-            ) : (
-              <>
-                <p className="eyebrow">{t.earlyAccess}</p>
-                <h2 id="subscribe-title">{t.modalTitle}</h2>
-                <p>{t.modalCopy}</p>
-                <form onSubmit={handleSubscribe}>
-                  <label htmlFor="subscriber-email">{t.emailAddress}</label>
-                  <input
-                    id="subscriber-email"
-                    type="email"
-                    value={subscriberEmail}
-                    onChange={(event) => setSubscriberEmail(event.target.value)}
-                    placeholder={t.emailPlaceholder}
-                    autoComplete="email"
-                    autoFocus
-                    required
-                  />
-                  <button className="button primary" type="submit">{t.registerUpdates}</button>
-                </form>
-                <small>{t.registrationNote}</small>
-              </>
-            )}
-          </section>
-        </div>
-      )}
+      {activeMetric && <div className="modal-backdrop" onMouseDown={() => setActiveMetric(null)}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveMetric(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
 
-      {accountOpen && (
-        <div className="modal-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setAccountOpen(false);
-        }}>
-          <section className="subscribe-modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
-            <button className="modal-close" onClick={() => setAccountOpen(false)} aria-label={t.closeAccount}>×</button>
-            <p className="eyebrow">{accountMode === "register" ? t.createAccountEyebrow : t.welcomeBackEyebrow}</p>
-            <h2 id="account-title">{accountMode === "register" ? t.createAccountTitle : t.logInTitle}</h2>
-            <p>{accountMode === "register" ? t.createAccountCopy : t.logInCopy}</p>
-            <form onSubmit={handleAccount}>
-              {accountMode === "register" && (
-                <>
-                  <label htmlFor="account-name">{t.displayName}</label>
-                  <input
-                    id="account-name"
-                    value={accountName}
-                    onChange={(event) => setAccountName(event.target.value)}
-                    placeholder={t.namePlaceholder}
-                    autoComplete="name"
-                    autoFocus
-                    required
-                  />
-                </>
-              )}
-              <label htmlFor="account-email">{t.emailAddress}</label>
-              <input
-                id="account-email"
-                type="email"
-                value={accountEmail}
-                onChange={(event) => setAccountEmail(event.target.value)}
-                placeholder={t.emailPlaceholder}
-                autoComplete="email"
-                autoFocus={accountMode === "login"}
-                required
-              />
-              {accountError && <p className="form-error" role="alert">{accountError}</p>}
-              <button className="button primary" type="submit">{accountMode === "register" ? t.createAccount : t.logIn}</button>
-            </form>
-            <button className="account-mode-switch" type="button" onClick={() => {
-              setAccountMode(accountMode === "register" ? "login" : "register");
-              setAccountError("");
-            }}>
-              {accountMode === "register" ? t.haveAccount : t.needAccount}
-            </button>
-            <small>{t.accountPrototypeNote}</small>
-          </section>
-        </div>
-      )}
-    </main>
+      {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}><aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">REVIEW RECOMMENDATION</p><h2 id="opportunity-title">{activeOpportunity.title}</h2><div className="review-summary"><span>Estimated value<strong>{activeOpportunity.value}</strong></span><span>Eligible audience<strong>{activeOpportunity.audience}</strong></span></div><div className="rule-box"><span>Rule {activeOpportunity.ruleVersion}</span><p>{activeOpportunity.rule}</p></div><h3>Owner controls</h3><p className="muted">Nothing is sent automatically. Review the suggested audience and draft before taking action.</p><label className="audience-control">Audience<select defaultValue="eligible"><option value="eligible">{activeOpportunity.audience} eligible clients</option><option value="recent">Recently active only</option><option value="vip">Frequent clients only</option></select></label><div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft opened for owner review. No message has been sent."); setActiveOpportunity(null); }}>Review draft<Icon name="arrow" size={15} /></button></div></aside></div>}
+    </div>
   );
 }
