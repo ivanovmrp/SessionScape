@@ -10,6 +10,7 @@
 - **Do / Don't**: Do treat the current UI as a synthetic discovery prototype; don't imply it is connected to live booking data (2026-09-09)
 - **Learnings**: `npm run lint` invokes deprecated interactive `next lint`; migrate to a deterministic ESLint CLI setup (2026-09-09)
 - **Learnings**: `npm run build` stalled after the Next.js banner during onboarding and remains unverified; diagnose before treating it as a gate (2026-09-09)
+- **Learnings**: Next.js 15.5.20 has a direct critical npm advisory; npm identifies 15.5.25 as the non-major patched release (Plan 1)
 
 ## Amendments
 <!-- project-local workflow rule changes, one line each, user-approved; extend or override AGENTS.md -->

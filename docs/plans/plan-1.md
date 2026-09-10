@@ -1,16 +1,30 @@
 # Plan 1: Establish deterministic quality gates
 Status: IN PROGRESS
-Advances: enabling — establishes reliable automated gates that unblock trustworthy prototype validation work in BL-002 through BL-005.
+Advances: enabling — removes a critical runtime vulnerability and establishes reliable automated gates that unblock trustworthy prototype validation work in BL-002 through BL-005.
 
 ## Goal
 
-Make every later prototype change testable and reviewable through stable, non-interactive test, lint, type-check, and production-build commands.
+Patch the vulnerable runtime, then make every later prototype change testable and reviewable through stable, non-interactive test, lint, type-check, and production-build commands.
 
 ## Stories
 
-### BL-001 — Establish deterministic quality gates
-- **Status**: in progress
+### BL-007 — Patch the critical Next.js vulnerability
+- **Status**: not started
 - **Dependencies**: none
+- **Likely touched files**: `package.json`, `package-lock.json`
+- **Design**: Preserve the existing Next.js 15 interface and static-export architecture while moving only from 15.5.20 to the audit-recommended 15.5.25 patch. Security boundary: this removes known critical/high findings from the production dependency tree without broad dependency modernization. Edge cases: the installed version must match both manifest and lockfile; `npm audit --omit=dev` must assess production dependencies rather than hide findings behind a forced audit rewrite; TypeScript and the static build must still work; any new framework warning or runtime behavior change is investigated rather than suppressed. Testing uses the existing TypeScript command plus the production build, with the audit report as security evidence. Rollback is the prior lockfile/manifest pair only if the patched version causes a worse verified failure; a rollback would leave the story blocked because returning to a known critical version is not acceptable.
+- **Tasks**:
+  1. Capture the current production audit and installed-version RED evidence for Next.js 15.5.20.
+  2. Install and pin Next.js 15.5.25 without changing React or other runtime dependency versions.
+  3. Verify the exact installed version, run `npm audit --omit=dev`, run the existing TypeScript check, and run the production build in isolation.
+- **Test plan**:
+  - Criterion 1: dependency integration — inspect the manifest, lockfile root, and installed `next/package.json`; all must report 15.5.25.
+  - Criterion 2: security integration — capture `npm audit --omit=dev` exit status and report; no Next.js or production-tree high/critical finding may remain.
+  - Criterion 3: integration/build — run `npm exec tsc -- --noEmit`, then `npm run build` with no overlapping Next process; both must exit 0.
+
+### BL-001 — Establish deterministic quality gates
+- **Status**: blocked (BL-007)
+- **Dependencies**: BL-007
 - **Likely touched files**: `package.json`, `package-lock.json`, `vitest.config.ts` only after its need is demonstrated by RED, `eslint.config.mjs`, `lib/dashboard-fixtures.test.ts`, `README.md`, `docs/project.md`, `.codex/rules/project.rules`; conditionally `docs/backlog.md` and this plan if the build needs an unblock story; build-root-cause files only if the reproduced failure requires a narrowly tested fix
 - **Design**: The public tooling interface is four npm scripts: `test`, `lint`, `typecheck`, and `build`. Start with Vitest in its Node environment and one pure fixture-module test; defer browser/component-test dependencies until a component story requires them. The unchanged representative test imports `test` from Vitest, supplies compile-time types for globals in the test file, and deliberately leaves only `expect` as a runtime global while asserting that the partial scenario excludes capacity recommendations. After Vitest and the `vitest run` script exist, the named test must register and fail RED inside its callback because `expect` is unavailable; then the minimum `globals: true` configuration makes that same test green. ESLint uses its non-interactive CLI with the Next.js 15 config. Edge cases: a failing test must terminate nonzero and a green run must terminate zero rather than watch; TypeScript path/ES module handling must work without weakening strictness; lint must not prompt on a clean checkout; build diagnosis must distinguish a source/configuration failure from a sandbox or orphan-process hang. Rollback is removal of the new dev dependencies, configs, scripts, and allowlist entries; no runtime or data migration is involved.
 - **Tasks**:
@@ -28,7 +42,8 @@ Make every later prototype change testable and reviewable through stable, non-in
 
 ## Parallel Groups
 
-- Group 1: BL-001 only — build inline; no worktrees or parallel implementers.
+- Group 1: BL-007 only — build inline.
+- Group 2: BL-001 only after BL-007 — build inline; no worktrees or parallel implementers.
 
 ## Risks
 
@@ -40,5 +55,7 @@ Make every later prototype change testable and reviewable through stable, non-in
 
 - 2026-09-09 (plan): plan review rejected a missing-script-only RED and a red-build fallback — the same fixture test must execute RED then green after minimal setup, and dependent stories remain blocked until the production build is green.
 - 2026-09-09 (BL-001): the RED test imports its registration function but leaves `expect` global — this proves the named test body fails before configuration rather than failing during discovery.
+- 2026-09-09 (plan): installing the first dev dependency surfaced a pre-existing critical advisory in Next.js 15.5.20 with a non-major fix at 15.5.25 — security remediation must be inserted or explicitly deferred before BL-001 continues.
+- 2026-09-09 (plan): owner chose to insert BL-007 before BL-001 — Plan 1 now delivers a patched runtime plus quality gates, with dependent prototype work still blocked until both stories pass.
 
 ## Archived Specs

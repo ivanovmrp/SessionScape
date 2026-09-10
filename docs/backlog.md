@@ -26,7 +26,7 @@ Acceptance criteria:
 ### BL-001 — Establish deterministic quality gates
 - **Status**: planned (Plan 1)
 - **Priority · Effort**: P0 · M
-- **Dependencies**: none
+- **Dependencies**: BL-007
 - **Context**: The prototype has no tests or direct test runner; `next lint` is interactive and deprecated, and the production build stalled during onboarding. This story is the prerequisite for all prototype changes.
 - **Acceptance criteria**:
   1. A documented `npm` test command runs non-interactively, returns a meaningful exit code, and watches no files by default.
@@ -85,5 +85,15 @@ Acceptance criteria:
   2. Participants attempt the defined dashboard, recommendation, action, provider-handoff, data-state, and value-classification tasks; task outcomes and interpretation errors are recorded.
   3. A decision report compares results with the documented proceed, change-provider, defer, and stop criteria and names the supported next step.
   4. No identifiable client export, clinical content, health data, intake content, or payment-card data is collected.
+
+### BL-007 — Patch the critical Next.js vulnerability
+- **Status**: planned (Plan 1)
+- **Priority · Effort**: P0 · S
+- **Dependencies**: none
+- **Context**: `npm audit` reports critical advisories against the locked Next.js 15.5.20 runtime and identifies 15.5.25 as the non-major patched release. The issue predated Plan 1 and surfaced when the first development dependency was installed.
+- **Acceptance criteria**:
+  1. `package.json` and `package-lock.json` pin Next.js 15.5.25, and the installed package reports that exact version.
+  2. `npm audit --omit=dev` reports no high or critical vulnerability in Next.js or its production dependency tree.
+  3. TypeScript checking passes without weakening compiler settings, and the production build completes successfully on the patched runtime.
 
 ## Icebox
