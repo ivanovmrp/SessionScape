@@ -9,7 +9,7 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 ## Stories
 
 ### BL-007 — Patch the critical Next.js vulnerability
-- **Status**: not started
+- **Status**: in progress
 - **Dependencies**: none
 - **Likely touched files**: `package.json`, `package-lock.json`
 - **Design**: Preserve the existing Next.js 15 interface and static-export architecture while moving the top-level Next dependency from 15.5.20 to the audit-recommended 15.5.25 patch. Keep React, React DOM, and unrelated top-level dependencies fixed while allowing only transitive updates required by Next 15.5.25. Security boundary: this removes known critical/high findings from the production dependency tree without broad dependency modernization. Edge cases: the installed version must match both manifest and lockfile; `npm audit --omit=dev` must assess production dependencies rather than hide findings behind an override or forced audit rewrite; TypeScript and the static build must still work; any new framework warning or runtime behavior change is investigated rather than suppressed. Testing uses dependency-tree inspection, the existing TypeScript command, and the production build, with the audit report as security evidence. Rollback is the prior lockfile/manifest pair only if the patched version causes a worse verified failure; a rollback would leave the story blocked because returning to a known critical version is not acceptable.
