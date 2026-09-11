@@ -96,4 +96,14 @@ Acceptance criteria:
   2. `npm audit --omit=dev` reports no high or critical vulnerability in Next.js or its production dependency tree.
   3. TypeScript checking passes without weakening compiler settings, and the static production build completes successfully on the upgraded runtime without suppressed migration failures.
 
+### BL-008 — Move lint tooling to a supported Node and ESLint line
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-001
+- **Context**: The current Node 20.18 runtime cannot run ESLint 10, whose engine floor is Node 20.19. BL-001 therefore pins functional ESLint 9.39.5, but clean installation warns that ESLint 9 is no longer supported.
+- **Acceptance criteria**:
+  1. The repository declares a supported Node version that satisfies Next.js and the current maintained ESLint major, and a clean install emits no engine or unsupported-ESLint warning.
+  2. The maintained ESLint version and compatible Next.js configuration are exactly locked without overrides, and `npm run lint` remains non-interactive and green.
+  3. Tests, TypeScript checking, the production audit, and the static build remain green after the toolchain update.
+
 ## Icebox
