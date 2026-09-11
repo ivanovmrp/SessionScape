@@ -1,0 +1,53 @@
+# SDLC workflow — starter command allowlist (Starlark, Codex rules).
+# Equivalent of Claude Code's settings.local.json permissions.allow: pre-approves the
+# read-only checks the workflow runs constantly, so approval prompts don't interrupt
+# routing or parallel implementer fan-out.
+#
+# sdlc-init extends this file with the project's verified test / lint / type-check /
+# build commands once it has run them successfully, e.g.:
+#   prefix_rule(pattern = ["npm", "test"], decision = "allow")
+# Adjust anytime with /permissions or by editing this file (project must be trusted).
+# Validate changes with: codex execpolicy check --rules .codex/rules/project.rules -- <command>
+
+prefix_rule(
+    pattern = ["command", "-v", "jq"],
+    decision = "allow",
+    match = ["command -v jq"],
+)
+
+prefix_rule(
+    pattern = ["jq", "--version"],
+    decision = "allow",
+    match = ["jq --version"],
+)
+
+# Verified by sdlc-init on 2026-09-09.
+prefix_rule(
+    pattern = ["npm", "exec", "tsc", "--", "--noEmit"],
+    decision = "allow",
+    match = ["npm exec tsc -- --noEmit"],
+)
+
+prefix_rule(
+    pattern = ["npm", "test"],
+    decision = "allow",
+    match = ["npm test"],
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "lint"],
+    decision = "allow",
+    match = ["npm run lint"],
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "typecheck"],
+    decision = "allow",
+    match = ["npm run typecheck"],
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "build"],
+    decision = "allow",
+    match = ["npm run build"],
+)

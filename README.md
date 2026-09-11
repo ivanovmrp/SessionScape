@@ -26,6 +26,17 @@ npm run dev
 
 Visit `http://localhost:3000`.
 
+## Quality gates
+
+```bash
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+All four commands are non-interactive. `npm test` runs the full Vitest suite once and exits; use `npm exec vitest -- --watch` only for an intentional local watch session.
+
 ## Documentation
 
 - [Product requirements](docs/product-requirements.md)
