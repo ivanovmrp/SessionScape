@@ -23,16 +23,7 @@ Acceptance criteria:
 
 ## Active
 
-### BL-001 — Establish deterministic quality gates
-- **Status**: planned (Plan 1)
-- **Priority · Effort**: P0 · M
-- **Dependencies**: BL-007
-- **Context**: The prototype has no tests or direct test runner; `next lint` is interactive and deprecated, and the production build stalled during onboarding. This story is the prerequisite for all prototype changes.
-- **Acceptance criteria**:
-  1. A documented `npm` test command runs non-interactively, returns a meaningful exit code, and watches no files by default.
-  2. At least one representative unit or component test is observed failing for the intended reason before its supporting setup makes it pass.
-  3. Stable non-interactive scripts run the full test suite, lint, and TypeScript checks from a clean checkout.
-  4. The production build completes successfully, or its root cause and an explicit unblock story are recorded without weakening the build gate.
+- BL-001 Establish deterministic quality gates — done (Plan 1)
 
 ### BL-002 — Reconcile synthetic dashboard calculations
 - **Status**: ready
@@ -86,15 +77,7 @@ Acceptance criteria:
   3. A decision report compares results with the documented proceed, change-provider, defer, and stop criteria and names the supported next step.
   4. No identifiable client export, clinical content, health data, intake content, or payment-card data is collected.
 
-### BL-007 — Upgrade Next.js to a patched supported release
-- **Status**: planned (Plan 1)
-- **Priority · Effort**: P0 · S
-- **Dependencies**: none
-- **Context**: `npm audit` reported critical advisories against Next.js 15.5.20. Version 15.5.25 removed the critical finding but retained three high findings in its production dependency tree; Next.js 16.3.4 is the supported release that declares patched PostCSS and Sharp ranges. The issue predated Plan 1 and surfaced when the first development dependency was installed.
-- **Acceptance criteria**:
-  1. `package.json` and `package-lock.json` pin Next.js 16.3.4, and the installed package reports that exact version while React and React DOM remain at 19.1.0.
-  2. `npm audit --omit=dev` reports no high or critical vulnerability in Next.js or its production dependency tree.
-  3. TypeScript checking passes without weakening compiler settings, and the static production build completes successfully on the upgraded runtime without suppressed migration failures.
+- BL-007 Upgrade Next.js to a patched supported release — done (Plan 1)
 
 ### BL-008 — Move lint tooling to a supported Node and ESLint line
 - **Status**: ready
