@@ -66,5 +66,6 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 - 2026-09-10 (BL-001): Vitest 4 cannot load `vitest.config.ts` as CommonJS in this package because its config path reaches ESM-only dependencies; use the ESM-explicit `.mts` config rather than changing the application's package type.
 - 2026-09-10 (BL-001): pin `typescript-eslint@8.46.0` to keep Next 16's lint stack supported on Node 20.18, and add global ignores for generated/workflow directories so `eslint .` terminates deterministically.
 - 2026-09-10 (BL-001): clean verification passed all gates but warned that ESLint 9 is unsupported; BL-008 owns the Node 20.19+ and maintained-ESLint upgrade so BL-001 does not broaden into an environment migration.
+- 2026-09-10 (BL-001): the retained verification worktree caused Vitest to execute the same test twice; extend default exclusions with `**/.worktrees/**` so orchestrator worktrees cannot duplicate the suite.
 
 ## Archived Specs
