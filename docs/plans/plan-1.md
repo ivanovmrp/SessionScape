@@ -9,9 +9,9 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 ## Stories
 
 ### BL-007 — Upgrade Next.js to a patched supported release
-- **Status**: in progress
+- **Status**: done
 - **Dependencies**: none
-- **Likely touched files**: `package.json`, `package-lock.json`, `docs/project.md`; conditionally `next.config.ts` or directly affected application files only when a reproduced Next.js 16 migration failure requires the minimum compatible change
+- **Likely touched files**: `package.json`, `package-lock.json`, `tsconfig.json`, `next-env.d.ts`, `docs/project.md`; conditionally `next.config.ts` or directly affected application files only when a reproduced Next.js 16 migration failure requires the minimum compatible change
 - **Design**: Preserve the static-export product boundary while moving Next.js from the vulnerable 15.5 line to the supported 16.3.4 release that declares patched PostCSS and Sharp ranges. Keep React and React DOM pinned at 19.1.0, which satisfies Next 16's declared React 19 peer range, and keep unrelated top-level dependencies fixed while allowing only transitive updates required by Next 16.3.4. Security boundary: remove all high/critical production findings without overrides, forced audit rewrites, or broad modernization. Edge cases: Node 20.18 must satisfy Next 16's Node 20.9+ engine; manifest, lockfile, and installed version must agree; static export must still complete; removed or changed Next 16 behavior must be fixed at the smallest affected interface rather than suppressed; React versions must not drift. Testing uses dependency-tree inspection, the existing strict TypeScript command, and the static production build, with the production-only audit as security evidence. Because returning to a known vulnerable Next 15 line is unacceptable, rollback means marking the story blocked and the plan partial while preserving the failing evidence, not merging the old runtime.
 - **Tasks**:
   1. Retain the captured RED evidence: Next.js 15.5.20 had a critical finding, and the attempted 15.5.25 patch still produced three high findings in PostCSS, Nano ID, and Sharp.
@@ -25,7 +25,7 @@ Patch the vulnerable runtime, then make every later prototype change testable an
   - Criterion 3: integration/build — run `npm exec tsc -- --noEmit`, then `npm run build` with no overlapping Next process; both must exit 0 without weakening TypeScript or suppressing Next.js 16 migration failures.
 
 ### BL-001 — Establish deterministic quality gates
-- **Status**: blocked (BL-007)
+- **Status**: not started
 - **Dependencies**: BL-007
 - **Likely touched files**: `package.json`, `package-lock.json`, `vitest.config.ts` only after its need is demonstrated by RED, `eslint.config.mjs`, `lib/dashboard-fixtures.test.ts`, `README.md`, `docs/project.md`, `.codex/rules/project.rules`; conditionally `docs/backlog.md` and this plan if the build needs an unblock story; build-root-cause files only if the reproduced failure requires a narrowly tested fix
 - **Design**: The public tooling interface is four npm scripts: `test`, `lint`, `typecheck`, and `build`. Start with Vitest in its Node environment and one pure fixture-module test; defer browser/component-test dependencies until a component story requires them. The unchanged representative test imports `test` from Vitest, supplies compile-time types for globals in the test file, and deliberately leaves only `expect` as a runtime global while asserting that the partial scenario excludes capacity recommendations. After Vitest and the `vitest run` script exist, the named test must register and fail RED inside its callback because `expect` is unavailable; then the minimum `globals: true` configuration makes that same test green. ESLint uses its non-interactive CLI with the Next.js 15 config. Edge cases: a failing test must terminate nonzero and a green run must terminate zero rather than watch; TypeScript path/ES module handling must work without weakening strictness; lint must not prompt on a clean checkout; build diagnosis must distinguish a source/configuration failure from a sandbox or orphan-process hang. Rollback is removal of the new dev dependencies, configs, scripts, and allowlist entries; no runtime or data migration is involved.
@@ -62,5 +62,6 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 - 2026-09-09 (BL-007): preserve React and unrelated top-level versions while allowing Next's required transitive updates; any remaining production audit finding requires another explicit amendment rather than an override or suppression.
 - 2026-09-09 (BL-007): Next 15.5.25 removed the critical finding but left three high production advisories in PostCSS, Nano ID, and Sharp; Next 16.3.4 officially declares patched dependency ranges and is compatible with the installed Node 20.18 and React 19.1.
 - 2026-09-10 (plan): owner chose the supported Next.js 16.3.4 upgrade over custom transitive overrides — BL-007 now includes major-version migration verification while keeping React 19.1 fixed.
+- 2026-09-10 (BL-007): Next.js 16 required `jsx: react-jsx` and added `.next/dev/types/**/*.ts` to TypeScript inputs; the static build passed after applying those generated migration changes and clearing a stale `.next/trace` file.
 
 ## Archived Specs
