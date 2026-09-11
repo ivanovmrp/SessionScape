@@ -13,6 +13,7 @@
 - **Learnings**: Next.js 15.5.25 clears the critical finding but retains 3 high production-tree advisories; Next 16.3.4 declares patched PostCSS/Sharp ranges and supports Node 20.9+ with React 19 (Plan 1)
 - **Learnings**: On this Windows sandbox, a stale generated `.next/trace` can cause build `EPERM`; verify the path, remove that generated file with elevated access, then rerun (Plan 1)
 - **Learnings**: Vitest 4 config must use `.mts` in this non-ESM package; `.ts` loads as CommonJS and fails on Vitest's ESM-only dependency (Plan 1)
+- **Learnings**: Next 16's ESLint config range resolves a Node 20.19-only TypeScript-ESLint subtree; pin `typescript-eslint@8.46.0` on Node 20.18 and globally ignore generated/workflow directories (Plan 1)
 
 ## Amendments
 <!-- project-local workflow rule changes, one line each, user-approved; extend or override AGENTS.md -->

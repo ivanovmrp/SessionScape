@@ -64,5 +64,6 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 - 2026-09-10 (plan): owner chose the supported Next.js 16.3.4 upgrade over custom transitive overrides — BL-007 now includes major-version migration verification while keeping React 19.1 fixed.
 - 2026-09-10 (BL-007): Next.js 16 required `jsx: react-jsx` and added `.next/dev/types/**/*.ts` to TypeScript inputs; the static build passed after applying those generated migration changes and clearing a stale `.next/trace` file.
 - 2026-09-10 (BL-001): Vitest 4 cannot load `vitest.config.ts` as CommonJS in this package because its config path reaches ESM-only dependencies; use the ESM-explicit `.mts` config rather than changing the application's package type.
+- 2026-09-10 (BL-001): pin `typescript-eslint@8.46.0` to keep Next 16's lint stack supported on Node 20.18, and add global ignores for generated/workflow directories so `eslint .` terminates deterministically.
 
 ## Archived Specs
