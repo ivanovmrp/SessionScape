@@ -8,20 +8,21 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 
 ## Stories
 
-### BL-007 — Patch the critical Next.js vulnerability
+### BL-007 — Upgrade Next.js to a patched supported release
 - **Status**: in progress
 - **Dependencies**: none
-- **Likely touched files**: `package.json`, `package-lock.json`
-- **Design**: Preserve the existing Next.js 15 interface and static-export architecture while moving the top-level Next dependency from 15.5.20 to the audit-recommended 15.5.25 patch. Keep React, React DOM, and unrelated top-level dependencies fixed while allowing only transitive updates required by Next 15.5.25. Security boundary: this removes known critical/high findings from the production dependency tree without broad dependency modernization. Edge cases: the installed version must match both manifest and lockfile; `npm audit --omit=dev` must assess production dependencies rather than hide findings behind an override or forced audit rewrite; TypeScript and the static build must still work; any new framework warning or runtime behavior change is investigated rather than suppressed. Testing uses dependency-tree inspection, the existing TypeScript command, and the production build, with the audit report as security evidence. Rollback is the prior lockfile/manifest pair only if the patched version causes a worse verified failure; a rollback would leave the story blocked because returning to a known critical version is not acceptable.
+- **Likely touched files**: `package.json`, `package-lock.json`, `docs/project.md`; conditionally `next.config.ts` or directly affected application files only when a reproduced Next.js 16 migration failure requires the minimum compatible change
+- **Design**: Preserve the static-export product boundary while moving Next.js from the vulnerable 15.5 line to the supported 16.3.4 release that declares patched PostCSS and Sharp ranges. Keep React and React DOM pinned at 19.1.0, which satisfies Next 16's declared React 19 peer range, and keep unrelated top-level dependencies fixed while allowing only transitive updates required by Next 16.3.4. Security boundary: remove all high/critical production findings without overrides, forced audit rewrites, or broad modernization. Edge cases: Node 20.18 must satisfy Next 16's Node 20.9+ engine; manifest, lockfile, and installed version must agree; static export must still complete; removed or changed Next 16 behavior must be fixed at the smallest affected interface rather than suppressed; React versions must not drift. Testing uses dependency-tree inspection, the existing strict TypeScript command, and the static production build, with the production-only audit as security evidence. Because returning to a known vulnerable Next 15 line is unacceptable, rollback means marking the story blocked and the plan partial while preserving the failing evidence, not merging the old runtime.
 - **Tasks**:
-  1. Capture the current production audit and installed-version RED evidence for Next.js 15.5.20.
-  2. Install and pin Next.js 15.5.25 without changing React, React DOM, or unrelated top-level dependencies; allow only the transitive resolution changes required by the patched Next package.
-  3. Verify the exact installed version and inspect `npm ls next postcss sharp`, then run `npm audit --omit=dev`, the existing TypeScript check, and the production build in isolation.
-  4. If ordinary Next 15.5.25 resolution leaves a high or critical production finding, stop for a rung-3 amendment to select a verified compatible patch; do not add an override, force an audit rewrite, suppress the report, or accept a red audit silently.
+  1. Retain the captured RED evidence: Next.js 15.5.20 had a critical finding, and the attempted 15.5.25 patch still produced three high findings in PostCSS, Nano ID, and Sharp.
+  2. Install and pin Next.js 16.3.4 without changing React, React DOM, or unrelated top-level dependencies; allow only transitive resolution changes required by Next 16.3.4.
+  3. Verify manifest, lockfile, and installed Next/React versions and inspect `npm ls next postcss sharp nanoid`, then run `npm audit --omit=dev`.
+  4. Run the existing strict TypeScript check and the production build in isolation; if Next.js 16 exposes a migration failure, reproduce it and make only the smallest compatible change before rerunning both gates.
+  5. If the audit, type-check, or build remains red, stop for a rung-3 amendment; do not add an override, force an audit rewrite, suppress a migration failure, or accept a red gate silently.
 - **Test plan**:
-  - Criterion 1: dependency integration — inspect the manifest, lockfile root, and installed `next/package.json`; all must report 15.5.25.
+  - Criterion 1: dependency integration — inspect the manifest, lockfile root, installed `next/package.json`, and installed React packages; Next must report 16.3.4 and React/React DOM must remain 19.1.0.
   - Criterion 2: security integration — capture `npm audit --omit=dev` exit status and report; no Next.js or production-tree high/critical finding may remain.
-  - Criterion 3: integration/build — run `npm exec tsc -- --noEmit`, then `npm run build` with no overlapping Next process; both must exit 0.
+  - Criterion 3: integration/build — run `npm exec tsc -- --noEmit`, then `npm run build` with no overlapping Next process; both must exit 0 without weakening TypeScript or suppressing Next.js 16 migration failures.
 
 ### BL-001 — Establish deterministic quality gates
 - **Status**: blocked (BL-007)
@@ -59,5 +60,7 @@ Patch the vulnerable runtime, then make every later prototype change testable an
 - 2026-09-09 (plan): installing the first dev dependency surfaced a pre-existing critical advisory in Next.js 15.5.20 with a non-major fix at 15.5.25 — security remediation must be inserted or explicitly deferred before BL-001 continues.
 - 2026-09-09 (plan): owner chose to insert BL-007 before BL-001 — Plan 1 now delivers a patched runtime plus quality gates, with dependent prototype work still blocked until both stories pass.
 - 2026-09-09 (BL-007): preserve React and unrelated top-level versions while allowing Next's required transitive updates; any remaining production audit finding requires another explicit amendment rather than an override or suppression.
+- 2026-09-09 (BL-007): Next 15.5.25 removed the critical finding but left three high production advisories in PostCSS, Nano ID, and Sharp; Next 16.3.4 officially declares patched dependency ranges and is compatible with the installed Node 20.18 and React 19.1.
+- 2026-09-10 (plan): owner chose the supported Next.js 16.3.4 upgrade over custom transitive overrides — BL-007 now includes major-version migration verification while keeping React 19.1 fixed.
 
 ## Archived Specs

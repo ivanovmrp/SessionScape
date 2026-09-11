@@ -86,14 +86,14 @@ Acceptance criteria:
   3. A decision report compares results with the documented proceed, change-provider, defer, and stop criteria and names the supported next step.
   4. No identifiable client export, clinical content, health data, intake content, or payment-card data is collected.
 
-### BL-007 — Patch the critical Next.js vulnerability
+### BL-007 — Upgrade Next.js to a patched supported release
 - **Status**: planned (Plan 1)
 - **Priority · Effort**: P0 · S
 - **Dependencies**: none
-- **Context**: `npm audit` reports critical advisories against the locked Next.js 15.5.20 runtime and identifies 15.5.25 as the non-major patched release. The issue predated Plan 1 and surfaced when the first development dependency was installed.
+- **Context**: `npm audit` reported critical advisories against Next.js 15.5.20. Version 15.5.25 removed the critical finding but retained three high findings in its production dependency tree; Next.js 16.3.4 is the supported release that declares patched PostCSS and Sharp ranges. The issue predated Plan 1 and surfaced when the first development dependency was installed.
 - **Acceptance criteria**:
-  1. `package.json` and `package-lock.json` pin Next.js 15.5.25, and the installed package reports that exact version.
+  1. `package.json` and `package-lock.json` pin Next.js 16.3.4, and the installed package reports that exact version while React and React DOM remain at 19.1.0.
   2. `npm audit --omit=dev` reports no high or critical vulnerability in Next.js or its production dependency tree.
-  3. TypeScript checking passes without weakening compiler settings, and the production build completes successfully on the patched runtime.
+  3. TypeScript checking passes without weakening compiler settings, and the static production build completes successfully on the upgraded runtime without suppressed migration failures.
 
 ## Icebox
