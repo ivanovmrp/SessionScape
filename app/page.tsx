@@ -193,7 +193,25 @@ export default function Home() {
             <div className="rule-box"><strong>Audience snapshot · {approvalSnapshot.audienceCount} eligible clients</strong><p>{activeOpportunity.eligibility}</p></div>
             <div className="rule-box"><strong>Content snapshot</strong><p>{approvalSnapshot.draft}</p></div>
             <p className="warning"><strong>Approval does not send a message or create a booking.</strong></p>
-            <div className="drawer-actions"><button onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActiveOpportunity(null); }}>Approve draft</button></div>
+            <div className="drawer-actions"><button onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActionStage("handoff"); }}>Approve draft</button></div>
+          </>}
+
+          {actionStage === "handoff" && <>
+            <p className="eyebrow">REPRESENTATIVE PROVIDER HANDOFF</p>
+            <h2 id="opportunity-title">Continue in {activeOpportunity.providerHandoff.provider}</h2>
+            <div className="rule-box">
+              <strong>No live availability is connected.</strong>
+              <p>{activeOpportunity.providerHandoff.provider} remains the system of record for availability, booking, and payment.</p>
+              <a className="button-primary" href="#provider-handoff" onClick={() => setNotice("Representative provider page selected. No booking or payment was created.")}>Open representative {activeOpportunity.providerHandoff.provider} page</a>
+            </div>
+            <h3>What the value means</h3>
+            <div className="value-ladder">
+              <div className="value-row current"><strong>Estimated opportunity</strong><span>Current · {activeOpportunity.value}</span></div>
+              <div className="value-row"><strong>Attributed booking</strong><span>Not observed</span></div>
+              <div className="value-row"><strong>Completed appointment</strong><span>Not observed</span></div>
+              <div className="value-row"><strong>Realized revenue</strong><span>Not observed</span></div>
+            </div>
+            <p className="muted">Approval records only the owner-controlled snapshot in this synthetic prototype. It does not send, book, or collect payment.</p>
           </>}
         </aside>
       </div>}
