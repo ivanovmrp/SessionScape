@@ -18,7 +18,7 @@ export type Metric = {
   coverage: string;
   exclusions: string;
   classification: "Observed" | "Estimated";
-  state?: "partial";
+  state: "current" | "unavailable" | "stale";
 };
 
 export type Opportunity = {
@@ -46,10 +46,11 @@ type Fixture = {
   totalOpportunity: string;
   metrics: Metric[];
   capacityMetric: Metric;
-  capacityPercent: number;
-  bookedHours: number;
-  openHours: number;
-  blockedHours: number;
+  capacityState: "current" | "unavailable" | "stale";
+  capacityPercent: number | null;
+  bookedHours: number | null;
+  openHours: number | null;
+  blockedHours: number | null;
   returnRate: number;
   returnChange: number;
   days: { label: string; booked: number; open: number }[];
@@ -65,35 +66,56 @@ const metric = (data: Partial<Metric> & Pick<Metric, "id" | "label" | "value" | 
   coverage: "100% of supported appointment and availability records · synced Sep 7 at 8:42 AM",
   exclusions: "Intentionally blocked time, breaks, and appointments outside serviceable hours are excluded.",
   classification: "Observed",
+  state: "current",
   ...data,
 });
 
-export const DASHBOARD_INPUTS = {
-  current: {
+const currentInput = {
     status: "current",
-    bookedHours: 28,
-    openHours: 12,
-    blockedHours: 6,
-    previousCapacityPercent: 62,
+    capacity: {
+      state: "current",
+      bookedHours: 28,
+      openHours: 12,
+      blockedHours: 6,
+      previousPercent: 62,
+      days: [
+        { label: "Mon", bookedHours: 8.2, openHours: 1.8 },
+        { label: "Tue", bookedHours: 7, openHours: 3 },
+        { label: "Wed", bookedHours: 8.8, openHours: 1.2 },
+        { label: "Thu", bookedHours: 4.2, openHours: 5.8 },
+        { label: "Fri", bookedHours: 6.8, openHours: 3.2 },
+        { label: "Sat", bookedHours: 7.8, openHours: 2.2 },
+      ],
+    },
     appointments: { confirmed: 24, completed: 4, previousTotal: 24 },
     retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
     cancellations: { total: 6, refilled: 2 },
-    days: [
-      { label: "Mon", bookedHours: 8.2, openHours: 1.8 },
-      { label: "Tue", bookedHours: 7, openHours: 3 },
-      { label: "Wed", bookedHours: 8.8, openHours: 1.2 },
-      { label: "Thu", bookedHours: 4.2, openHours: 5.8 },
-      { label: "Fri", bookedHours: 6.8, openHours: 3.2 },
-      { label: "Sat", bookedHours: 7.8, openHours: 2.2 },
-    ],
     opportunities: [
       { id: "underbooked-thursday", estimatedCents: 36_000 },
       { id: "overdue-clients", estimatedCents: 88_000 },
     ],
+} satisfies DashboardInput;
+
+export const DASHBOARD_INPUTS = {
+  current: currentInput,
+  partial: {
+    ...currentInput,
+    status: "partial",
+    capacity: { state: "unavailable" },
+    opportunities: currentInput.opportunities.filter(
+      (opportunity) => opportunity.id === "overdue-clients",
+    ),
   },
-} satisfies { current: DashboardInput };
+  stale: {
+    ...currentInput,
+    status: "stale",
+    capacity: { ...currentInput.capacity, state: "stale" },
+  },
+} satisfies Record<DataScenario, DashboardInput>;
 
 const currentDashboard = deriveDashboard(DASHBOARD_INPUTS.current);
+const partialDashboard = deriveDashboard(DASHBOARD_INPUTS.partial);
+const staleDashboard = deriveDashboard(DASHBOARD_INPUTS.stale);
 const currentMetrics = Object.fromEntries(
   currentDashboard.metrics.map((item) => [item.id, item]),
 ) as Record<(typeof currentDashboard.metrics)[number]["id"], (typeof currentDashboard.metrics)[number]>;
@@ -122,6 +144,7 @@ const base: Fixture = {
   totalOpportunity: currentDashboard.totalOpportunity,
   metrics: baseMetrics,
   capacityMetric,
+  capacityState: currentDashboard.capacity.state,
   capacityPercent: currentDashboard.capacity.percent,
   bookedHours: currentDashboard.capacity.bookedHours,
   openHours: currentDashboard.capacity.openHours,
@@ -132,7 +155,30 @@ const base: Fixture = {
   opportunities,
 };
 
-const partialCapacity = metric({ ...capacityMetric, value: "—", change: "Unavailable", tone: "caution", context: "Availability coverage is incomplete", state: "partial", coverage: "Appointments: 100% · practitioner availability: 58% · last sync Sep 7 at 8:42 AM", formula: "Not calculated. Reliable capacity requires complete serviceable availability for every active practitioner.", classification: "Estimated" });
+const partialMetrics = baseMetrics.map((item, index) =>
+  metric({
+    ...item,
+    ...partialDashboard.metrics[index],
+    ...(index === 0
+      ? {
+          tone: "caution" as const,
+          coverage:
+            "Appointments: 100% · practitioner availability: 58% · last sync Sep 7 at 8:42 AM",
+          classification: "Estimated" as const,
+        }
+      : {}),
+  }),
+);
+const partialCapacity = partialMetrics[0];
+const staleMetrics = baseMetrics.map((item, index) =>
+  metric({
+    ...item,
+    ...staleDashboard.metrics[index],
+    context: `${staleDashboard.metrics[index].context} · stale`,
+    coverage:
+      "Last successful sync Sep 5 at 6:14 PM. Changes after that time are not included.",
+  }),
+);
 
 export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
   current: base,
@@ -142,14 +188,19 @@ export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
     bannerTitle: "Some metrics are temporarily limited",
     bannerCopy: "Maya’s availability is missing after Wednesday · appointments remain current",
     bannerAction: "Review coverage",
-    headline: "partially available",
-    subheadline: "Appointment and retention metrics are current. Capacity estimates are hidden until coverage recovers.",
-    totalOpportunity: "$880",
-    metrics: [partialCapacity, ...baseMetrics.slice(1)],
+    headline: partialDashboard.headline,
+    subheadline: partialDashboard.subheadline,
+    totalOpportunity: partialDashboard.totalOpportunity,
+    metrics: partialMetrics,
     capacityMetric: partialCapacity,
-    capacityPercent: 0,
-    bookedHours: 28,
-    openHours: 0,
+    capacityState: partialDashboard.capacity.state,
+    capacityPercent: partialDashboard.capacity.percent,
+    bookedHours: partialDashboard.capacity.bookedHours,
+    openHours: partialDashboard.capacity.openHours,
+    blockedHours: partialDashboard.capacity.blockedHours,
+    returnRate: partialDashboard.returnPulse.rate,
+    returnChange: partialDashboard.returnPulse.change,
+    days: partialDashboard.days,
     opportunities: opportunities.filter((item) => item.type === "retention"),
   },
   stale: {
@@ -158,9 +209,18 @@ export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
     bannerTitle: "Dashboard data may be out of date",
     bannerCopy: "Last successful sync Sep 5 at 6:14 PM · new bookings may not be reflected",
     bannerAction: "Troubleshoot sync",
-    headline: "awaiting a refresh",
-    subheadline: "Use these numbers for context only. Review current bookings in Square before acting.",
-    metrics: baseMetrics.map((item) => ({ ...item, context: `${item.context} · stale`, state: "partial" as const, coverage: "Last successful sync Sep 5 at 6:14 PM. Changes after that time are not included." })),
-    capacityMetric: { ...capacityMetric, state: "partial", coverage: "Last successful sync Sep 5 at 6:14 PM. Changes after that time are not included." },
+    headline: staleDashboard.headline,
+    subheadline: staleDashboard.subheadline,
+    totalOpportunity: staleDashboard.totalOpportunity,
+    metrics: staleMetrics,
+    capacityMetric: staleMetrics[0],
+    capacityState: staleDashboard.capacity.state,
+    capacityPercent: staleDashboard.capacity.percent,
+    bookedHours: staleDashboard.capacity.bookedHours,
+    openHours: staleDashboard.capacity.openHours,
+    blockedHours: staleDashboard.capacity.blockedHours,
+    returnRate: staleDashboard.returnPulse.rate,
+    returnChange: staleDashboard.returnPulse.change,
+    days: staleDashboard.days,
   },
 };

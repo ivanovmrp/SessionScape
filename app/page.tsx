@@ -79,10 +79,10 @@ export default function Home() {
 
         <section className="metric-grid" aria-label="Weekly metrics">
           {fixture.metrics.map((metric) => (
-            <button className={`metric-card ${metric.state === "partial" ? "metric-partial" : ""}`} key={metric.id} onClick={() => setActiveMetric(metric)}>
+            <button className={`metric-card ${metric.state !== "current" ? "metric-partial" : ""}`} key={metric.id} onClick={() => setActiveMetric(metric)}>
               <span className="metric-label">{metric.label}<Icon name="info" size={16} /></span><strong>{metric.value}</strong>
               <span className={`metric-change ${metric.tone}`}>{metric.change}</span><small>{metric.context}</small>
-              {metric.state === "partial" && <span className="partial-label"><Icon name="warning" size={13} />Partial coverage</span>}
+              {metric.state !== "current" && <span className="partial-label"><Icon name="warning" size={13} />{metric.state === "unavailable" ? "Unavailable" : "Stale data"}</span>}
             </button>
           ))}
         </section>
@@ -90,11 +90,15 @@ export default function Home() {
         <section className="dashboard-grid">
           <div className="panel capacity-panel">
             <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={() => setActiveMetric(fixture.capacityMetric)}>View calculation<Icon name="chevron" size={14} /></button></div>
-            <div className="capacity-visual">
-              <div className="donut" style={{ "--percentage": `${fixture.capacityPercent * 3.6}deg` } as React.CSSProperties}><span><strong>{fixture.capacityPercent ? `${fixture.capacityPercent}%` : "—"}</strong><small>booked</small></span></div>
-              <div className="capacity-key"><div><span className="key-dot booked"/><p><strong>{fixture.bookedHours}h</strong> booked</p></div><div><span className="key-dot open"/><p><strong>{fixture.openHours || "—"}h</strong> still open</p></div><div><span className="key-dot blocked"/><p><strong>{fixture.blockedHours}h</strong> unavailable</p></div></div>
-            </div>
-            <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}><div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div><small>{day.label}</small></div>)}</div>
+            {fixture.capacityState === "unavailable" ? (
+              <div className="empty-state"><strong>Capacity is unavailable</strong><p>Availability coverage must recover before these totals and weekday bars can be calculated.</p></div>
+            ) : <>
+              <div className="capacity-visual">
+                <div className="donut" style={{ "--percentage": `${(fixture.capacityPercent ?? 0) * 3.6}deg` } as React.CSSProperties}><span><strong>{fixture.capacityPercent !== null ? `${fixture.capacityPercent}%` : "—"}</strong><small>booked</small></span></div>
+                <div className="capacity-key"><div><span className="key-dot booked"/><p><strong>{fixture.bookedHours}h</strong> booked</p></div><div><span className="key-dot open"/><p><strong>{fixture.openHours}h</strong> still open</p></div><div><span className="key-dot blocked"/><p><strong>{fixture.blockedHours}h</strong> unavailable</p></div></div>
+              </div>
+              <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}><div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div><small>{day.label}</small></div>)}</div>
+            </>}
           </div>
 
           <div className="panel pulse-panel" id="clients">

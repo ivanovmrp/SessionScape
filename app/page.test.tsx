@@ -19,6 +19,8 @@ test("changes prototype state and opens a real recommendation", async () => {
   );
 
   expect(screen.getByText("Some metrics are temporarily limited")).toBeDefined();
+  expect(screen.getByText("Capacity is unavailable")).toBeDefined();
+  expect(screen.queryByLabelText("Capacity by weekday")).toBeNull();
 
   await user.click(screen.getByRole("button", { name: "Review action" }));
 

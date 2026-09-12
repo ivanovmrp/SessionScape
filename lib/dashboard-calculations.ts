@@ -1,9 +1,15 @@
 export type DashboardInput = {
   status: "current" | "partial" | "stale";
-  bookedHours: number;
-  openHours: number;
-  blockedHours: number;
-  previousCapacityPercent: number;
+  capacity:
+    | { state: "unavailable" }
+    | {
+        state: "current" | "stale";
+        bookedHours: number;
+        openHours: number;
+        blockedHours: number;
+        previousPercent: number;
+        days: { label: string; bookedHours: number; openHours: number }[];
+      };
   appointments: {
     confirmed: number;
     completed: number;
@@ -15,7 +21,6 @@ export type DashboardInput = {
     previousRatePercent: number;
   };
   cancellations: { total: number; refilled: number };
-  days: { label: string; bookedHours: number; openHours: number }[];
   opportunities: { id: string; estimatedCents: number }[];
 };
 
@@ -25,6 +30,7 @@ export type DerivedMetric = {
   change: string;
   context: string;
   formula: string;
+  state: "current" | "unavailable" | "stale";
 };
 
 export type DerivedDashboard = {
@@ -35,10 +41,11 @@ export type DerivedDashboard = {
   opportunityCount: number;
   metrics: DerivedMetric[];
   capacity: {
-    percent: number;
-    bookedHours: number;
-    openHours: number;
-    blockedHours: number;
+    state: "current" | "unavailable" | "stale";
+    percent: number | null;
+    bookedHours: number | null;
+    openHours: number | null;
+    blockedHours: number | null;
   };
   returnPulse: { rate: number; change: number };
   days: { label: string; booked: number; open: number }[];
@@ -54,8 +61,20 @@ const currency = new Intl.NumberFormat("en-US", {
 });
 
 export function deriveDashboard(input: DashboardInput): DerivedDashboard {
-  const serviceableHours = input.bookedHours + input.openHours;
-  const capacityPercent = percent(input.bookedHours, serviceableHours);
+  const capacitySource =
+    input.capacity.state === "unavailable" ? null : input.capacity;
+  const bookedHours = capacitySource?.bookedHours ?? null;
+  const openHours = capacitySource?.openHours ?? null;
+  const blockedHours = capacitySource?.blockedHours ?? null;
+  const serviceableHours = capacitySource
+    ? capacitySource.bookedHours + capacitySource.openHours
+    : null;
+  const capacityPercent = capacitySource
+    ? percent(
+        capacitySource.bookedHours,
+        capacitySource.bookedHours + capacitySource.openHours,
+      )
+    : null;
   const appointmentTotal =
     input.appointments.confirmed + input.appointments.completed;
   const returnRate = percent(
@@ -66,21 +85,48 @@ export function deriveDashboard(input: DashboardInput): DerivedDashboard {
     (total, opportunity) => total + opportunity.estimatedCents,
     0,
   );
+  const stale = input.status === "stale";
+  const supportedState = stale ? "stale" : "current";
+  const capacityMetric: DerivedMetric = capacitySource
+    ? {
+        id: "capacity",
+        value: `${capacityPercent}%`,
+        change: `↗ ${(capacityPercent ?? 0) - capacitySource.previousPercent}%`,
+        context: `${bookedHours} of ${serviceableHours} serviceable hours`,
+        formula: `Booked serviceable hours ÷ total serviceable hours: ${bookedHours}h ÷ ${serviceableHours}h = ${capacityPercent}%.`,
+        state: input.capacity.state,
+      }
+    : {
+        id: "capacity",
+        value: "—",
+        change: "Unavailable",
+        context: "Availability coverage is incomplete",
+        formula:
+          "Not calculated. Reliable capacity requires complete serviceable availability for every active practitioner.",
+        state: "unavailable",
+      };
+
+  const headline =
+    input.status === "partial"
+      ? "partially available"
+      : input.status === "stale"
+        ? "awaiting a refresh"
+        : `${capacityPercent}% booked`;
+  const subheadline =
+    input.status === "partial"
+      ? "Appointment and retention metrics are current. Capacity estimates are hidden until coverage recovers."
+      : input.status === "stale"
+        ? "Use these numbers for context only. Review current bookings in Square before acting."
+        : `You have ${openHours} serviceable hours still open and ${input.opportunities.length === 2 ? "two" : input.opportunities.length} focused ways to act.`;
 
   return {
-    headline: `${capacityPercent}% booked`,
-    subheadline: `You have ${input.openHours} serviceable hours still open and ${input.opportunities.length === 2 ? "two" : input.opportunities.length} focused ways to act.`,
+    headline,
+    subheadline,
     totalOpportunity: currency.format(opportunityTotal / 100),
     totalOpportunityCents: opportunityTotal,
     opportunityCount: input.opportunities.length,
     metrics: [
-      {
-        id: "capacity",
-        value: `${capacityPercent}%`,
-        change: `↗ ${capacityPercent - input.previousCapacityPercent}%`,
-        context: `${input.bookedHours} of ${serviceableHours} serviceable hours`,
-        formula: `Booked serviceable hours ÷ total serviceable hours: ${input.bookedHours}h ÷ ${serviceableHours}h = ${capacityPercent}%.`,
-      },
+      capacityMetric,
       {
         id: "appointments",
         value: String(appointmentTotal),
@@ -88,6 +134,7 @@ export function deriveDashboard(input: DashboardInput): DerivedDashboard {
         context: `${input.appointments.confirmed} confirmed · ${input.appointments.completed} completed`,
         formula:
           "Count of non-cancelled appointments whose start time falls in the selected week.",
+        state: supportedState,
       },
       {
         id: "rebooking",
@@ -95,6 +142,7 @@ export function deriveDashboard(input: DashboardInput): DerivedDashboard {
         change: `↗ ${returnRate - input.retention.previousRatePercent}%`,
         context: `${input.retention.returned} of ${input.retention.eligible} eligible visits`,
         formula: `Eligible completed appointments followed by a future booking within 45 days ÷ eligible completed appointments: ${input.retention.returned} ÷ ${input.retention.eligible} = ${returnRate}%.`,
+        state: supportedState,
       },
       {
         id: "cancellations",
@@ -103,25 +151,27 @@ export function deriveDashboard(input: DashboardInput): DerivedDashboard {
         context: `${input.cancellations.total - input.cancellations.refilled} slots remain open`,
         formula:
           "Count of appointments cancelled during the selected week; refilled when a later active appointment overlaps the released slot.",
+        state: supportedState,
       },
     ],
     capacity: {
+      state: input.capacity.state,
       percent: capacityPercent,
-      bookedHours: input.bookedHours,
-      openHours: input.openHours,
-      blockedHours: input.blockedHours,
+      bookedHours,
+      openHours,
+      blockedHours,
     },
     returnPulse: {
       rate: returnRate,
       change: returnRate - input.retention.previousRatePercent,
     },
-    days: input.days.map((day) => {
+    days: capacitySource ? capacitySource.days.map((day) => {
       const total = day.bookedHours + day.openHours;
       return {
         label: day.label,
         booked: percent(day.bookedHours, total),
         open: percent(day.openHours, total),
       };
-    }),
+    }) : [],
   };
 }

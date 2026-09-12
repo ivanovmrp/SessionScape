@@ -9,24 +9,27 @@ import {
   DASHBOARD_INPUTS,
 } from "./dashboard-fixtures";
 
-const currentInput: DashboardInput = {
+const currentInput = {
   status: "current",
-  bookedHours: 28,
-  openHours: 12,
-  blockedHours: 6,
-  previousCapacityPercent: 62,
+  capacity: {
+    state: "current",
+    bookedHours: 28,
+    openHours: 12,
+    blockedHours: 6,
+    previousPercent: 62,
+    days: [
+      { label: "Mon", bookedHours: 8.2, openHours: 1.8 },
+      { label: "Tue", bookedHours: 7, openHours: 3 },
+    ],
+  },
   appointments: { confirmed: 24, completed: 4, previousTotal: 24 },
   retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
   cancellations: { total: 6, refilled: 2 },
-  days: [
-    { label: "Mon", bookedHours: 8.2, openHours: 1.8 },
-    { label: "Tue", bookedHours: 7, openHours: 3 },
-  ],
   opportunities: [
     { id: "capacity", estimatedCents: 36_000 },
     { id: "retention", estimatedCents: 88_000 },
   ],
-};
+} satisfies DashboardInput;
 
 test("derives every current dashboard number from numeric source inputs", () => {
   const dashboard = deriveDashboard(currentInput);
@@ -47,6 +50,7 @@ test("derives every current dashboard number from numeric source inputs", () => 
       context: "28 of 40 serviceable hours",
       formula:
         "Booked serviceable hours ÷ total serviceable hours: 28h ÷ 40h = 70%.",
+      state: "current",
     },
     {
       id: "appointments",
@@ -55,6 +59,7 @@ test("derives every current dashboard number from numeric source inputs", () => 
       context: "24 confirmed · 4 completed",
       formula:
         "Count of non-cancelled appointments whose start time falls in the selected week.",
+      state: "current",
     },
     {
       id: "rebooking",
@@ -63,6 +68,7 @@ test("derives every current dashboard number from numeric source inputs", () => 
       context: "18 of 29 eligible visits",
       formula:
         "Eligible completed appointments followed by a future booking within 45 days ÷ eligible completed appointments: 18 ÷ 29 = 62%.",
+      state: "current",
     },
     {
       id: "cancellations",
@@ -71,10 +77,12 @@ test("derives every current dashboard number from numeric source inputs", () => 
       context: "4 slots remain open",
       formula:
         "Count of appointments cancelled during the selected week; refilled when a later active appointment overlaps the released slot.",
+      state: "current",
     },
   ]);
 
   expect(dashboard.capacity).toEqual({
+    state: "current",
     percent: 70,
     bookedHours: 28,
     openHours: 12,
@@ -87,6 +95,73 @@ test("derives every current dashboard number from numeric source inputs", () => 
   ]);
 });
 
+test("suppresses unavailable capacity without erasing supported metrics", () => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    status: "partial",
+    capacity: { state: "unavailable" },
+    opportunities: [{ id: "retention", estimatedCents: 88_000 }],
+  });
+
+  expect(dashboard.headline).toBe("partially available");
+  expect(dashboard.subheadline).toBe(
+    "Appointment and retention metrics are current. Capacity estimates are hidden until coverage recovers.",
+  );
+  expect(dashboard.totalOpportunity).toBe("$880");
+  expect(dashboard.capacity).toEqual({
+    state: "unavailable",
+    percent: null,
+    bookedHours: null,
+    openHours: null,
+    blockedHours: null,
+  });
+  expect(dashboard.days).toEqual([]);
+  expect(dashboard.metrics[0]).toEqual({
+    id: "capacity",
+    value: "—",
+    change: "Unavailable",
+    context: "Availability coverage is incomplete",
+    formula:
+      "Not calculated. Reliable capacity requires complete serviceable availability for every active practitioner.",
+    state: "unavailable",
+  });
+  expect(dashboard.metrics.slice(1).map((metric) => metric.state)).toEqual([
+    "current",
+    "current",
+    "current",
+  ]);
+});
+
+test("retains last-known stale values with an explicit stale state", () => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    status: "stale",
+    capacity: { ...currentInput.capacity, state: "stale" },
+  });
+
+  expect(dashboard.headline).toBe("awaiting a refresh");
+  expect(dashboard.subheadline).toBe(
+    "Use these numbers for context only. Review current bookings in Square before acting.",
+  );
+  expect(dashboard.capacity).toEqual({
+    state: "stale",
+    percent: 70,
+    bookedHours: 28,
+    openHours: 12,
+    blockedHours: 6,
+  });
+  expect(dashboard.days).toEqual([
+    { label: "Mon", booked: 82, open: 18 },
+    { label: "Tue", booked: 70, open: 30 },
+  ]);
+  expect(dashboard.metrics.map((metric) => metric.state)).toEqual([
+    "stale",
+    "stale",
+    "stale",
+    "stale",
+  ]);
+});
+
 test("builds the current fixture from its inspectable numeric input", () => {
   const derived = deriveDashboard(DASHBOARD_INPUTS.current);
   const fixture = DASHBOARD_FIXTURES.current;
@@ -94,14 +169,16 @@ test("builds the current fixture from its inspectable numeric input", () => {
   expect(fixture.headline).toBe(derived.headline);
   expect(fixture.subheadline).toBe(derived.subheadline);
   expect(fixture.totalOpportunity).toBe(derived.totalOpportunity);
-  expect(fixture.metrics.map(({ id, value, change, context, formula }) => ({
+  expect(fixture.metrics.map(({ id, value, change, context, formula, state }) => ({
     id,
     value,
     change,
     context,
     formula,
+    state,
   }))).toEqual(derived.metrics);
   expect({
+    state: fixture.capacityState,
     percent: fixture.capacityPercent,
     bookedHours: fixture.bookedHours,
     openHours: fixture.openHours,
@@ -112,3 +189,24 @@ test("builds the current fixture from its inspectable numeric input", () => {
   );
   expect(fixture.days).toEqual(derived.days);
 });
+
+test.each(["partial", "stale"] as const)(
+  "builds the %s fixture from its numeric input and explicit states",
+  (scenario) => {
+    const derived = deriveDashboard(DASHBOARD_INPUTS[scenario]);
+    const fixture = DASHBOARD_FIXTURES[scenario];
+
+    expect(fixture.headline).toBe(derived.headline);
+    expect(fixture.subheadline).toBe(derived.subheadline);
+    expect(fixture.totalOpportunity).toBe(derived.totalOpportunity);
+    expect(fixture.capacityState).toBe(derived.capacity.state);
+    expect(fixture.capacityPercent).toBe(derived.capacity.percent);
+    expect(fixture.bookedHours).toBe(derived.capacity.bookedHours);
+    expect(fixture.openHours).toBe(derived.capacity.openHours);
+    expect(fixture.blockedHours).toBe(derived.capacity.blockedHours);
+    expect(fixture.days).toEqual(derived.days);
+    expect(fixture.metrics.map((metric) => metric.state)).toEqual(
+      derived.metrics.map((metric) => metric.state),
+    );
+  },
+);
