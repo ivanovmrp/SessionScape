@@ -73,5 +73,6 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 - 2026-09-12 (plan): amended BL-010 from jsdom 27.0.1 to 26.1.0 after npm resolved 27.0.1's open dependency ranges to Node 20.19-only packages; keep Node 20.18 and the full Plan 3 product scope.
 - 2026-09-12 (BL-002): code review found that hard-coded pulse history and inconsistent weekday totals could fabricate a trend; derive history from reconciled numeric inputs and require full scenario assertions.
 - 2026-09-12 (BL-003): code review found preserved audience and provider-handoff fields were not fully rendered; approval and handoff now consume the frozen contract directly.
+- 2026-09-12 (BL-002): re-review found zero eligible visits became a fabricated 0%; zero denominators now yield unavailable and rendered fixtures share the cached derived scenario outputs.
 
 ## Archived Specs

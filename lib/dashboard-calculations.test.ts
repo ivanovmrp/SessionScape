@@ -5,6 +5,7 @@ import {
   type DashboardInput,
 } from "./dashboard-calculations";
 import {
+  DASHBOARD_DERIVED,
   DASHBOARD_FIXTURES,
   DASHBOARD_INPUTS,
 } from "./dashboard-fixtures";
@@ -256,8 +257,47 @@ test.each(["partial", "stale"] as const)(
     expect(fixture.metrics.map((metric) => metric.state)).toEqual(
       derived.metrics.map((metric) => metric.state),
     );
+    expect(fixture.metrics.map(({ id, value, change, context, formula, state }) => ({
+      id,
+      value,
+      change,
+      context,
+      formula,
+      state,
+    }))).toEqual(derived.metrics);
+    expect({ rate: fixture.returnRate, change: fixture.returnChange }).toEqual(
+      derived.returnPulse,
+    );
+    expect(fixture.opportunities).toBe(
+      DASHBOARD_DERIVED[scenario].opportunities,
+    );
   },
 );
+
+test("marks retention as unavailable when no visits are eligible", () => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    retention: {
+      returned: 0,
+      eligible: 0,
+      previousRatePercent: 57,
+      history: [{ label: "Sep", returned: 0, eligible: 0 }],
+    },
+  });
+
+  expect(dashboard.metrics[2]).toMatchObject({
+    id: "rebooking",
+    value: "—",
+    change: "Unavailable",
+    context: "No eligible visits",
+    state: "unavailable",
+  });
+  expect(dashboard.returnPulse).toEqual({ rate: null, change: null });
+  expect(dashboard.returnHistory).toEqual([{ label: "Sep", rate: null }]);
+  expect(dashboard.returnTrendLabel).toBe(
+    "Client return rate is unavailable because no visits are eligible",
+  );
+});
 
 test.each([
   {

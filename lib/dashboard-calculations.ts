@@ -85,8 +85,8 @@ export type DerivedDashboard = {
     openHours: number | null;
     blockedHours: number | null;
   };
-  returnPulse: { rate: number; change: number };
-  returnHistory: { label: string; rate: number }[];
+  returnPulse: { rate: number | null; change: number | null };
+  returnHistory: { label: string; rate: number | null }[];
   returnTrendLabel: string;
   days: { label: string; booked: number; open: number }[];
 };
@@ -120,22 +120,24 @@ export function deriveDashboard(
     : null;
   const appointmentTotal =
     input.appointments.confirmed + input.appointments.completed;
-  const returnRate = percent(
-    input.retention.returned,
-    input.retention.eligible,
-  );
+  const returnRate = input.retention.eligible === 0
+    ? null
+    : percent(input.retention.returned, input.retention.eligible);
   const returnHistory = input.retention.history.map((point) => ({
     label: point.label,
-    rate: percent(point.returned, point.eligible),
+    rate: point.eligible === 0 ? null : percent(point.returned, point.eligible),
   }));
-  const firstReturnRate = returnHistory[0]?.rate ?? returnRate;
-  const lastReturnRate = returnHistory.at(-1)?.rate ?? returnRate;
-  const returnDirection =
-    lastReturnRate > firstReturnRate
+  const historyComplete = returnHistory.length > 0
+    && returnHistory.every((point) => point.rate !== null);
+  const firstReturnRate = historyComplete ? returnHistory[0].rate : null;
+  const lastReturnRate = historyComplete ? returnHistory.at(-1)?.rate ?? null : null;
+  const returnDirection = firstReturnRate !== null && lastReturnRate !== null
+    ? lastReturnRate > firstReturnRate
       ? "rose"
       : lastReturnRate < firstReturnRate
         ? "fell"
-        : "held steady";
+        : "held steady"
+    : null;
   const dismissed = new Set(dismissedIds);
   const visibleOpportunities = input.opportunities
     .filter((opportunity) => !dismissed.has(opportunity.id))
@@ -155,7 +157,7 @@ export function deriveDashboard(
         id: "capacity",
         value: `${capacityPercent}%`,
         change: `↗ ${(capacityPercent ?? 0) - capacitySource.previousPercent}%`,
-        context: `${bookedHours} of ${serviceableHours} serviceable hours`,
+        context: `${bookedHours} of ${serviceableHours} serviceable hours${stale ? " · stale" : ""}`,
         formula: `Booked serviceable hours ÷ total serviceable hours: ${bookedHours}h ÷ ${serviceableHours}h = ${capacityPercent}%.`,
         state: input.capacity.state,
       }
@@ -196,24 +198,24 @@ export function deriveDashboard(
         id: "appointments",
         value: String(appointmentTotal),
         change: `+${appointmentTotal - input.appointments.previousTotal}`,
-        context: `${input.appointments.confirmed} confirmed · ${input.appointments.completed} completed`,
+        context: `${input.appointments.confirmed} confirmed · ${input.appointments.completed} completed${stale ? " · stale" : ""}`,
         formula:
           "Count of non-cancelled appointments whose start time falls in the selected week.",
         state: supportedState,
       },
       {
         id: "rebooking",
-        value: `${returnRate}%`,
-        change: `↗ ${returnRate - input.retention.previousRatePercent}%`,
-        context: `${input.retention.returned} of ${input.retention.eligible} eligible visits`,
-        formula: `Eligible completed appointments followed by a future booking within 45 days ÷ eligible completed appointments: ${input.retention.returned} ÷ ${input.retention.eligible} = ${returnRate}%.`,
-        state: supportedState,
+        value: returnRate === null ? "—" : `${returnRate}%`,
+        change: returnRate === null ? "Unavailable" : `↗ ${returnRate - input.retention.previousRatePercent}%`,
+        context: returnRate === null ? "No eligible visits" : `${input.retention.returned} of ${input.retention.eligible} eligible visits${stale ? " · stale" : ""}`,
+        formula: returnRate === null ? "Not calculated. Rebooking rate requires at least one eligible completed visit." : `Eligible completed appointments followed by a future booking within 45 days ÷ eligible completed appointments: ${input.retention.returned} ÷ ${input.retention.eligible} = ${returnRate}%.`,
+        state: returnRate === null ? "unavailable" : supportedState,
       },
       {
         id: "cancellations",
         value: String(input.cancellations.total),
         change: `${input.cancellations.refilled} refilled`,
-        context: `${input.cancellations.total - input.cancellations.refilled} slots remain open`,
+        context: `${input.cancellations.total - input.cancellations.refilled} slots remain open${stale ? " · stale" : ""}`,
         formula:
           "Count of appointments cancelled during the selected week; refilled when a later active appointment overlaps the released slot.",
         state: supportedState,
@@ -228,10 +230,12 @@ export function deriveDashboard(
     },
     returnPulse: {
       rate: returnRate,
-      change: returnRate - input.retention.previousRatePercent,
+      change: returnRate === null ? null : returnRate - input.retention.previousRatePercent,
     },
     returnHistory,
-    returnTrendLabel: `Client return rate ${returnDirection} from ${firstReturnRate}% to ${lastReturnRate}% over six months`,
+    returnTrendLabel: returnDirection === null
+      ? "Client return rate is unavailable because no visits are eligible"
+      : `Client return rate ${returnDirection} from ${firstReturnRate}% to ${lastReturnRate}% over six months`,
     days: capacitySource ? capacitySource.days.map((day) => {
       const total = day.bookedHours + day.openHours;
       return {

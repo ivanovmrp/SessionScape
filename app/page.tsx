@@ -38,10 +38,14 @@ export default function Home() {
   const [audienceId, setAudienceId] = useState("eligible");
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
   const fixture = DASHBOARD_FIXTURES[scenario];
-  const returnChartPoints = fixture.returnHistory.map((point, index) => ({
-    x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
-    y: 140 - point.rate * 1.8,
-  }));
+  const returnChartPoints = fixture.returnHistory.flatMap((point, index) =>
+    point.rate === null
+      ? []
+      : [{
+          x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
+          y: 140 - point.rate * 1.8,
+        }],
+  );
   const lastReturnPoint = returnChartPoints.at(-1);
   const opportunitySummary = useMemo(
     () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
@@ -140,7 +144,7 @@ export default function Home() {
 
           <div className="panel pulse-panel" id="clients">
             <div className="panel-heading"><div><p className="eyebrow">CLIENT PULSE</p><h3>Return health</h3></div><button><span className="legend-dot"/>6-month trend</button></div>
-            <div className="pulse-stat"><span><strong>{fixture.returnRate}%</strong><small>of eligible clients returned</small></span><span className="change-positive">↗ {fixture.returnChange}%</span></div>
+            <div className="pulse-stat"><span><strong>{fixture.returnRate === null ? "—" : `${fixture.returnRate}%`}</strong><small>{fixture.returnRate === null ? "No eligible visits" : "of eligible clients returned"}</small></span><span className="change-positive">{fixture.returnChange === null ? "Unavailable" : `↗ ${fixture.returnChange}%`}</span></div>
             <svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label={fixture.returnTrendLabel}><polyline className="chart-line" points={returnChartPoints.map((point) => `${point.x},${point.y}`).join(" ")} />{lastReturnPoint && <circle cx={lastReturnPoint.x} cy={lastReturnPoint.y} r="5" />}</svg>
             <div className="chart-labels">{fixture.returnHistory.map((point) => <span key={point.label}>{point.label}</span>)}</div>
           </div>

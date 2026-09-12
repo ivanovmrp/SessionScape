@@ -39,9 +39,9 @@ type Fixture = {
   bookedHours: number | null;
   openHours: number | null;
   blockedHours: number | null;
-  returnRate: number;
-  returnChange: number;
-  returnHistory: { label: string; rate: number }[];
+  returnRate: number | null;
+  returnChange: number | null;
+  returnHistory: { label: string; rate: number | null }[];
   returnTrendLabel: string;
   days: { label: string; booked: number; open: number }[];
   opportunities: Opportunity[];
@@ -147,9 +147,12 @@ export const DASHBOARD_INPUTS = {
   },
 } satisfies Record<DataScenario, DashboardInput>;
 
-const currentDashboard = deriveDashboard(DASHBOARD_INPUTS.current);
-const partialDashboard = deriveDashboard(DASHBOARD_INPUTS.partial);
-const staleDashboard = deriveDashboard(DASHBOARD_INPUTS.stale);
+export const DASHBOARD_DERIVED = {
+  current: deriveDashboard(DASHBOARD_INPUTS.current),
+  partial: deriveDashboard(DASHBOARD_INPUTS.partial),
+  stale: deriveDashboard(DASHBOARD_INPUTS.stale),
+};
+const { current: currentDashboard, partial: partialDashboard, stale: staleDashboard } = DASHBOARD_DERIVED;
 const currentMetrics = Object.fromEntries(
   currentDashboard.metrics.map((item) => [item.id, item]),
 ) as Record<(typeof currentDashboard.metrics)[number]["id"], (typeof currentDashboard.metrics)[number]>;
@@ -207,7 +210,7 @@ const staleMetrics = baseMetrics.map((item, index) =>
   metric({
     ...item,
     ...staleDashboard.metrics[index],
-    context: `${staleDashboard.metrics[index].context} · stale`,
+    context: staleDashboard.metrics[index].context,
     coverage:
       "Last successful sync Sep 5 at 6:14 PM. Changes after that time are not included.",
   }),
@@ -236,7 +239,7 @@ export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
     returnHistory: partialDashboard.returnHistory,
     returnTrendLabel: partialDashboard.returnTrendLabel,
     days: partialDashboard.days,
-    opportunities: opportunities.filter((item) => item.type === "retention"),
+    opportunities: partialDashboard.opportunities,
   },
   stale: {
     ...base,
@@ -259,5 +262,6 @@ export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
     returnHistory: staleDashboard.returnHistory,
     returnTrendLabel: staleDashboard.returnTrendLabel,
     days: staleDashboard.days,
+    opportunities: staleDashboard.opportunities,
   },
 };
