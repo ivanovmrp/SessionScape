@@ -9,7 +9,7 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 ## Stories
 
 ### BL-002 — Reconcile synthetic dashboard calculations
-- **Status**: not started
+- **Status**: in progress
 - **Dependencies**: BL-001, BL-010
 - **Likely touched files**: `lib/dashboard-calculations.ts`, `lib/dashboard-calculations.test.ts`, `lib/dashboard-fixtures.ts`, `lib/dashboard-fixtures.test.ts`, `app/page.tsx`, `app/page.test.tsx`
 - **Design**: Replace presentation-first fixture strings with numeric scenario inputs consumed by `deriveDashboard(input)`, returning the existing render-ready view model plus explicit `current | partial | unavailable | stale` states. Keep money in integer cents and format only at the view-model boundary; visible opportunity count and cents-total derive from the non-dismissed recommendation set. Edge cases: distinguish valid zero from unavailable; round ratios once at the derivation boundary; partial availability must hide capacity values without erasing supported appointment or retention values; stale values remain last-known and visibly qualified; repeated or unknown dismissal IDs must not change totals twice. Tests independently calculate expectations from source inputs rather than repeating production helpers. No persistent-data migration exists; rollback restores the prior synthetic fixture module and page bindings in one story revert.
