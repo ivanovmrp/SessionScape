@@ -9,7 +9,7 @@ Run the established quality gates on pull requests and `main`, prove failure and
 ## Stories
 
 ### BL-009 — Run quality gates in GitHub CI
-- **Status**: in progress
+- **Status**: done
 - **Dependencies**: BL-001
 - **Likely touched files**: `.github/workflows/ci.yml`, temporary `lib/ci-failure.test.ts` and `lib/ci-delay.test.ts` files removed before completion, `docs/plans/plan-2.md`; GitHub `main` branch-protection settings after the check context is verified
 - **Design**: Add one workflow named `CI` with one job named `quality`, producing the stable check context `CI / quality`. Trigger on pull requests and pushes to `main`. Set top-level `permissions: contents: read`, no secrets, a finite job timeout, and concurrency keyed by workflow plus pull-request number or ref with `cancel-in-progress: true`, so one PR cannot cancel another and a newer run remains visible. Use Ubuntu, exact Node 20.18.0, npm cache, `npm ci`, then `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build`. Pin Checkout 7.0.1 to `3d3c42e5aac5ba805825da76410c181273ba90b1` with `persist-credentials: false`, and Setup Node 7.0.0 to `820762786026740c76f36085b0efc47a31fe5020`. Edge cases: a stale lockfile must fail at `npm ci`; a test/lint/type/build failure must stop the job nonzero; rapid pushes to one PR must cancel only the older run; forked pull requests must need no write permission, persisted credential, or secret; the required check must match both GitHub's emitted context and GitHub Actions app ID. RED is an intentionally failing temporary Vitest test on a bootstrap draft PR; GREEN deletes only that sentinel and leaves the workflow unchanged. Because a `main`-push event cannot run before the workflow first reaches `main`, use two explicitly authorized PRs: merge the bootstrap workflow PR, verify its `main` run, bind protection through `required_status_checks.checks` using the successful check run's emitted `app.id`, then use a second protected completion PR to prove enforcement. Preserve zero required reviews, administrator enforcement, and force-push/deletion blocks. Rollback first removes the required check, then removes the workflow through a PR; never leave protection requiring a check that cannot run.
@@ -43,6 +43,7 @@ Run the established quality gates on pull requests and `main`, prove failure and
 - Supersession: delayed PR run `34663091840` was cancelled; latest run `34663133112` succeeded.
 - Bootstrap: PR #2 merged as `9ceb25c8`; `main` push run `34664144894` succeeded and emitted `quality` from GitHub Actions app ID `15368`.
 - Protection: `main` strictly requires `{ context: quality, app_id: 15368 }` while retaining 0 approvals, administrator enforcement, and blocked force pushes/deletion.
+- Completion: PR #3 was blocked while `quality` ran, then check run `103473510433` succeeded from app ID `15368`, matching protection exactly.
 
 ## Observations
 
