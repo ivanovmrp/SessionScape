@@ -35,7 +35,7 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
   - Criterion 3: inspect `package.json` and lockfile for exact dev-only versions and run a clean locked install on Node 20.18.
 
 ### BL-003 — Complete the prototype action-validation flow
-- **Status**: not started
+- **Status**: in progress
 - **Dependencies**: BL-001, BL-002, BL-010
 - **Sketches**: docs/sketches/action-validation/option-a.html
 - **Likely touched files**: `lib/dashboard-calculations.ts`, `lib/dashboard-calculations.test.ts`, `lib/dashboard-fixtures.ts`, `lib/dashboard-fixtures.test.ts`, `app/page.tsx`, `app/page.test.tsx`, `app/globals.css`
