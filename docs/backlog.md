@@ -89,14 +89,6 @@ Acceptance criteria:
   2. The maintained ESLint version and compatible Next.js configuration are exactly locked without overrides, and `npm run lint` remains non-interactive and green.
   3. Tests, TypeScript checking, the production audit, and the static build remain green after the toolchain update.
 
-### BL-009 — Run quality gates in GitHub CI
-- **Status**: planned (Plan 2)
-- **Priority · Effort**: P0 · S
-- **Dependencies**: BL-001
-- **Context**: Plan 1 established local deterministic gates, but the repository has no CI workflow and `main` protection therefore has no required status check. Source: ship readiness (Plan 1).
-- **Acceptance criteria**:
-  1. Pull requests and pushes to `main` run a least-privilege workflow that performs a clean locked install, tests, lint, TypeScript checking, and the static production build.
-  2. A failing gate fails the workflow, and concurrent superseded runs are cancelled without hiding the latest result.
-  3. The verified workflow check is required by `main` branch protection before merge.
+- BL-009 Run quality gates in GitHub CI — done (Plan 2)
 
 ## Icebox

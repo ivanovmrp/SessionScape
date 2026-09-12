@@ -3,7 +3,7 @@
 - **North star**: For independent massage-practice owners, turn booking-platform data into trustworthy, actionable capacity and retention opportunities that produce attributable completed bookings.
 - **Stack**: Next.js 16.3.4, React 19.1.0, TypeScript 5.8.3, Vitest 4.1.11, ESLint 9.39.5, Node.js 20.18.0; npm; static export
 - **Test command**: `npm test` (non-interactive full suite)
-- **Structure**: App Router prototype in `app/`; typed synthetic scenarios in `lib/`; product, architecture, privacy, and business evidence in `docs/`
+- **Structure**: App Router prototype in `app/`; typed synthetic scenarios in `lib/`; CI quality workflow in `.github/workflows/ci.yml`; product, architecture, privacy, and business evidence in `docs/`
 - **Constraints**: Keep the booking provider as system of record; exclude clinical, health, intake, and payment-card data; require owner control over actions; justified dependencies are allowed
 - **Skills**: No installed third-party stack skills found
 - **Docs**: Next.js 16: https://nextjs.org/docs/llms.txt; React 19: https://react.dev/llms.txt; TypeScript 5.8: no llms.txt — use installed package + version-scoped official search
@@ -14,6 +14,7 @@
 - **Learnings**: Clean install warns ESLint 9.39.5 is unsupported, but ESLint 10 requires Node 20.19; BL-008 owns the Node/lint upgrade (Plan 1)
 - **Learnings**: Vitest discovers test copies in nested git worktrees unless `**/.worktrees/**` extends its default exclusions (Plan 1)
 - **Learnings**: GitHub's branch-protection update rejects organization-only reviewer restriction fields on personal repositories even when supplied empty; omit them while preserving supported review settings (Plan 2)
+- **Learnings**: A repository's first required workflow needs a bootstrap merge before its `main` event and app identity can be verified; prove cancellation with a temporary passing delay after the run is active (Plan 2)
 
 ## Amendments
 <!-- project-local workflow rule changes, one line each, user-approved; extend or override AGENTS.md -->

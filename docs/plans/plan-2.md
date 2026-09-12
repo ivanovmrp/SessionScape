@@ -1,5 +1,5 @@
 # Plan 2: Enforce quality gates in GitHub CI
-Status: IN PROGRESS
+Status: COMPLETE
 Advances: enabling — makes Plan 1's quality gates automatic on pull requests and required before merging to `main`, enabling safer prototype validation changes.
 
 ## Goal
@@ -52,3 +52,13 @@ Run the established quality gates on pull requests and `main`, prove failure and
 - 2026-09-11 (BL-009): the hosted quality run completed during the authenticated superseding-push round trip — use a temporary passing delay test for the final deterministic cancellation proof.
 
 ## Archived Specs
+
+### BL-009 — Run quality gates in GitHub CI
+- **Status**: planned (Plan 2)
+- **Priority · Effort**: P0 · S
+- **Dependencies**: BL-001
+- **Context**: Plan 1 established local deterministic gates, but the repository has no CI workflow and `main` protection therefore has no required status check. Source: ship readiness (Plan 1).
+- **Acceptance criteria**:
+  1. Pull requests and pushes to `main` run a least-privilege workflow that performs a clean locked install, tests, lint, TypeScript checking, and the static production build.
+  2. A failing gate fails the workflow, and concurrent superseded runs are cancelled without hiding the latest result.
+  3. The verified workflow check is required by `main` branch protection before merge.
