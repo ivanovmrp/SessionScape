@@ -73,6 +73,11 @@ export default function Home() {
     setNotice("Recommendation dismissed. You can restore it from Activity.");
   };
 
+  const restore = (id: string) => {
+    setDismissed((items) => items.filter((item) => item !== id));
+    setNotice("Recommendation restored to Opportunities.");
+  };
+
   const reviewApproval = () => {
     if (!selectedAudience || selectedAudience.count === 0) return;
     setApprovalSnapshot({
@@ -168,7 +173,7 @@ export default function Home() {
 
         <section className="activity" id="activity" aria-label="Activity">
           <div className="section-title"><div><p className="eyebrow">ACTIVITY</p><h2 id="activity-title">Dismissed recommendations</h2><p>Review recommendations you set aside in this prototype state.</p></div></div>
-          {dismissedOpportunities.length === 0 ? <div className="empty-state"><strong>No dismissed recommendations</strong><p>Recommendations you dismiss will appear here.</p></div> : <div className="activity-list">{dismissedOpportunities.map((opportunity) => <article className="activity-card" key={opportunity.id}><div><span>{opportunity.type === "capacity" ? "Capacity" : "Retention"} opportunity</span><strong>{opportunity.title}</strong></div><strong>{opportunity.value}</strong></article>)}</div>}
+          {dismissedOpportunities.length === 0 ? <div className="empty-state"><strong>No dismissed recommendations</strong><p>Recommendations you dismiss will appear here.</p></div> : <div className="activity-list">{dismissedOpportunities.map((opportunity) => <article className="activity-card" key={opportunity.id}><div><span>{opportunity.type === "capacity" ? "Capacity" : "Retention"} opportunity</span><strong>{opportunity.title}</strong></div><div className="activity-actions"><strong>{opportunity.value}</strong><button onClick={() => restore(opportunity.id)}>Restore recommendation</button></div></article>)}</div>}
         </section>
 
         <footer><span>SessionScape uses synthetic prototype data</span><span>Metric rules v1.0 · America/New_York</span></footer>

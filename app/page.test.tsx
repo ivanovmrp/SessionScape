@@ -112,6 +112,55 @@ test("records an identifiable dismissed recommendation in Activity", async () =>
   expect(within(activity).getByText("$360")).toBeDefined();
 });
 
+test("restores one of several dismissed recommendations without duplicates", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  for (let index = 0; index < 2; index += 1) {
+    await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+    await user.click(
+      screen.getByRole("button", { name: "Dismiss recommendation" }),
+    );
+  }
+
+  const activity = screen.getByRole("region", { name: "Activity" });
+  const capacityRecord = within(activity)
+    .getByText("Thursday afternoon has 3 open hours")
+    .closest("article");
+  expect(capacityRecord).not.toBeNull();
+  await user.click(
+    within(capacityRecord as HTMLElement).getByRole("button", {
+      name: "Restore recommendation",
+    }),
+  );
+
+  const summary = screen.getByText("Identified opportunity").parentElement;
+  expect(summary?.textContent).toContain("$360");
+  expect(summary?.textContent).toContain("across 1 actions");
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(1);
+  expect(
+    within(activity).queryByText("Thursday afternoon has 3 open hours"),
+  ).toBeNull();
+  expect(within(activity).getByText("14 returning clients are overdue")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Review action" }));
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+  const repeatedRecord = within(activity)
+    .getByText("Thursday afternoon has 3 open hours")
+    .closest("article");
+  await user.click(
+    within(repeatedRecord as HTMLElement).getByRole("button", {
+      name: "Restore recommendation",
+    }),
+  );
+
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(1);
+  expect(summary?.textContent).toContain("$360");
+  expect(summary?.textContent).toContain("across 1 actions");
+});
+
 test("edits a draft and audience before approving a frozen snapshot", async () => {
   const user = userEvent.setup();
   render(<Page />);
