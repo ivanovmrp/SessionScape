@@ -13,6 +13,7 @@
 - **Learnings**: Next 16's ESLint config range resolves a Node 20.19-only TypeScript-ESLint subtree; pin `typescript-eslint@8.46.0` on Node 20.18 and globally ignore generated/workflow directories (Plan 1)
 - **Learnings**: Clean install warns ESLint 9.39.5 is unsupported, but ESLint 10 requires Node 20.19; BL-008 owns the Node/lint upgrade (Plan 1)
 - **Learnings**: Vitest discovers test copies in nested git worktrees unless `**/.worktrees/**` extends its default exclusions (Plan 1)
+- **Learnings**: GitHub's branch-protection update rejects organization-only reviewer restriction fields on personal repositories even when supplied empty; omit them while preserving supported review settings (Plan 2)
 
 ## Amendments
 <!-- project-local workflow rule changes, one line each, user-approved; extend or override AGENTS.md -->

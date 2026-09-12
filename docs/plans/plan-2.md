@@ -37,6 +37,13 @@ Run the established quality gates on pull requests and `main`, prove failure and
 - Cancellation is timing-sensitive; push the second GREEN-state commit while the first GREEN run is active, then verify both run conclusions through the API.
 - The first PR is an unavoidable bootstrap exception: CI cannot be required or prove its `main` event until that workflow has merged once.
 
+## Evidence
+
+- RED: PR run `34662606778` failed on `Plan 2 CI RED sentinel`.
+- Supersession: delayed PR run `34663091840` was cancelled; latest run `34663133112` succeeded.
+- Bootstrap: PR #2 merged as `9ceb25c8`; `main` push run `34664144894` succeeded and emitted `quality` from GitHub Actions app ID `15368`.
+- Protection: `main` strictly requires `{ context: quality, app_id: 15368 }` while retaining 0 approvals, administrator enforcement, and blocked force pushes/deletion.
+
 ## Observations
 
 - 2026-09-10 (plan): the repository's first `main`-push workflow cannot be live-verified before its initial merge — use an explicitly approved bootstrap PR, then app-bind the required check and prove enforcement on a second PR.
