@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 
@@ -37,6 +37,11 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [audienceId, setAudienceId] = useState("eligible");
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
+  const metricCloseRef = useRef<HTMLButtonElement>(null);
+  const opportunityCloseRef = useRef<HTMLButtonElement>(null);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
+  const approvalInitialRef = useRef<HTMLButtonElement>(null);
+  const handoffRef = useRef<HTMLAnchorElement>(null);
   const fixture = DASHBOARD_FIXTURES[scenario];
   const hasCompleteReturnTrend = fixture.returnHistory.length === 6
     && fixture.returnHistory.every((point) => point.rate !== null);
@@ -58,6 +63,39 @@ export default function Home() {
   const selectedAudience = activeOpportunity?.audiences.find(
     (audience) => audience.id === audienceId,
   );
+
+  useEffect(() => {
+    if (activeMetric) metricCloseRef.current?.focus();
+  }, [activeMetric]);
+
+  useEffect(() => {
+    if (!activeOpportunity) return;
+    const target = actionStage === "evidence"
+      ? opportunityCloseRef.current
+      : actionStage === "draft"
+        ? draftRef.current
+        : actionStage === "approval"
+          ? approvalInitialRef.current
+          : handoffRef.current;
+    target?.focus();
+  }, [activeOpportunity, actionStage]);
+
+  const trapDialogFocus = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Tab") return;
+    const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ));
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const startAction = (opportunity: Opportunity) => {
     setActiveOpportunity(opportunity);
@@ -179,11 +217,11 @@ export default function Home() {
         <footer><span>SessionScape uses synthetic prototype data</span><span>Metric rules v1.0 · America/New_York</span></footer>
       </main>
 
-      {activeMetric && <div className="modal-backdrop" onMouseDown={() => setActiveMetric(null)}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveMetric(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
+      {activeMetric && <div className="modal-backdrop" onMouseDown={() => setActiveMetric(null)}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onKeyDown={trapDialogFocus} onMouseDown={(event) => event.stopPropagation()}><button ref={metricCloseRef} className="drawer-close" onClick={() => setActiveMetric(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
 
       {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}>
-        <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onMouseDown={(event) => event.stopPropagation()}>
-          <button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button>
+        <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onKeyDown={trapDialogFocus} onMouseDown={(event) => event.stopPropagation()}>
+          <button ref={opportunityCloseRef} className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button>
           <div className="action-steps" aria-label="Action progress">
             {(["Evidence", "Draft", "Approve", "Handoff"] as const).map((label, index) => <span className={index === ["evidence", "draft", "approval", "handoff"].indexOf(actionStage) ? "active" : ""} key={label}>{index + 1} {label}</span>)}
           </div>
@@ -205,7 +243,7 @@ export default function Home() {
           {actionStage === "draft" && <>
             <p className="eyebrow">OWNER REVIEW</p>
             <h2 id="opportunity-title">Prepare a representative draft</h2>
-            <label className="audience-control">Message draft<textarea value={draft} onChange={(event) => setDraft(event.target.value)} /></label>
+            <label className="audience-control">Message draft<textarea ref={draftRef} value={draft} onChange={(event) => setDraft(event.target.value)} /></label>
             <label className="audience-control">Audience<select value={audienceId} onChange={(event) => setAudienceId(event.target.value)}>{activeOpportunity.audiences.map((audience) => <option value={audience.id} key={audience.id}>{audience.count} · {audience.label}</option>)}</select></label>
             <div className="rule-box"><span>Audience rules</span><p>{activeOpportunity.eligibility}</p></div>
             {selectedAudience?.count === 0 && <p className="warning">No eligible recipients match this preset.</p>}
@@ -219,7 +257,7 @@ export default function Home() {
             <div className="rule-box"><strong>Audience snapshot · {approvalSnapshot.audienceLabel} · {approvalSnapshot.audienceCount} eligible clients</strong><p>{activeOpportunity.eligibility}</p></div>
             <div className="rule-box"><strong>Content snapshot</strong><p>{approvalSnapshot.draft}</p></div>
             <p className="warning"><strong>Approval does not send a message or create a booking.</strong></p>
-            <div className="drawer-actions"><button onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActionStage("handoff"); }}>Approve draft</button></div>
+            <div className="drawer-actions"><button ref={approvalInitialRef} onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActionStage("handoff"); }}>Approve draft</button></div>
           </>}
 
           {actionStage === "handoff" && <>
@@ -228,7 +266,7 @@ export default function Home() {
             <div className="rule-box">
               <strong>{activeOpportunity.providerHandoff.label}</strong>
               <p>{activeOpportunity.providerHandoff.limitation}</p>
-              <a className="button-primary" href="#provider-handoff" onClick={() => setNotice("Representative provider page selected. No booking or payment was created.")}>Open representative {activeOpportunity.providerHandoff.label}</a>
+              <a ref={handoffRef} className="button-primary" href="#provider-handoff" onClick={() => setNotice("Representative provider page selected. No booking or payment was created.")}>Open representative {activeOpportunity.providerHandoff.label}</a>
             </div>
             <h3>What the value means</h3>
             <div className="value-ladder">

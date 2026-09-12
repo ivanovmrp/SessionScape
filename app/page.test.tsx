@@ -341,3 +341,58 @@ test("closes and resets an action when the data scenario changes", async () => {
       .value,
   ).not.toContain("Unsaved scenario-specific edit");
 });
+
+test("moves focus into the metric drawer and wraps its single control", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  const dialog = screen.getByRole("dialog", { name: "Booked capacity" });
+  const close = within(dialog).getByRole("button", { name: "Close" });
+
+  expect(document.activeElement).toBe(close);
+  await user.tab();
+  expect(document.activeElement).toBe(close);
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(close);
+});
+
+test("contains recommendation drawer focus and advances it with each stage", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  let dialog = screen.getByRole("dialog", {
+    name: "Thursday afternoon has 3 open hours",
+  });
+  const close = within(dialog).getByRole("button", { name: "Close" });
+  const continueButton = within(dialog).getByRole("button", {
+    name: "Continue to draft",
+  });
+
+  expect(document.activeElement).toBe(close);
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(continueButton);
+  await user.tab();
+  expect(document.activeElement).toBe(close);
+
+  await user.click(continueButton);
+  dialog = screen.getByRole("dialog", { name: "Prepare a representative draft" });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("textbox", { name: "Message draft" }),
+  );
+
+  await user.click(within(dialog).getByRole("button", { name: "Review approval" }));
+  dialog = screen.getByRole("dialog", { name: "Approve this action draft?" });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Edit" }),
+  );
+
+  await user.click(within(dialog).getByRole("button", { name: "Approve draft" }));
+  dialog = screen.getByRole("dialog", { name: "Continue in Square" });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("link", {
+      name: "Open representative Square booking page",
+    }),
+  );
+});
