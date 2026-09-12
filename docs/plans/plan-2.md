@@ -1,5 +1,5 @@
 # Plan 2: Enforce quality gates in GitHub CI
-Status: IN PROGRESS
+Status: COMPLETE
 Advances: enabling — makes Plan 1's quality gates automatic on pull requests and required before merging to `main`, enabling safer prototype validation changes.
 
 ## Goal
@@ -9,7 +9,7 @@ Run the established quality gates on pull requests and `main`, prove failure and
 ## Stories
 
 ### BL-009 — Run quality gates in GitHub CI
-- **Status**: in progress
+- **Status**: done
 - **Dependencies**: BL-001
 - **Likely touched files**: `.github/workflows/ci.yml`, temporary `lib/ci-failure.test.ts` and `lib/ci-delay.test.ts` files removed before completion, `docs/plans/plan-2.md`; GitHub `main` branch-protection settings after the check context is verified
 - **Design**: Add one workflow named `CI` with one job named `quality`, producing the stable check context `CI / quality`. Trigger on pull requests and pushes to `main`. Set top-level `permissions: contents: read`, no secrets, a finite job timeout, and concurrency keyed by workflow plus pull-request number or ref with `cancel-in-progress: true`, so one PR cannot cancel another and a newer run remains visible. Use Ubuntu, exact Node 20.18.0, npm cache, `npm ci`, then `npm test`, `npm run lint`, `npm run typecheck`, and `npm run build`. Pin Checkout 7.0.1 to `3d3c42e5aac5ba805825da76410c181273ba90b1` with `persist-credentials: false`, and Setup Node 7.0.0 to `820762786026740c76f36085b0efc47a31fe5020`. Edge cases: a stale lockfile must fail at `npm ci`; a test/lint/type/build failure must stop the job nonzero; rapid pushes to one PR must cancel only the older run; forked pull requests must need no write permission, persisted credential, or secret; the required check must match both GitHub's emitted context and GitHub Actions app ID. RED is an intentionally failing temporary Vitest test on a bootstrap draft PR; GREEN deletes only that sentinel and leaves the workflow unchanged. Because a `main`-push event cannot run before the workflow first reaches `main`, use two explicitly authorized PRs: merge the bootstrap workflow PR, verify its `main` run, bind protection through `required_status_checks.checks` using the successful check run's emitted `app.id`, then use a second protected completion PR to prove enforcement. Preserve zero required reviews, administrator enforcement, and force-push/deletion blocks. Rollback first removes the required check, then removes the workflow through a PR; never leave protection requiring a check that cannot run.
@@ -37,6 +37,14 @@ Run the established quality gates on pull requests and `main`, prove failure and
 - Cancellation is timing-sensitive; push the second GREEN-state commit while the first GREEN run is active, then verify both run conclusions through the API.
 - The first PR is an unavoidable bootstrap exception: CI cannot be required or prove its `main` event until that workflow has merged once.
 
+## Evidence
+
+- RED: PR run `34662606778` failed on `Plan 2 CI RED sentinel`.
+- Supersession: delayed PR run `34663091840` was cancelled; latest run `34663133112` succeeded.
+- Bootstrap: PR #2 merged as `9ceb25c8`; `main` push run `34664144894` succeeded and emitted `quality` from GitHub Actions app ID `15368`.
+- Protection: `main` strictly requires `{ context: quality, app_id: 15368 }` while retaining 0 approvals, administrator enforcement, and blocked force pushes/deletion.
+- Completion: PR #3 was blocked while `quality` ran, then check run `103473510433` succeeded from app ID `15368`, matching protection exactly.
+
 ## Observations
 
 - 2026-09-10 (plan): the repository's first `main`-push workflow cannot be live-verified before its initial merge — use an explicitly approved bootstrap PR, then app-bind the required check and prove enforcement on a second PR.
@@ -44,3 +52,13 @@ Run the established quality gates on pull requests and `main`, prove failure and
 - 2026-09-11 (BL-009): the hosted quality run completed during the authenticated superseding-push round trip — use a temporary passing delay test for the final deterministic cancellation proof.
 
 ## Archived Specs
+
+### BL-009 — Run quality gates in GitHub CI
+- **Status**: planned (Plan 2)
+- **Priority · Effort**: P0 · S
+- **Dependencies**: BL-001
+- **Context**: Plan 1 established local deterministic gates, but the repository has no CI workflow and `main` protection therefore has no required status check. Source: ship readiness (Plan 1).
+- **Acceptance criteria**:
+  1. Pull requests and pushes to `main` run a least-privilege workflow that performs a clean locked install, tests, lint, TypeScript checking, and the static production build.
+  2. A failing gate fails the workflow, and concurrent superseded runs are cancelled without hiding the latest result.
+  3. The verified workflow check is required by `main` branch protection before merge.
