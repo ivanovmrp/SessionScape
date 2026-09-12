@@ -277,6 +277,7 @@ test("preserves the representative action contract through derivation", () => {
       { id: "eligible", label: "All eligible clients", count: 11 },
       { id: "recent", label: "Recently active", count: 7 },
       { id: "frequent", label: "Frequent clients", count: 4 },
+      { id: "none", label: "No matching clients", count: 0 },
     ],
     eligibility:
       "Future appointments, suppressions, ineligible clients, and clients outside Maya’s prior-client group are excluded.",

@@ -24,6 +24,8 @@ const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
 };
 
 const scenarioLabels: Record<DataScenario, string> = { current: "Current data", partial: "Partial data", stale: "Stale data" };
+type ActionStage = "evidence" | "draft" | "approval" | "handoff";
+type ApprovalSnapshot = { draft: string; audienceLabel: string; audienceCount: number };
 
 export default function Home() {
   const [scenario, setScenario] = useState<DataScenario>("current");
@@ -31,17 +33,42 @@ export default function Home() {
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
+  const [actionStage, setActionStage] = useState<ActionStage>("evidence");
+  const [draft, setDraft] = useState("");
+  const [audienceId, setAudienceId] = useState("eligible");
+  const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
   const fixture = DASHBOARD_FIXTURES[scenario];
   const opportunitySummary = useMemo(
     () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
     [dismissed, scenario],
   );
   const opportunities = useMemo(() => fixture.opportunities.filter((item) => !dismissed.includes(item.id)), [dismissed, fixture.opportunities]);
+  const selectedAudience = activeOpportunity?.audiences.find(
+    (audience) => audience.id === audienceId,
+  );
+
+  const startAction = (opportunity: Opportunity) => {
+    setActiveOpportunity(opportunity);
+    setActionStage("evidence");
+    setDraft(opportunity.draft);
+    setAudienceId(opportunity.audiences[0]?.id ?? "eligible");
+    setApprovalSnapshot(null);
+  };
 
   const dismiss = (id: string) => {
-    setDismissed((items) => [...items, id]);
+    setDismissed((items) => items.includes(id) ? items : [...items, id]);
     setActiveOpportunity(null);
     setNotice("Recommendation dismissed. You can restore it from Activity.");
+  };
+
+  const reviewApproval = () => {
+    if (!selectedAudience || selectedAudience.count === 0) return;
+    setApprovalSnapshot({
+      draft,
+      audienceLabel: selectedAudience.label,
+      audienceCount: selectedAudience.count,
+    });
+    setActionStage("approval");
   };
 
   return (
@@ -121,7 +148,7 @@ export default function Home() {
               <article className="opportunity-card" key={opportunity.id}>
                 <div className={`opportunity-icon ${opportunity.type}`}><Icon name={opportunity.type === "capacity" ? "calendar" : "users"} size={22} /></div>
                 <div className="opportunity-main"><div className="opportunity-meta"><span>{opportunity.kicker}</span><i className={opportunity.urgency === "High priority" ? "high" : ""}>{opportunity.urgency}</i></div><h3>{opportunity.title}</h3><p>{opportunity.summary}</p><div className="reason"><span>Why this appeared</span><p>{opportunity.reason}</p></div></div>
-                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={() => setActiveOpportunity(opportunity)}>Review action<Icon name="arrow" size={15} /></button></div>
+                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={() => startAction(opportunity)}>Review action<Icon name="arrow" size={15} /></button></div>
               </article>
             ))}
             {opportunities.length === 0 && <div className="empty-state"><strong>You’re all caught up</strong><p>Dismissed recommendations remain available in Activity.</p></div>}
@@ -133,7 +160,43 @@ export default function Home() {
 
       {activeMetric && <div className="modal-backdrop" onMouseDown={() => setActiveMetric(null)}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveMetric(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
 
-      {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}><aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">REVIEW RECOMMENDATION</p><h2 id="opportunity-title">{activeOpportunity.title}</h2><div className="review-summary"><span>Estimated value<strong>{activeOpportunity.value}</strong></span><span>Eligible audience<strong>{activeOpportunity.audience}</strong></span></div><div className="rule-box"><span>Rule {activeOpportunity.ruleVersion}</span><p>{activeOpportunity.rule}</p></div><h3>Owner controls</h3><p className="muted">Nothing is sent automatically. Review the suggested audience and draft before taking action.</p><label className="audience-control">Audience<select defaultValue="eligible"><option value="eligible">{activeOpportunity.audience} eligible clients</option><option value="recent">Recently active only</option><option value="vip">Frequent clients only</option></select></label><div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft opened for owner review. No message has been sent."); setActiveOpportunity(null); }}>Review draft<Icon name="arrow" size={15} /></button></div></aside></div>}
+      {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}>
+        <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onMouseDown={(event) => event.stopPropagation()}>
+          <button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button>
+          <div className="action-steps" aria-label="Action progress">
+            {(["Evidence", "Draft", "Approve", "Handoff"] as const).map((label, index) => <span className={index === ["evidence", "draft", "approval", "handoff"].indexOf(actionStage) ? "active" : ""} key={label}>{index + 1} {label}</span>)}
+          </div>
+
+          {actionStage === "evidence" && <>
+            <p className="eyebrow">{activeOpportunity.ruleVersion} · {scenarioLabels[scenario]}</p>
+            <h2 id="opportunity-title">{activeOpportunity.title}</h2>
+            <div className="review-summary"><span>Estimated opportunity<strong>{activeOpportunity.value}</strong></span><span>Eligible audience<strong>{activeOpportunity.audience}</strong></span></div>
+            <div className="rule-box"><span>Why this appeared</span><p>{activeOpportunity.reason}</p><small>Rule {activeOpportunity.ruleVersion}: {activeOpportunity.rule}</small></div>
+            <p className="muted"><strong>Nothing has been sent.</strong> You will review the message and audience before approval.</p>
+            <div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss recommendation</button><button className="button-primary" onClick={() => setActionStage("draft")}>Continue to draft<Icon name="arrow" size={15} /></button></div>
+          </>}
+
+          {actionStage === "draft" && <>
+            <p className="eyebrow">OWNER REVIEW</p>
+            <h2 id="opportunity-title">Prepare a representative draft</h2>
+            <label className="audience-control">Message draft<textarea value={draft} onChange={(event) => setDraft(event.target.value)} /></label>
+            <label className="audience-control">Audience<select value={audienceId} onChange={(event) => setAudienceId(event.target.value)}>{activeOpportunity.audiences.map((audience) => <option value={audience.id} key={audience.id}>{audience.count} · {audience.label}</option>)}</select></label>
+            <div className="rule-box"><span>Audience rules</span><p>{activeOpportunity.eligibility}</p></div>
+            {selectedAudience?.count === 0 && <p className="warning">No eligible recipients match this preset.</p>}
+            <p className="muted">Representative prototype only. SessionScape will not send or export this message.</p>
+            <div className="drawer-actions"><button onClick={() => setActionStage("evidence")}>Back</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss recommendation</button><button className="button-primary" disabled={!selectedAudience || selectedAudience.count === 0} onClick={reviewApproval}>Review approval</button></div>
+          </>}
+
+          {actionStage === "approval" && approvalSnapshot && <>
+            <p className="eyebrow">FINAL OWNER CONTROL</p>
+            <h2 id="opportunity-title">Approve this action draft?</h2>
+            <div className="rule-box"><strong>Audience snapshot · {approvalSnapshot.audienceCount} eligible clients</strong><p>{activeOpportunity.eligibility}</p></div>
+            <div className="rule-box"><strong>Content snapshot</strong><p>{approvalSnapshot.draft}</p></div>
+            <p className="warning"><strong>Approval does not send a message or create a booking.</strong></p>
+            <div className="drawer-actions"><button onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActiveOpportunity(null); }}>Approve draft</button></div>
+          </>}
+        </aside>
+      </div>}
     </div>
   );
 }
