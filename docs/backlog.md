@@ -30,7 +30,7 @@ Acceptance criteria:
 - BL-003 Complete the prototype action-validation flow — done (Plan 3)
 
 ### BL-004 — Make dismissed recommendations truthfully recoverable
-- **Status**: ready
+- **Status**: planned (Plan 4)
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-001
 - **Context**: The current confirmation says dismissed recommendations can be restored from Activity, but Activity has no restore interface.
@@ -40,7 +40,7 @@ Acceptance criteria:
   3. Tests cover dismissal, restoration, and repeated actions without duplicate recommendations.
 
 ### BL-005 — Make dashboard dialogs keyboard accessible
-- **Status**: ready
+- **Status**: planned (Plan 4)
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-001
 - **Context**: Metric and recommendation drawers expose dialog semantics but have no verified focus, Escape, or focus-return behavior. Source: review (Plan 3).
