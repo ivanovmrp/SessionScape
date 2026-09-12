@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, expect, test } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Page from "./page";
@@ -95,6 +95,23 @@ test("reconciles the opportunity total after a recommendation is dismissed", asy
   expect(summary?.textContent).toContain("across 1 actions");
 });
 
+test("records an identifiable dismissed recommendation in Activity", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+
+  const activity = screen.getByRole("region", { name: "Activity" });
+  expect(
+    within(activity).getByText("Thursday afternoon has 3 open hours"),
+  ).toBeDefined();
+  expect(within(activity).getByText("Capacity opportunity")).toBeDefined();
+  expect(within(activity).getByText("$360")).toBeDefined();
+});
+
 test("edits a draft and audience before approving a frozen snapshot", async () => {
   const user = userEvent.setup();
   render(<Page />);
@@ -153,7 +170,7 @@ test("dismisses a recommendation during draft review", async () => {
   await user.click(screen.getByRole("button", { name: "Continue to draft" }));
   await user.click(screen.getByRole("button", { name: "Dismiss recommendation" }));
 
-  expect(screen.queryByText("Thursday afternoon has 3 open hours")).toBeNull();
+  expect(screen.getAllByText("Thursday afternoon has 3 open hours")).toHaveLength(1);
   expect(
     screen.getByText("Identified opportunity").parentElement?.textContent,
   ).toContain("across 1 actions");
