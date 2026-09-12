@@ -7,8 +7,8 @@
 - **Constraints**: Keep the booking provider as system of record; exclude clinical, health, intake, and payment-card data; require owner control over actions; justified dependencies are allowed
 - **Skills**: No installed third-party stack skills found
 - **Docs**: Next.js 16: https://nextjs.org/docs/llms.txt; React 19: https://react.dev/llms.txt; TypeScript 5.8: no llms.txt — use installed package + version-scoped official search
-- **Do / Don't**: Do treat the current UI as a synthetic discovery prototype; don't imply it is connected to live booking data (2026-09-09)
-- **Learnings**: On this Windows sandbox, a stale generated `.next/trace` can cause build `EPERM`; verify the path, remove that generated file with elevated access, then rerun (Plan 1)
+- **Do / Don't**: Do derive displayed metrics from inspectable numeric inputs and suppress unavailable values in text and chart geometry; don't imply synthetic actions were sent, booked, or paid (Plan 3)
+- **Learnings**: On this Windows sandbox, stale generated `.next/trace*` files (including `trace-build`) can cause build `EPERM`; verify the exact path, remove that generated file with elevated access, then rerun (Plan 3)
 - **Learnings**: Vitest 4 config must use `.mts` in this non-ESM package; `.ts` loads as CommonJS and fails on Vitest's ESM-only dependency (Plan 1)
 - **Learnings**: Next 16's ESLint config range resolves a Node 20.19-only TypeScript-ESLint subtree; pin `typescript-eslint@8.46.0` on Node 20.18 and globally ignore generated/workflow directories (Plan 1)
 - **Learnings**: Clean install warns ESLint 9.39.5 is unsupported, but ESLint 10 requires Node 20.19; BL-008 owns the Node/lint upgrade (Plan 1)

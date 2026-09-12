@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DASHBOARD_FIXTURES, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
+import { deriveDashboard } from "../lib/dashboard-calculations";
+import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 
 const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
   const paths: Record<string, React.ReactNode> = {
@@ -23,6 +24,8 @@ const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
 };
 
 const scenarioLabels: Record<DataScenario, string> = { current: "Current data", partial: "Partial data", stale: "Stale data" };
+type ActionStage = "evidence" | "draft" | "approval" | "handoff";
+type ApprovalSnapshot = { draft: string; audienceLabel: string; audienceCount: number };
 
 export default function Home() {
   const [scenario, setScenario] = useState<DataScenario>("current");
@@ -30,13 +33,53 @@ export default function Home() {
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
+  const [actionStage, setActionStage] = useState<ActionStage>("evidence");
+  const [draft, setDraft] = useState("");
+  const [audienceId, setAudienceId] = useState("eligible");
+  const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
   const fixture = DASHBOARD_FIXTURES[scenario];
+  const hasCompleteReturnTrend = fixture.returnHistory.length === 6
+    && fixture.returnHistory.every((point) => point.rate !== null);
+  const returnChartPoints = hasCompleteReturnTrend ? fixture.returnHistory.flatMap((point, index) =>
+    point.rate === null
+      ? []
+      : [{
+          x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
+          y: 140 - point.rate * 1.8,
+        }],
+  ) : [];
+  const lastReturnPoint = returnChartPoints.at(-1);
+  const opportunitySummary = useMemo(
+    () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
+    [dismissed, scenario],
+  );
   const opportunities = useMemo(() => fixture.opportunities.filter((item) => !dismissed.includes(item.id)), [dismissed, fixture.opportunities]);
+  const selectedAudience = activeOpportunity?.audiences.find(
+    (audience) => audience.id === audienceId,
+  );
+
+  const startAction = (opportunity: Opportunity) => {
+    setActiveOpportunity(opportunity);
+    setActionStage("evidence");
+    setDraft(opportunity.draft);
+    setAudienceId(opportunity.audiences[0]?.id ?? "eligible");
+    setApprovalSnapshot(null);
+  };
 
   const dismiss = (id: string) => {
-    setDismissed((items) => [...items, id]);
+    setDismissed((items) => items.includes(id) ? items : [...items, id]);
     setActiveOpportunity(null);
     setNotice("Recommendation dismissed. You can restore it from Activity.");
+  };
+
+  const reviewApproval = () => {
+    if (!selectedAudience || selectedAudience.count === 0) return;
+    setApprovalSnapshot({
+      draft,
+      audienceLabel: selectedAudience.label,
+      audienceCount: selectedAudience.count,
+    });
+    setActionStage("approval");
   };
 
   return (
@@ -59,7 +102,7 @@ export default function Home() {
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
-            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { setScenario(event.target.value as DataScenario); setDismissed([]); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
+            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { setScenario(event.target.value as DataScenario); setDismissed([]); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
             <button className="date-button"><Icon name="calendar" />Sep 7 – 13<Icon name="chevron" size={15} /></button>
           </div>
         </header>
@@ -73,16 +116,16 @@ export default function Home() {
         {notice && <div className="toast" role="status"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notification"><Icon name="close" size={16} /></button></div>}
 
         <section className="summary-heading">
-          <div><p className="eyebrow">THIS WEEK AT A GLANCE</p><h2>Your business is <em>{fixture.headline}</em></h2><p>{fixture.subheadline}</p></div>
-          <div className="opportunity-total"><span>Identified opportunity</span><strong>{fixture.totalOpportunity}</strong><small><Icon name="trend" size={14} /> across {opportunities.length} actions</small></div>
+          <div><p className="eyebrow">THIS WEEK AT A GLANCE</p><h2>Your business is <em>{fixture.headline}</em></h2><p>{opportunitySummary.subheadline}</p></div>
+          <div className="opportunity-total"><span>Identified opportunity</span><strong>{opportunitySummary.totalOpportunity}</strong><small><Icon name="trend" size={14} /> across {opportunitySummary.opportunityCount} actions</small></div>
         </section>
 
         <section className="metric-grid" aria-label="Weekly metrics">
           {fixture.metrics.map((metric) => (
-            <button className={`metric-card ${metric.state === "partial" ? "metric-partial" : ""}`} key={metric.id} onClick={() => setActiveMetric(metric)}>
+            <button className={`metric-card ${metric.state !== "current" ? "metric-partial" : ""}`} key={metric.id} onClick={() => setActiveMetric(metric)}>
               <span className="metric-label">{metric.label}<Icon name="info" size={16} /></span><strong>{metric.value}</strong>
               <span className={`metric-change ${metric.tone}`}>{metric.change}</span><small>{metric.context}</small>
-              {metric.state === "partial" && <span className="partial-label"><Icon name="warning" size={13} />Partial coverage</span>}
+              {metric.state !== "current" && <span className="partial-label"><Icon name="warning" size={13} />{metric.state === "unavailable" ? "Unavailable" : "Stale data"}</span>}
             </button>
           ))}
         </section>
@@ -90,18 +133,21 @@ export default function Home() {
         <section className="dashboard-grid">
           <div className="panel capacity-panel">
             <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={() => setActiveMetric(fixture.capacityMetric)}>View calculation<Icon name="chevron" size={14} /></button></div>
-            <div className="capacity-visual">
-              <div className="donut" style={{ "--percentage": `${fixture.capacityPercent * 3.6}deg` } as React.CSSProperties}><span><strong>{fixture.capacityPercent ? `${fixture.capacityPercent}%` : "—"}</strong><small>booked</small></span></div>
-              <div className="capacity-key"><div><span className="key-dot booked"/><p><strong>{fixture.bookedHours}h</strong> booked</p></div><div><span className="key-dot open"/><p><strong>{fixture.openHours || "—"}h</strong> still open</p></div><div><span className="key-dot blocked"/><p><strong>{fixture.blockedHours}h</strong> unavailable</p></div></div>
-            </div>
-            <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}><div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div><small>{day.label}</small></div>)}</div>
+            {fixture.capacityState === "unavailable" ? (
+              <div className="empty-state"><strong>Capacity is unavailable</strong><p>Availability coverage must recover before these totals and weekday bars can be calculated.</p></div>
+            ) : <>
+              <div className="capacity-visual">
+                <div className="donut" style={{ "--percentage": `${(fixture.capacityPercent ?? 0) * 3.6}deg` } as React.CSSProperties}><span><strong>{fixture.capacityPercent !== null ? `${fixture.capacityPercent}%` : "—"}</strong><small>booked</small></span></div>
+                <div className="capacity-key"><div><span className="key-dot booked"/><p><strong>{fixture.bookedHours}h</strong> booked</p></div><div><span className="key-dot open"/><p><strong>{fixture.openHours}h</strong> still open</p></div><div><span className="key-dot blocked"/><p><strong>{fixture.blockedHours}h</strong> unavailable</p></div></div>
+              </div>
+              <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}>{day.booked === null || day.open === null ? <div className="bar-unavailable" aria-label={`${day.label} capacity unavailable`}>â€”</div> : <div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div>}<small>{day.label}</small></div>)}</div>
+            </>}
           </div>
 
           <div className="panel pulse-panel" id="clients">
             <div className="panel-heading"><div><p className="eyebrow">CLIENT PULSE</p><h3>Return health</h3></div><button><span className="legend-dot"/>6-month trend</button></div>
-            <div className="pulse-stat"><span><strong>{fixture.returnRate}%</strong><small>of eligible clients returned</small></span><span className="change-positive">↗ {fixture.returnChange}%</span></div>
-            <svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label="Client return rate rose over six months"><defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1b856f" stopOpacity=".22"/><stop offset="1" stopColor="#1b856f" stopOpacity="0"/></linearGradient></defs><path className="chart-area" d="M0 127 C50 120 65 100 112 105 S170 75 215 87 S280 60 322 67 S385 34 480 27 L480 150 L0 150Z" /><path className="chart-line" d="M0 127 C50 120 65 100 112 105 S170 75 215 87 S280 60 322 67 S385 34 480 27" /><circle cx="480" cy="27" r="5" /></svg>
-            <div className="chart-labels"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span></div>
+            <div className="pulse-stat"><span><strong>{fixture.returnRate === null ? "—" : `${fixture.returnRate}%`}</strong><small>{fixture.returnRate === null ? "No eligible visits" : "of eligible clients returned"}</small></span><span className="change-positive">{fixture.returnChange === null ? "Unavailable" : `↗ ${fixture.returnChange}%`}</span></div>
+            {hasCompleteReturnTrend ? <><svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label={fixture.returnTrendLabel}><polyline className="chart-line" points={returnChartPoints.map((point) => `${point.x},${point.y}`).join(" ")} />{lastReturnPoint && <circle cx={lastReturnPoint.x} cy={lastReturnPoint.y} r="5" />}</svg><div className="chart-labels">{fixture.returnHistory.map((point) => <span key={point.label}>{point.label}</span>)}</div></> : <div className="chart-unavailable" role="img" aria-label={fixture.returnTrendLabel}>Trend unavailable</div>}
           </div>
         </section>
 
@@ -112,7 +158,7 @@ export default function Home() {
               <article className="opportunity-card" key={opportunity.id}>
                 <div className={`opportunity-icon ${opportunity.type}`}><Icon name={opportunity.type === "capacity" ? "calendar" : "users"} size={22} /></div>
                 <div className="opportunity-main"><div className="opportunity-meta"><span>{opportunity.kicker}</span><i className={opportunity.urgency === "High priority" ? "high" : ""}>{opportunity.urgency}</i></div><h3>{opportunity.title}</h3><p>{opportunity.summary}</p><div className="reason"><span>Why this appeared</span><p>{opportunity.reason}</p></div></div>
-                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={() => setActiveOpportunity(opportunity)}>Review action<Icon name="arrow" size={15} /></button></div>
+                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={() => startAction(opportunity)}>Review action<Icon name="arrow" size={15} /></button></div>
               </article>
             ))}
             {opportunities.length === 0 && <div className="empty-state"><strong>You’re all caught up</strong><p>Dismissed recommendations remain available in Activity.</p></div>}
@@ -124,7 +170,66 @@ export default function Home() {
 
       {activeMetric && <div className="modal-backdrop" onMouseDown={() => setActiveMetric(null)}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveMetric(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
 
-      {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}><aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onMouseDown={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">REVIEW RECOMMENDATION</p><h2 id="opportunity-title">{activeOpportunity.title}</h2><div className="review-summary"><span>Estimated value<strong>{activeOpportunity.value}</strong></span><span>Eligible audience<strong>{activeOpportunity.audience}</strong></span></div><div className="rule-box"><span>Rule {activeOpportunity.ruleVersion}</span><p>{activeOpportunity.rule}</p></div><h3>Owner controls</h3><p className="muted">Nothing is sent automatically. Review the suggested audience and draft before taking action.</p><label className="audience-control">Audience<select defaultValue="eligible"><option value="eligible">{activeOpportunity.audience} eligible clients</option><option value="recent">Recently active only</option><option value="vip">Frequent clients only</option></select></label><div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft opened for owner review. No message has been sent."); setActiveOpportunity(null); }}>Review draft<Icon name="arrow" size={15} /></button></div></aside></div>}
+      {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}>
+        <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onMouseDown={(event) => event.stopPropagation()}>
+          <button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button>
+          <div className="action-steps" aria-label="Action progress">
+            {(["Evidence", "Draft", "Approve", "Handoff"] as const).map((label, index) => <span className={index === ["evidence", "draft", "approval", "handoff"].indexOf(actionStage) ? "active" : ""} key={label}>{index + 1} {label}</span>)}
+          </div>
+          <div className={`action-context ${opportunitySummary.actionContext.recheckRequired ? "warning" : ""}`}>
+            <strong>{opportunitySummary.actionContext.freshness}</strong>
+            <span>{opportunitySummary.actionContext.coverage}</span>
+            <p>{opportunitySummary.actionContext.limitation}</p>
+          </div>
+
+          {actionStage === "evidence" && <>
+            <p className="eyebrow">{activeOpportunity.ruleVersion} · {scenarioLabels[scenario]}</p>
+            <h2 id="opportunity-title">{activeOpportunity.title}</h2>
+            <div className="review-summary"><span>Estimated opportunity<strong>{activeOpportunity.value}</strong></span><span>Eligible audience<strong>{activeOpportunity.audience}</strong></span></div>
+            <div className="rule-box"><span>Why this appeared</span><p>{activeOpportunity.reason}</p><small>Rule {activeOpportunity.ruleVersion}: {activeOpportunity.rule}</small></div>
+            <p className="muted"><strong>Nothing has been sent.</strong> You will review the message and audience before approval.</p>
+            <div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss recommendation</button><button className="button-primary" onClick={() => setActionStage("draft")}>Continue to draft<Icon name="arrow" size={15} /></button></div>
+          </>}
+
+          {actionStage === "draft" && <>
+            <p className="eyebrow">OWNER REVIEW</p>
+            <h2 id="opportunity-title">Prepare a representative draft</h2>
+            <label className="audience-control">Message draft<textarea value={draft} onChange={(event) => setDraft(event.target.value)} /></label>
+            <label className="audience-control">Audience<select value={audienceId} onChange={(event) => setAudienceId(event.target.value)}>{activeOpportunity.audiences.map((audience) => <option value={audience.id} key={audience.id}>{audience.count} · {audience.label}</option>)}</select></label>
+            <div className="rule-box"><span>Audience rules</span><p>{activeOpportunity.eligibility}</p></div>
+            {selectedAudience?.count === 0 && <p className="warning">No eligible recipients match this preset.</p>}
+            <p className="muted">Representative prototype only. SessionScape will not send or export this message.</p>
+            <div className="drawer-actions"><button onClick={() => setActionStage("evidence")}>Back</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss recommendation</button><button className="button-primary" disabled={!selectedAudience || selectedAudience.count === 0} onClick={reviewApproval}>Review approval</button></div>
+          </>}
+
+          {actionStage === "approval" && approvalSnapshot && <>
+            <p className="eyebrow">FINAL OWNER CONTROL</p>
+            <h2 id="opportunity-title">Approve this action draft?</h2>
+            <div className="rule-box"><strong>Audience snapshot · {approvalSnapshot.audienceLabel} · {approvalSnapshot.audienceCount} eligible clients</strong><p>{activeOpportunity.eligibility}</p></div>
+            <div className="rule-box"><strong>Content snapshot</strong><p>{approvalSnapshot.draft}</p></div>
+            <p className="warning"><strong>Approval does not send a message or create a booking.</strong></p>
+            <div className="drawer-actions"><button onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActionStage("handoff"); }}>Approve draft</button></div>
+          </>}
+
+          {actionStage === "handoff" && <>
+            <p className="eyebrow">REPRESENTATIVE PROVIDER HANDOFF</p>
+            <h2 id="opportunity-title">Continue in {activeOpportunity.providerHandoff.provider}</h2>
+            <div className="rule-box">
+              <strong>{activeOpportunity.providerHandoff.label}</strong>
+              <p>{activeOpportunity.providerHandoff.limitation}</p>
+              <a className="button-primary" href="#provider-handoff" onClick={() => setNotice("Representative provider page selected. No booking or payment was created.")}>Open representative {activeOpportunity.providerHandoff.label}</a>
+            </div>
+            <h3>What the value means</h3>
+            <div className="value-ladder">
+              <div className="value-row current"><strong>Estimated opportunity</strong><span>Current · {activeOpportunity.value}</span></div>
+              <div className="value-row"><strong>Attributed booking</strong><span>Not observed</span></div>
+              <div className="value-row"><strong>Completed appointment</strong><span>Not observed</span></div>
+              <div className="value-row"><strong>Realized revenue</strong><span>Not observed</span></div>
+            </div>
+            <p className="muted">Approval records only the owner-controlled snapshot in this synthetic prototype. It does not send, book, or collect payment.</p>
+          </>}
+        </aside>
+      </div>}
     </div>
   );
 }

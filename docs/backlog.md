@@ -25,26 +25,9 @@ Acceptance criteria:
 
 - BL-001 Establish deterministic quality gates — done (Plan 1)
 
-### BL-002 — Reconcile synthetic dashboard calculations
-- **Status**: ready
-- **Priority · Effort**: P0 · M
-- **Dependencies**: BL-001
-- **Context**: The validation prototype must earn trust from independently checkable synthetic data, not merely display plausible numbers. Source: former BI-002 and the business validation plan.
-- **Acceptance criteria**:
-  1. Automated tests independently calculate and verify every displayed headline metric for the current, partial, and stale fixture scenarios.
-  2. Opportunity counts and total estimated values reconcile with the underlying recommendations before and after dismissal.
-  3. Unsupported or incomplete inputs produce explicit partial or unavailable states rather than fabricated precision.
+- BL-002 Reconcile synthetic dashboard calculations — done (Plan 3)
 
-### BL-003 — Complete the prototype action-validation flow
-- **Status**: ready
-- **Priority · Effort**: P0 · M
-- **Dependencies**: BL-001, BL-002
-- **Context**: Owner research requires a realistic path from an explainable recommendation to a controlled action and provider handoff without implying that outreach or booking happened inside SessionScape.
-- **Acceptance criteria**:
-  1. An owner can review and edit a representative action draft, refine its audience, and approve or dismiss it; nothing is presented as sent automatically.
-  2. Approval leads to a clearly labeled representative provider-booking handoff that does not claim live availability, booking, or payment.
-  3. The flow visibly distinguishes estimated opportunity, attributed booking, completed appointment, and realized revenue.
-  4. Current, partial, and stale data states remain understandable throughout the action flow.
+- BL-003 Complete the prototype action-validation flow — done (Plan 3)
 
 ### BL-004 — Make dismissed recommendations truthfully recoverable
 - **Status**: ready
@@ -60,7 +43,7 @@ Acceptance criteria:
 - **Status**: ready
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-001
-- **Context**: Metric and recommendation drawers expose dialog semantics but have no verified focus, Escape, or focus-return behavior.
+- **Context**: Metric and recommendation drawers expose dialog semantics but have no verified focus, Escape, or focus-return behavior. Source: review (Plan 3).
 - **Acceptance criteria**:
   1. Opening a drawer moves focus to a meaningful control or heading, and Tab navigation remains within the open dialog.
   2. Escape closes the drawer and returns focus to the control that opened it.
@@ -90,5 +73,7 @@ Acceptance criteria:
   3. Tests, TypeScript checking, the production audit, and the static build remain green after the toolchain update.
 
 - BL-009 Run quality gates in GitHub CI — done (Plan 2)
+
+- BL-010 Establish browser component interaction testing — done (Plan 3)
 
 ## Icebox

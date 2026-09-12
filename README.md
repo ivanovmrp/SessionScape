@@ -13,9 +13,11 @@ The connected booking platform remains the system of record. SessionScape does n
 - Send clients into the existing provider's booking flow
 - Track later bookings and completed appointments without confusing estimates with realized revenue
 
-## Technology
+## Current prototype
 
-The existing Next.js, React, and TypeScript application is an earlier session-design prototype. It remains in the repository as research history while the redefined dashboard and integration workflow are validated. The architecture documentation describes the target connector, data, analytics, recommendation, and action boundaries.
+The Next.js, React, and TypeScript application is a synthetic owner-validation prototype. It derives dashboard metrics from inspectable scenario inputs, makes partial and stale data explicit, and guides an owner from recommendation evidence through an editable draft and approval to a representative Square handoff. It never sends outreach, books an appointment, or collects payment.
+
+Use the **Prototype state** control to exercise current, partial, and stale data behavior. Recommendation approval keeps estimated, attributed, completed, and realized value visibly separate.
 
 ## Start locally
 
