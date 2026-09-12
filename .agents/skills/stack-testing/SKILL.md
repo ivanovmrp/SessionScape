@@ -31,3 +31,4 @@ Version basis: Vitest 4.1.11, TypeScript 5.8.3, Next.js 16.3.4, Node 20.18.
 - `npm test` uses `vitest run`, so it must exit and never watch by default.
 - On this Windows sandbox, stale `.next/trace` may need verified elevated deletion before a build can write its trace.
 - ESLint 9 is pinned only until BL-008 raises Node and moves to the maintained ESLint line.
+- On Node 20.18, use `jsdom@26.1.0`: `jsdom@27.0.1` declares Node 20 support, but its open `cssstyle` and `parse5` ranges now resolve transitive packages requiring Node 20.19.

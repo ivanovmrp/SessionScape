@@ -25,8 +25,8 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 ### BL-010 — Establish browser component interaction testing
 - **Status**: in progress
 - **Dependencies**: BL-001
-- **Likely touched files**: `package.json`, `package-lock.json`, `app/page.test.tsx`
-- **Design**: Keep existing pure tests in Vitest's Node environment and opt the dashboard test into jsdom at file scope. Exactly lock test-only `@testing-library/react@16.3.3`, `@testing-library/dom@10.4.1`, `@testing-library/user-event@14.6.7`, and `jsdom@27.0.1`; jsdom 28+ requires Node 20.19 and is out of bounds until BL-008. Exercise the real client component without mocking project modules. Edge cases: cleanup must prevent state leaking between tests; user events must be awaited; the harness must not require browser APIs during static export; pure calculation tests must stay in Node. No production/runtime migration; rollback removes the component test and four dev dependencies.
+- **Likely touched files**: `package.json`, `package-lock.json`, `app/page.test.tsx`, `.agents/skills/stack-testing/SKILL.md`
+- **Design**: Keep existing pure tests in Vitest's Node environment and opt the dashboard test into jsdom at file scope. Exactly lock test-only `@testing-library/react@16.3.3`, `@testing-library/dom@10.4.1`, `@testing-library/user-event@14.6.7`, and `jsdom@26.1.0`; jsdom 27.0.1's open dependency ranges now resolve packages requiring Node 20.19 and are out of bounds until BL-008. Exercise the real client component without mocking project modules. Edge cases: cleanup must prevent state leaking between tests; user events must be awaited; the harness must not require browser APIs during static export; pure calculation tests must stay in Node. No production/runtime migration; rollback removes the component test and four dev dependencies.
 - **Tasks**:
   1. Add a colocated TSX test that imports the real dashboard and attempts a representative scenario selection and opportunity interaction, observe the missing browser-test dependency/environment failure, then install the four exact dev dependencies, opt only that test into jsdom, and make it pass alongside the existing Node suite and all quality gates.
 - **Test plan**:
@@ -61,7 +61,7 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 
 - Tests that reuse production formatters or derivation helpers would only echo implementation; expected values must be independently calculated from source inputs.
 - BL-002 and BL-003 both touch `lib/dashboard-fixtures.ts` and `app/page.tsx`, so they must remain in separate sequential groups.
-- jsdom 27.0.1 is a deliberate Node 20.18 compatibility pin; BL-008 must reassess it when raising the runtime.
+- jsdom 26.1.0 is the Node 20.18 compatibility pin; BL-008 must reassess it when raising the runtime because jsdom 27.0.1 now resolves Node 20.19-only transitive packages.
 - The single client page may become dense; extract only pure calculations or concrete repeated UI, not speculative layers.
 - Static export forbids server-only action handling; every action remains synthetic client state and the provider destination remains representative.
 - The selected sketch is a pre-build artifact and will be pruned when BL-003 ships if no active story still references it.
@@ -70,5 +70,6 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 
 - 2026-09-12 (plan): added BL-010 because BL-003 requires browser interaction coverage and test infrastructure must be planned; Node 20.18 requires pinning jsdom 27.0.1 instead of current releases.
 - 2026-09-12 (plan): user selected the guided drawer, preset audience filters without individual identities, and an always-visible four-stage value ladder; the kept sketch and BL-003 scope use those choices.
+- 2026-09-12 (plan): amended BL-010 from jsdom 27.0.1 to 26.1.0 after npm resolved 27.0.1's open dependency ranges to Node 20.19-only packages; keep Node 20.18 and the full Plan 3 product scope.
 
 ## Archived Specs
