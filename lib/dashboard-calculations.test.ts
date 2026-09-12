@@ -210,3 +210,40 @@ test.each(["partial", "stale"] as const)(
     );
   },
 );
+
+test.each([
+  {
+    label: "one dismissed recommendation",
+    dismissed: ["capacity"],
+    count: 1,
+    cents: 88_000,
+    formatted: "$880",
+  },
+  {
+    label: "a repeated dismissal ID",
+    dismissed: ["capacity", "capacity"],
+    count: 1,
+    cents: 88_000,
+    formatted: "$880",
+  },
+  {
+    label: "an unknown dismissal ID",
+    dismissed: ["unknown"],
+    count: 2,
+    cents: 124_000,
+    formatted: "$1,240",
+  },
+  {
+    label: "all recommendations dismissed",
+    dismissed: ["capacity", "retention"],
+    count: 0,
+    cents: 0,
+    formatted: "$0",
+  },
+])("reconciles $label", ({ dismissed, count, cents, formatted }) => {
+  const dashboard = deriveDashboard(currentInput, dismissed);
+
+  expect(dashboard.opportunityCount).toBe(count);
+  expect(dashboard.totalOpportunityCents).toBe(cents);
+  expect(dashboard.totalOpportunity).toBe(formatted);
+});

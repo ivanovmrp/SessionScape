@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DASHBOARD_FIXTURES, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
+import { deriveDashboard } from "../lib/dashboard-calculations";
+import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 
 const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
   const paths: Record<string, React.ReactNode> = {
@@ -31,6 +32,10 @@ export default function Home() {
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const fixture = DASHBOARD_FIXTURES[scenario];
+  const opportunitySummary = useMemo(
+    () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
+    [dismissed, scenario],
+  );
   const opportunities = useMemo(() => fixture.opportunities.filter((item) => !dismissed.includes(item.id)), [dismissed, fixture.opportunities]);
 
   const dismiss = (id: string) => {
@@ -73,8 +78,8 @@ export default function Home() {
         {notice && <div className="toast" role="status"><span>{notice}</span><button onClick={() => setNotice("")} aria-label="Dismiss notification"><Icon name="close" size={16} /></button></div>}
 
         <section className="summary-heading">
-          <div><p className="eyebrow">THIS WEEK AT A GLANCE</p><h2>Your business is <em>{fixture.headline}</em></h2><p>{fixture.subheadline}</p></div>
-          <div className="opportunity-total"><span>Identified opportunity</span><strong>{fixture.totalOpportunity}</strong><small><Icon name="trend" size={14} /> across {opportunities.length} actions</small></div>
+          <div><p className="eyebrow">THIS WEEK AT A GLANCE</p><h2>Your business is <em>{fixture.headline}</em></h2><p>{opportunitySummary.subheadline}</p></div>
+          <div className="opportunity-total"><span>Identified opportunity</span><strong>{opportunitySummary.totalOpportunity}</strong><small><Icon name="trend" size={14} /> across {opportunitySummary.opportunityCount} actions</small></div>
         </section>
 
         <section className="metric-grid" aria-label="Weekly metrics">

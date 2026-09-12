@@ -60,7 +60,10 @@ const currency = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export function deriveDashboard(input: DashboardInput): DerivedDashboard {
+export function deriveDashboard(
+  input: DashboardInput,
+  dismissedIds: readonly string[] = [],
+): DerivedDashboard {
   const capacitySource =
     input.capacity.state === "unavailable" ? null : input.capacity;
   const bookedHours = capacitySource?.bookedHours ?? null;
@@ -81,7 +84,11 @@ export function deriveDashboard(input: DashboardInput): DerivedDashboard {
     input.retention.returned,
     input.retention.eligible,
   );
-  const opportunityTotal = input.opportunities.reduce(
+  const dismissed = new Set(dismissedIds);
+  const visibleOpportunities = input.opportunities.filter(
+    (opportunity) => !dismissed.has(opportunity.id),
+  );
+  const opportunityTotal = visibleOpportunities.reduce(
     (total, opportunity) => total + opportunity.estimatedCents,
     0,
   );
@@ -117,14 +124,14 @@ export function deriveDashboard(input: DashboardInput): DerivedDashboard {
       ? "Appointment and retention metrics are current. Capacity estimates are hidden until coverage recovers."
       : input.status === "stale"
         ? "Use these numbers for context only. Review current bookings in Square before acting."
-        : `You have ${openHours} serviceable hours still open and ${input.opportunities.length === 2 ? "two" : input.opportunities.length} focused ways to act.`;
+        : `You have ${openHours} serviceable hours still open and ${visibleOpportunities.length === 1 ? "one" : visibleOpportunities.length === 2 ? "two" : visibleOpportunities.length} focused ways to act.`;
 
   return {
     headline,
     subheadline,
     totalOpportunity: currency.format(opportunityTotal / 100),
     totalOpportunityCents: opportunityTotal,
-    opportunityCount: input.opportunities.length,
+    opportunityCount: visibleOpportunities.length,
     metrics: [
       capacityMetric,
       {
