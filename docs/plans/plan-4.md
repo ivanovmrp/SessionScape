@@ -9,7 +9,7 @@ Make recommendation dismissal honestly reversible and make both dashboard drawer
 ## Stories
 
 ### BL-004 — Make dismissed recommendations truthfully recoverable
-- **Status**: not started
+- **Status**: in progress
 - **Dependencies**: BL-001
 - **Likely touched files**: `app/page.tsx`, `app/page.test.tsx`, `app/globals.css`
 - **Tasks**:
