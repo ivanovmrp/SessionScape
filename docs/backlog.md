@@ -90,7 +90,7 @@ Acceptance criteria:
   3. Tests, TypeScript checking, the production audit, and the static build remain green after the toolchain update.
 
 ### BL-009 — Run quality gates in GitHub CI
-- **Status**: ready
+- **Status**: planned (Plan 2)
 - **Priority · Effort**: P0 · S
 - **Dependencies**: BL-001
 - **Context**: Plan 1 established local deterministic gates, but the repository has no CI workflow and `main` protection therefore has no required status check. Source: ship readiness (Plan 1).
