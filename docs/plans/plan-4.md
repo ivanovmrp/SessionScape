@@ -9,7 +9,7 @@ Make recommendation dismissal honestly reversible and make both dashboard drawer
 ## Stories
 
 ### BL-004 — Make dismissed recommendations truthfully recoverable
-- **Status**: in progress
+- **Status**: done
 - **Dependencies**: BL-001
 - **Likely touched files**: `app/page.tsx`, `app/page.test.tsx`, `app/globals.css`
 - **Tasks**:
@@ -21,7 +21,7 @@ Make recommendation dismissal honestly reversible and make both dashboard drawer
   - Criterion 3: a repeated dismiss/restore test covers duplicate clicks, restoring one of multiple records, and scenario reset without duplicate opportunity or Activity entries.
 
 ### BL-005 — Make dashboard dialogs keyboard accessible
-- **Status**: not started
+- **Status**: in progress
 - **Dependencies**: BL-001
 - **Likely touched files**: `app/page.tsx`, `app/page.test.tsx`
 - **Design**: Keep focus behavior inside the existing client page with shared dialog, initial-control, and opener references rather than adding a dependency. Opening either drawer moves focus to its close control; Tab and Shift+Tab wrap among enabled, visible controls in only the active drawer; action-stage transitions move focus from an unmounted control to the first meaningful control in the new stage. Escape, the close control, and backdrop closure return focus to the captured opener when it still exists. Dismissal may remove a recommendation opener, so that path closes without targeting a detached element; scenario changes close either drawer and leave focus on the scenario control rather than reviving stale opener focus. The metric drawer's single tabbable control, action-stage control changes, disabled audience approval, nested textarea/select/link controls, and two simultaneously addressable drawers are explicit edge cases. Component interaction tests use installed React 19 types and real DOM keyboard behavior. No data migration exists; rollback removes the focus lifecycle and its tests.
