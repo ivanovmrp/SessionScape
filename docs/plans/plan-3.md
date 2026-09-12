@@ -23,7 +23,7 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
   - Criterion 3: pure unit tests distinguish zero, partial, unavailable, and stale states and assert unsupported capacity values/bars are absent rather than zero-filled or copied from current data.
 
 ### BL-010 — Establish browser component interaction testing
-- **Status**: not started
+- **Status**: in progress
 - **Dependencies**: BL-001
 - **Likely touched files**: `package.json`, `package-lock.json`, `app/page.test.tsx`
 - **Design**: Keep existing pure tests in Vitest's Node environment and opt the dashboard test into jsdom at file scope. Exactly lock test-only `@testing-library/react@16.3.3`, `@testing-library/dom@10.4.1`, `@testing-library/user-event@14.6.7`, and `jsdom@27.0.1`; jsdom 28+ requires Node 20.19 and is out of bounds until BL-008. Exercise the real client component without mocking project modules. Edge cases: cleanup must prevent state leaking between tests; user events must be awaited; the harness must not require browser APIs during static export; pure calculation tests must stay in Node. No production/runtime migration; rollback removes the component test and four dev dependencies.
