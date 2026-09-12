@@ -25,27 +25,9 @@ Acceptance criteria:
 
 - BL-001 Establish deterministic quality gates — done (Plan 1)
 
-### BL-002 — Reconcile synthetic dashboard calculations
-- **Status**: planned (Plan 3)
-- **Priority · Effort**: P0 · M
-- **Dependencies**: BL-001, BL-010
-- **Context**: The validation prototype must earn trust from independently checkable synthetic data, not merely display plausible numbers. Source: former BI-002 and the business validation plan.
-- **Acceptance criteria**:
-  1. Automated tests independently calculate and verify every displayed headline metric for the current, partial, and stale fixture scenarios.
-  2. Opportunity counts and total estimated values reconcile with the underlying recommendations before and after dismissal.
-  3. Unsupported or incomplete inputs produce explicit partial or unavailable states rather than fabricated precision.
+- BL-002 Reconcile synthetic dashboard calculations — done (Plan 3)
 
-### BL-003 — Complete the prototype action-validation flow
-- **Status**: planned (Plan 3)
-- **Priority · Effort**: P0 · M
-- **Dependencies**: BL-001, BL-002, BL-010
-- **Sketches**: docs/sketches/action-validation/option-a.html
-- **Context**: Owner research requires a realistic path from an explainable recommendation to a controlled action and provider handoff without implying that outreach or booking happened inside SessionScape.
-- **Acceptance criteria**:
-  1. An owner can review and edit a representative action draft, refine its audience, and approve or dismiss it; nothing is presented as sent automatically.
-  2. Approval leads to a clearly labeled representative provider-booking handoff that does not claim live availability, booking, or payment.
-  3. The flow visibly distinguishes estimated opportunity, attributed booking, completed appointment, and realized revenue.
-  4. Current, partial, and stale data states remain understandable throughout the action flow.
+- BL-003 Complete the prototype action-validation flow — done (Plan 3)
 
 ### BL-004 — Make dismissed recommendations truthfully recoverable
 - **Status**: ready
@@ -92,14 +74,6 @@ Acceptance criteria:
 
 - BL-009 Run quality gates in GitHub CI — done (Plan 2)
 
-### BL-010 — Establish browser component interaction testing
-- **Status**: planned (Plan 3)
-- **Priority · Effort**: P0 · S
-- **Dependencies**: BL-001
-- **Context**: BL-003 requires realistic typing, selection, approval, dismissal, and provider-handoff tests, but the current Vitest harness has no browser-like environment or React interaction utilities. Source: planning discovery (Plan 3).
-- **Acceptance criteria**:
-  1. A colocated TSX component test renders the real client dashboard in a browser-like environment and drives representative user input without mocking project modules.
-  2. Browser component tests and existing pure Node tests remain non-interactive and pass together under `npm test`; lint, type checking, and the static production build remain green.
-  3. Test-only dependencies are exactly locked to versions compatible with React 19.1, Vitest 4.1, and Node 20.18, and do not enter production dependencies.
+- BL-010 Establish browser component interaction testing — done (Plan 3)
 
 ## Icebox
