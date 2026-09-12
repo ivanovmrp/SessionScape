@@ -39,6 +39,7 @@ Acceptance criteria:
 - **Status**: ready
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-001, BL-002
+- **Sketches**: docs/sketches/action-validation/option-a.html
 - **Context**: Owner research requires a realistic path from an explainable recommendation to a controlled action and provider handoff without implying that outreach or booking happened inside SessionScape.
 - **Acceptance criteria**:
   1. An owner can review and edit a representative action draft, refine its audience, and approve or dismiss it; nothing is presented as sent automatically.
