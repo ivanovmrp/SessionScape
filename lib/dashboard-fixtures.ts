@@ -41,6 +41,8 @@ type Fixture = {
   blockedHours: number | null;
   returnRate: number;
   returnChange: number;
+  returnHistory: { label: string; rate: number }[];
+  returnTrendLabel: string;
   days: { label: string; booked: number; open: number }[];
   opportunities: Opportunity[];
 };
@@ -73,16 +75,28 @@ const currentInput = {
       blockedHours: 6,
       previousPercent: 62,
       days: [
-        { label: "Mon", bookedHours: 8.2, openHours: 1.8 },
-        { label: "Tue", bookedHours: 7, openHours: 3 },
-        { label: "Wed", bookedHours: 8.8, openHours: 1.2 },
-        { label: "Thu", bookedHours: 4.2, openHours: 5.8 },
-        { label: "Fri", bookedHours: 6.8, openHours: 3.2 },
-        { label: "Sat", bookedHours: 7.8, openHours: 2.2 },
+        { label: "Mon", bookedHours: 5, openHours: 1 },
+        { label: "Tue", bookedHours: 4, openHours: 2 },
+        { label: "Wed", bookedHours: 5, openHours: 1 },
+        { label: "Thu", bookedHours: 3, openHours: 4 },
+        { label: "Fri", bookedHours: 5, openHours: 2 },
+        { label: "Sat", bookedHours: 6, openHours: 2 },
       ],
     },
     appointments: { confirmed: 24, completed: 4, previousTotal: 24 },
-    retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
+    retention: {
+      returned: 18,
+      eligible: 29,
+      previousRatePercent: 57,
+      history: [
+        { label: "Apr", returned: 13, eligible: 24 },
+        { label: "May", returned: 14, eligible: 25 },
+        { label: "Jun", returned: 15, eligible: 26 },
+        { label: "Jul", returned: 16, eligible: 27 },
+        { label: "Aug", returned: 17, eligible: 28 },
+        { label: "Sep", returned: 18, eligible: 29 },
+      ],
+    },
     cancellations: { total: 6, refilled: 2 },
     opportunities: [
       {
@@ -168,6 +182,8 @@ const base: Fixture = {
   blockedHours: currentDashboard.capacity.blockedHours,
   returnRate: currentDashboard.returnPulse.rate,
   returnChange: currentDashboard.returnPulse.change,
+  returnHistory: currentDashboard.returnHistory,
+  returnTrendLabel: currentDashboard.returnTrendLabel,
   days: currentDashboard.days,
   opportunities,
 };
@@ -217,6 +233,8 @@ export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
     blockedHours: partialDashboard.capacity.blockedHours,
     returnRate: partialDashboard.returnPulse.rate,
     returnChange: partialDashboard.returnPulse.change,
+    returnHistory: partialDashboard.returnHistory,
+    returnTrendLabel: partialDashboard.returnTrendLabel,
     days: partialDashboard.days,
     opportunities: opportunities.filter((item) => item.type === "retention"),
   },
@@ -238,6 +256,8 @@ export const DASHBOARD_FIXTURES: Record<DataScenario, Fixture> = {
     blockedHours: staleDashboard.capacity.blockedHours,
     returnRate: staleDashboard.returnPulse.rate,
     returnChange: staleDashboard.returnPulse.change,
+    returnHistory: staleDashboard.returnHistory,
+    returnTrendLabel: staleDashboard.returnTrendLabel,
     days: staleDashboard.days,
   },
 };

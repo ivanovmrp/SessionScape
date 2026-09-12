@@ -54,6 +54,7 @@ export type DashboardInput = {
     returned: number;
     eligible: number;
     previousRatePercent: number;
+    history: { label: string; returned: number; eligible: number }[];
   };
   cancellations: { total: number; refilled: number };
   opportunities: DashboardOpportunityInput[];
@@ -85,6 +86,8 @@ export type DerivedDashboard = {
     blockedHours: number | null;
   };
   returnPulse: { rate: number; change: number };
+  returnHistory: { label: string; rate: number }[];
+  returnTrendLabel: string;
   days: { label: string; booked: number; open: number }[];
 };
 
@@ -121,6 +124,18 @@ export function deriveDashboard(
     input.retention.returned,
     input.retention.eligible,
   );
+  const returnHistory = input.retention.history.map((point) => ({
+    label: point.label,
+    rate: percent(point.returned, point.eligible),
+  }));
+  const firstReturnRate = returnHistory[0]?.rate ?? returnRate;
+  const lastReturnRate = returnHistory.at(-1)?.rate ?? returnRate;
+  const returnDirection =
+    lastReturnRate > firstReturnRate
+      ? "rose"
+      : lastReturnRate < firstReturnRate
+        ? "fell"
+        : "held steady";
   const dismissed = new Set(dismissedIds);
   const visibleOpportunities = input.opportunities
     .filter((opportunity) => !dismissed.has(opportunity.id))
@@ -215,6 +230,8 @@ export function deriveDashboard(
       rate: returnRate,
       change: returnRate - input.retention.previousRatePercent,
     },
+    returnHistory,
+    returnTrendLabel: `Client return rate ${returnDirection} from ${firstReturnRate}% to ${lastReturnRate}% over six months`,
     days: capacitySource ? capacitySource.days.map((day) => {
       const total = day.bookedHours + day.openHours;
       return {

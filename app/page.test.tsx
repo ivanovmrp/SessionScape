@@ -13,6 +13,12 @@ test("changes prototype state and opens a real recommendation", async () => {
 
   render(<Page />);
 
+  expect(
+    screen.getByRole("img", {
+      name: "Client return rate rose from 54% to 62% over six months",
+    }),
+  ).toBeDefined();
+
   await user.selectOptions(
     screen.getByRole("combobox", { name: "Prototype state" }),
     "partial",
@@ -65,7 +71,9 @@ test("edits a draft and audience before approving a frozen snapshot", async () =
   );
 
   await user.click(screen.getByRole("button", { name: "Review approval" }));
-  expect(screen.getByText("Audience snapshot · 7 eligible clients")).toBeDefined();
+  expect(
+    screen.getByText("Audience snapshot · Recently active · 7 eligible clients"),
+  ).toBeDefined();
   expect(screen.getByText("A carefully edited owner message.")).toBeDefined();
   expect(
     screen.getByText("Approval does not send a message or create a booking."),
@@ -122,14 +130,14 @@ test("hands an approved draft to the representative provider without advancing v
   expect(
     screen.getByRole("dialog", { name: "Continue in Square" }),
   ).toBeDefined();
-  expect(screen.getByText("No live availability is connected.")).toBeDefined();
   expect(
     screen.getByText(
-      "Square remains the system of record for availability, booking, and payment.",
+      "No live availability is connected. Square remains the system of record for availability, booking, and payment.",
     ),
   ).toBeDefined();
+  expect(screen.getByText("Square booking page")).toBeDefined();
   expect(
-    screen.getByRole("link", { name: "Open representative Square page" }),
+    screen.getByRole("link", { name: "Open representative Square booking page" }),
   ).toBeDefined();
 
   expect(screen.getByText("Estimated opportunity").parentElement?.textContent).toContain(

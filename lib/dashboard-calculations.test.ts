@@ -29,7 +29,19 @@ const currentInput = {
     ],
   },
   appointments: { confirmed: 24, completed: 4, previousTotal: 24 },
-  retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
+  retention: {
+    returned: 18,
+    eligible: 29,
+    previousRatePercent: 57,
+    history: [
+      { label: "Apr", returned: 13, eligible: 24 },
+      { label: "May", returned: 14, eligible: 25 },
+      { label: "Jun", returned: 15, eligible: 26 },
+      { label: "Jul", returned: 16, eligible: 27 },
+      { label: "Aug", returned: 17, eligible: 28 },
+      { label: "Sep", returned: 18, eligible: 29 },
+    ],
+  },
   cancellations: { total: 6, refilled: 2 },
   opportunities: [
     {
@@ -103,6 +115,17 @@ test("derives every current dashboard number from numeric source inputs", () => 
     blockedHours: 6,
   });
   expect(dashboard.returnPulse).toEqual({ rate: 62, change: 5 });
+  expect(dashboard.returnHistory).toEqual([
+    { label: "Apr", rate: 54 },
+    { label: "May", rate: 56 },
+    { label: "Jun", rate: 58 },
+    { label: "Jul", rate: 59 },
+    { label: "Aug", rate: 61 },
+    { label: "Sep", rate: 62 },
+  ]);
+  expect(dashboard.returnTrendLabel).toBe(
+    "Client return rate rose from 54% to 62% over six months",
+  );
   expect(dashboard.days).toEqual([
     { label: "Mon", booked: 82, open: 18 },
     { label: "Tue", booked: 70, open: 30 },
@@ -204,6 +227,17 @@ test("builds the current fixture from its inspectable numeric input", () => {
   expect(fixture.days).toEqual(derived.days);
 });
 
+test("weekday capacity inputs reconcile to the weekly totals", () => {
+  const capacity = DASHBOARD_INPUTS.current.capacity;
+
+  expect(capacity.days.reduce((sum, day) => sum + day.bookedHours, 0)).toBe(
+    capacity.bookedHours,
+  );
+  expect(capacity.days.reduce((sum, day) => sum + day.openHours, 0)).toBe(
+    capacity.openHours,
+  );
+});
+
 test.each(["partial", "stale"] as const)(
   "builds the %s fixture from its numeric input and explicit states",
   (scenario) => {
@@ -224,6 +258,40 @@ test.each(["partial", "stale"] as const)(
     );
   },
 );
+
+test.each([
+  {
+    scenario: "partial" as const,
+    metrics: ["—", "28", "62%", "6"],
+    pulse: { rate: 62, change: 5 },
+    opportunities: [{ id: "overdue-clients", value: "$880" }],
+  },
+  {
+    scenario: "stale" as const,
+    metrics: ["70%", "28", "62%", "6"],
+    pulse: { rate: 62, change: 5 },
+    opportunities: [
+      { id: "underbooked-thursday", value: "$360" },
+      { id: "overdue-clients", value: "$880" },
+    ],
+  },
+])("derives every $scenario metric, pulse, and opportunity value", (expected) => {
+  const dashboard = deriveDashboard(DASHBOARD_INPUTS[expected.scenario]);
+
+  expect(dashboard.metrics.map((metric) => metric.value)).toEqual(expected.metrics);
+  expect(dashboard.returnPulse).toEqual(expected.pulse);
+  expect(
+    dashboard.opportunities.map(({ id, value }) => ({ id, value })),
+  ).toEqual(expected.opportunities);
+  expect(dashboard.returnHistory).toEqual([
+    { label: "Apr", rate: 54 },
+    { label: "May", rate: 56 },
+    { label: "Jun", rate: 58 },
+    { label: "Jul", rate: 59 },
+    { label: "Aug", rate: 61 },
+    { label: "Sep", rate: 62 },
+  ]);
+});
 
 test.each([
   {

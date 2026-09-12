@@ -61,7 +61,7 @@ Acceptance criteria:
 - **Status**: ready
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-001
-- **Context**: Metric and recommendation drawers expose dialog semantics but have no verified focus, Escape, or focus-return behavior.
+- **Context**: Metric and recommendation drawers expose dialog semantics but have no verified focus, Escape, or focus-return behavior. Source: review (Plan 3).
 - **Acceptance criteria**:
   1. Opening a drawer moves focus to a meaningful control or heading, and Tab navigation remains within the open dialog.
   2. Escape closes the drawer and returns focus to the control that opened it.

@@ -71,5 +71,7 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 - 2026-09-12 (plan): added BL-010 because BL-003 requires browser interaction coverage and test infrastructure must be planned; Node 20.18 requires pinning jsdom 27.0.1 instead of current releases.
 - 2026-09-12 (plan): user selected the guided drawer, preset audience filters without individual identities, and an always-visible four-stage value ladder; the kept sketch and BL-003 scope use those choices.
 - 2026-09-12 (plan): amended BL-010 from jsdom 27.0.1 to 26.1.0 after npm resolved 27.0.1's open dependency ranges to Node 20.19-only packages; keep Node 20.18 and the full Plan 3 product scope.
+- 2026-09-12 (BL-002): code review found that hard-coded pulse history and inconsistent weekday totals could fabricate a trend; derive history from reconciled numeric inputs and require full scenario assertions.
+- 2026-09-12 (BL-003): code review found preserved audience and provider-handoff fields were not fully rendered; approval and handoff now consume the frozen contract directly.
 
 ## Archived Specs

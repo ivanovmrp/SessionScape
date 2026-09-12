@@ -38,6 +38,11 @@ export default function Home() {
   const [audienceId, setAudienceId] = useState("eligible");
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
   const fixture = DASHBOARD_FIXTURES[scenario];
+  const returnChartPoints = fixture.returnHistory.map((point, index) => ({
+    x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
+    y: 140 - point.rate * 1.8,
+  }));
+  const lastReturnPoint = returnChartPoints.at(-1);
   const opportunitySummary = useMemo(
     () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
     [dismissed, scenario],
@@ -136,8 +141,8 @@ export default function Home() {
           <div className="panel pulse-panel" id="clients">
             <div className="panel-heading"><div><p className="eyebrow">CLIENT PULSE</p><h3>Return health</h3></div><button><span className="legend-dot"/>6-month trend</button></div>
             <div className="pulse-stat"><span><strong>{fixture.returnRate}%</strong><small>of eligible clients returned</small></span><span className="change-positive">↗ {fixture.returnChange}%</span></div>
-            <svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label="Client return rate rose over six months"><defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1b856f" stopOpacity=".22"/><stop offset="1" stopColor="#1b856f" stopOpacity="0"/></linearGradient></defs><path className="chart-area" d="M0 127 C50 120 65 100 112 105 S170 75 215 87 S280 60 322 67 S385 34 480 27 L480 150 L0 150Z" /><path className="chart-line" d="M0 127 C50 120 65 100 112 105 S170 75 215 87 S280 60 322 67 S385 34 480 27" /><circle cx="480" cy="27" r="5" /></svg>
-            <div className="chart-labels"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span></div>
+            <svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label={fixture.returnTrendLabel}><polyline className="chart-line" points={returnChartPoints.map((point) => `${point.x},${point.y}`).join(" ")} />{lastReturnPoint && <circle cx={lastReturnPoint.x} cy={lastReturnPoint.y} r="5" />}</svg>
+            <div className="chart-labels">{fixture.returnHistory.map((point) => <span key={point.label}>{point.label}</span>)}</div>
           </div>
         </section>
 
@@ -195,7 +200,7 @@ export default function Home() {
           {actionStage === "approval" && approvalSnapshot && <>
             <p className="eyebrow">FINAL OWNER CONTROL</p>
             <h2 id="opportunity-title">Approve this action draft?</h2>
-            <div className="rule-box"><strong>Audience snapshot · {approvalSnapshot.audienceCount} eligible clients</strong><p>{activeOpportunity.eligibility}</p></div>
+            <div className="rule-box"><strong>Audience snapshot · {approvalSnapshot.audienceLabel} · {approvalSnapshot.audienceCount} eligible clients</strong><p>{activeOpportunity.eligibility}</p></div>
             <div className="rule-box"><strong>Content snapshot</strong><p>{approvalSnapshot.draft}</p></div>
             <p className="warning"><strong>Approval does not send a message or create a booking.</strong></p>
             <div className="drawer-actions"><button onClick={() => setActionStage("draft")}>Edit</button><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss</button><button className="button-primary" onClick={() => { setNotice("Draft approved in this synthetic prototype. No message has been sent."); setActionStage("handoff"); }}>Approve draft</button></div>
@@ -205,9 +210,9 @@ export default function Home() {
             <p className="eyebrow">REPRESENTATIVE PROVIDER HANDOFF</p>
             <h2 id="opportunity-title">Continue in {activeOpportunity.providerHandoff.provider}</h2>
             <div className="rule-box">
-              <strong>No live availability is connected.</strong>
-              <p>{activeOpportunity.providerHandoff.provider} remains the system of record for availability, booking, and payment.</p>
-              <a className="button-primary" href="#provider-handoff" onClick={() => setNotice("Representative provider page selected. No booking or payment was created.")}>Open representative {activeOpportunity.providerHandoff.provider} page</a>
+              <strong>{activeOpportunity.providerHandoff.label}</strong>
+              <p>{activeOpportunity.providerHandoff.limitation}</p>
+              <a className="button-primary" href="#provider-handoff" onClick={() => setNotice("Representative provider page selected. No booking or payment was created.")}>Open representative {activeOpportunity.providerHandoff.label}</a>
             </div>
             <h3>What the value means</h3>
             <div className="value-ladder">
