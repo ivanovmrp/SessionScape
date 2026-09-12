@@ -1,6 +1,7 @@
 import {
   deriveDashboard,
   type DashboardInput,
+  type DerivedOpportunity,
 } from "./dashboard-calculations";
 
 export type DataScenario = "current" | "partial" | "stale";
@@ -21,20 +22,7 @@ export type Metric = {
   state: "current" | "unavailable" | "stale";
 };
 
-export type Opportunity = {
-  id: string;
-  type: "capacity" | "retention";
-  kicker: string;
-  urgency: string;
-  title: string;
-  summary: string;
-  reason: string;
-  value: string;
-  valueNote: string;
-  audience: number;
-  ruleVersion: string;
-  rule: string;
-};
+export type Opportunity = DerivedOpportunity;
 
 type Fixture = {
   status: DataScenario;
@@ -72,6 +60,12 @@ const metric = (data: Partial<Metric> & Pick<Metric, "id" | "label" | "value" | 
 
 const currentInput = {
     status: "current",
+    actionContext: {
+      freshness: "Current data · synced today at 8:42 AM",
+      coverage: "100% source coverage",
+      limitation: "Synthetic prototype data; confirm availability in Square.",
+      recheckRequired: false,
+    },
     capacity: {
       state: "current",
       bookedHours: 28,
@@ -91,8 +85,22 @@ const currentInput = {
     retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
     cancellations: { total: 6, refilled: 2 },
     opportunities: [
-      { id: "underbooked-thursday", estimatedCents: 36_000 },
-      { id: "overdue-clients", estimatedCents: 88_000 },
+      {
+        id: "underbooked-thursday", estimatedCents: 36_000, type: "capacity", kicker: "UNDERBOOKED PERIOD", urgency: "High priority", title: "Thursday afternoon has 3 open hours",
+        summary: "Maya has serviceable availability from 1:00–4:00 PM with enough lead time to act.", reason: "This period is 38% below Maya’s usual Thursday occupancy and could fit two 90-minute services.", valueNote: "estimated · 2 bookings", ruleVersion: "CAP-1.2", rule: "Surface an unblocked period at least 48 hours away when open serviceable time is 2+ hours and estimated value exceeds $150.",
+        draft: "We have massage openings with Maya this Thursday afternoon. If the timing works for you, review current availability on our Square booking page.",
+        audiences: [{ id: "eligible", label: "All eligible clients", count: 11 }, { id: "recent", label: "Recently active", count: 7 }, { id: "frequent", label: "Frequent clients", count: 4 }],
+        eligibility: "Future appointments, suppressions, ineligible clients, and clients outside Maya’s prior-client group are excluded.",
+        providerHandoff: { provider: "Square", label: "Square booking page", limitation: "No live availability is connected. Square remains the system of record for availability, booking, and payment." },
+      },
+      {
+        id: "overdue-clients", estimatedCents: 88_000, type: "retention", kicker: "CLIENT RETENTION", urgency: "Review this week", title: "14 returning clients are overdue",
+        summary: "These clients have passed their expected return interval and have no future appointment.", reason: "Each client has 3+ completed visits, is 14+ days beyond their individual return pattern, and passed suppression checks.", valueNote: "estimated · if 4 return", ruleVersion: "RET-1.1", rule: "Include clients with 3+ completed visits who are at least 14 days beyond their median return interval, have no future active booking, and are outreach-eligible.",
+        draft: "It may be time for your next visit with Willow & Stone. If you would like to return, review current availability on our Square booking page.",
+        audiences: [{ id: "eligible", label: "All eligible clients", count: 14 }, { id: "recent", label: "Recently active", count: 9 }, { id: "frequent", label: "Frequent clients", count: 5 }],
+        eligibility: "Future appointments, suppressions, ineligible clients, and clients without enough return history are excluded.",
+        providerHandoff: { provider: "Square", label: "Square booking page", limitation: "No live availability is connected. Square remains the system of record for availability, booking, and payment." },
+      },
     ],
 } satisfies DashboardInput;
 
@@ -102,6 +110,12 @@ export const DASHBOARD_INPUTS = {
     ...currentInput,
     status: "partial",
     capacity: { state: "unavailable" },
+    actionContext: {
+      freshness: "Appointments current · availability incomplete",
+      coverage: "Appointments 100% · practitioner availability 58%",
+      limitation: "Capacity actions are unavailable; supported retention actions may continue.",
+      recheckRequired: false,
+    },
     opportunities: currentInput.opportunities.filter(
       (opportunity) => opportunity.id === "overdue-clients",
     ),
@@ -110,6 +124,12 @@ export const DASHBOARD_INPUTS = {
     ...currentInput,
     status: "stale",
     capacity: { ...currentInput.capacity, state: "stale" },
+    actionContext: {
+      freshness: "Last successful sync Sep 5 at 6:14 PM",
+      coverage: "Changes after the last sync are not included",
+      limitation: "Recheck Square before approving; the estimate may have changed.",
+      recheckRequired: true,
+    },
   },
 } satisfies Record<DataScenario, DashboardInput>;
 
@@ -129,10 +149,7 @@ const baseMetrics: Metric[] = [
   metric({ ...currentMetrics.cancellations, label: "Cancellations", tone: "caution", exclusions: "Owner-created blocks and reschedules retaining the same service time are excluded." }),
 ];
 
-const opportunities: Opportunity[] = [
-  { id: "underbooked-thursday", type: "capacity", kicker: "UNDERBOOKED PERIOD", urgency: "High priority", title: "Thursday afternoon has 3 open hours", summary: "Maya has serviceable availability from 1:00–4:00 PM with enough lead time to act.", reason: "This period is 38% below Maya’s usual Thursday occupancy and could fit two 90-minute services.", value: "$360", valueNote: "estimated · 2 bookings", audience: 11, ruleVersion: "CAP-1.2", rule: "Surface an unblocked period at least 48 hours away when open serviceable time is 2+ hours and estimated value exceeds $150." },
-  { id: "overdue-clients", type: "retention", kicker: "CLIENT RETENTION", urgency: "Review this week", title: "14 returning clients are overdue", summary: "These clients have passed their expected return interval and have no future appointment.", reason: "Each client has 3+ completed visits, is 14+ days beyond their individual return pattern, and passed suppression checks.", value: "$880", valueNote: "estimated · if 4 return", audience: 14, ruleVersion: "RET-1.1", rule: "Include clients with 3+ completed visits who are at least 14 days beyond their median return interval, have no future active booking, and are outreach-eligible." },
-];
+const opportunities: Opportunity[] = currentDashboard.opportunities;
 
 const base: Fixture = {
   status: "current",

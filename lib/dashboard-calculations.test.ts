@@ -11,6 +11,12 @@ import {
 
 const currentInput = {
   status: "current",
+  actionContext: {
+    freshness: "Current",
+    coverage: "Complete",
+    limitation: "Synthetic",
+    recheckRequired: false,
+  },
   capacity: {
     state: "current",
     bookedHours: 28,
@@ -26,8 +32,16 @@ const currentInput = {
   retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
   cancellations: { total: 6, refilled: 2 },
   opportunities: [
-    { id: "capacity", estimatedCents: 36_000 },
-    { id: "retention", estimatedCents: 88_000 },
+    {
+      id: "capacity", estimatedCents: 36_000, type: "capacity", kicker: "", urgency: "", title: "", summary: "", reason: "", valueNote: "", ruleVersion: "", rule: "", draft: "",
+      audiences: [{ id: "eligible", label: "Eligible", count: 11 }], eligibility: "",
+      providerHandoff: { provider: "Square", label: "", limitation: "" },
+    },
+    {
+      id: "retention", estimatedCents: 88_000, type: "retention", kicker: "", urgency: "", title: "", summary: "", reason: "", valueNote: "", ruleVersion: "", rule: "", draft: "",
+      audiences: [{ id: "eligible", label: "Eligible", count: 14 }], eligibility: "",
+      providerHandoff: { provider: "Square", label: "", limitation: "" },
+    },
   ],
 } satisfies DashboardInput;
 
@@ -100,7 +114,7 @@ test("suppresses unavailable capacity without erasing supported metrics", () => 
     ...currentInput,
     status: "partial",
     capacity: { state: "unavailable" },
-    opportunities: [{ id: "retention", estimatedCents: 88_000 }],
+    opportunities: [currentInput.opportunities[1]],
   });
 
   expect(dashboard.headline).toBe("partially available");
@@ -246,4 +260,66 @@ test.each([
   expect(dashboard.opportunityCount).toBe(count);
   expect(dashboard.totalOpportunityCents).toBe(cents);
   expect(dashboard.totalOpportunity).toBe(formatted);
+});
+
+test("preserves the representative action contract through derivation", () => {
+  const dashboard = deriveDashboard(DASHBOARD_INPUTS.current);
+  const capacityAction = dashboard.opportunities.find(
+    (opportunity) => opportunity.id === "underbooked-thursday",
+  );
+
+  expect(capacityAction).toMatchObject({
+    estimatedCents: 36_000,
+    value: "$360",
+    draft:
+      "We have massage openings with Maya this Thursday afternoon. If the timing works for you, review current availability on our Square booking page.",
+    audiences: [
+      { id: "eligible", label: "All eligible clients", count: 11 },
+      { id: "recent", label: "Recently active", count: 7 },
+      { id: "frequent", label: "Frequent clients", count: 4 },
+    ],
+    eligibility:
+      "Future appointments, suppressions, ineligible clients, and clients outside Maya’s prior-client group are excluded.",
+    providerHandoff: {
+      provider: "Square",
+      label: "Square booking page",
+      limitation:
+        "No live availability is connected. Square remains the system of record for availability, booking, and payment.",
+    },
+  });
+  expect(DASHBOARD_FIXTURES.current.opportunities[0]).toMatchObject(
+    capacityAction ?? {},
+  );
+});
+
+test.each([
+  {
+    scenario: "current" as const,
+    freshness: "Current data · synced today at 8:42 AM",
+    coverage: "100% source coverage",
+    limitation: "Synthetic prototype data; confirm availability in Square.",
+    recheckRequired: false,
+  },
+  {
+    scenario: "partial" as const,
+    freshness: "Appointments current · availability incomplete",
+    coverage: "Appointments 100% · practitioner availability 58%",
+    limitation:
+      "Capacity actions are unavailable; supported retention actions may continue.",
+    recheckRequired: false,
+  },
+  {
+    scenario: "stale" as const,
+    freshness: "Last successful sync Sep 5 at 6:14 PM",
+    coverage: "Changes after the last sync are not included",
+    limitation: "Recheck Square before approving; the estimate may have changed.",
+    recheckRequired: true,
+  },
+])("preserves $scenario action limitations", (expected) => {
+  expect(deriveDashboard(DASHBOARD_INPUTS[expected.scenario]).actionContext).toEqual({
+    freshness: expected.freshness,
+    coverage: expected.coverage,
+    limitation: expected.limitation,
+    recheckRequired: expected.recheckRequired,
+  });
 });

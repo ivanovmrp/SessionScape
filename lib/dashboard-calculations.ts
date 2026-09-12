@@ -1,5 +1,40 @@
+export type ActionContext = {
+  freshness: string;
+  coverage: string;
+  limitation: string;
+  recheckRequired: boolean;
+};
+
+export type DashboardOpportunityInput = {
+  id: string;
+  estimatedCents: number;
+  type: "capacity" | "retention";
+  kicker: string;
+  urgency: string;
+  title: string;
+  summary: string;
+  reason: string;
+  valueNote: string;
+  ruleVersion: string;
+  rule: string;
+  draft: string;
+  audiences: { id: string; label: string; count: number }[];
+  eligibility: string;
+  providerHandoff: {
+    provider: string;
+    label: string;
+    limitation: string;
+  };
+};
+
+export type DerivedOpportunity = DashboardOpportunityInput & {
+  value: string;
+  audience: number;
+};
+
 export type DashboardInput = {
   status: "current" | "partial" | "stale";
+  actionContext: ActionContext;
   capacity:
     | { state: "unavailable" }
     | {
@@ -21,7 +56,7 @@ export type DashboardInput = {
     previousRatePercent: number;
   };
   cancellations: { total: number; refilled: number };
-  opportunities: { id: string; estimatedCents: number }[];
+  opportunities: DashboardOpportunityInput[];
 };
 
 export type DerivedMetric = {
@@ -39,6 +74,8 @@ export type DerivedDashboard = {
   totalOpportunity: string;
   totalOpportunityCents: number;
   opportunityCount: number;
+  opportunities: DerivedOpportunity[];
+  actionContext: ActionContext;
   metrics: DerivedMetric[];
   capacity: {
     state: "current" | "unavailable" | "stale";
@@ -85,9 +122,13 @@ export function deriveDashboard(
     input.retention.eligible,
   );
   const dismissed = new Set(dismissedIds);
-  const visibleOpportunities = input.opportunities.filter(
-    (opportunity) => !dismissed.has(opportunity.id),
-  );
+  const visibleOpportunities = input.opportunities
+    .filter((opportunity) => !dismissed.has(opportunity.id))
+    .map((opportunity) => ({
+      ...opportunity,
+      value: currency.format(opportunity.estimatedCents / 100),
+      audience: opportunity.audiences[0]?.count ?? 0,
+    }));
   const opportunityTotal = visibleOpportunities.reduce(
     (total, opportunity) => total + opportunity.estimatedCents,
     0,
@@ -132,6 +173,8 @@ export function deriveDashboard(
     totalOpportunity: currency.format(opportunityTotal / 100),
     totalOpportunityCents: opportunityTotal,
     opportunityCount: visibleOpportunities.length,
+    opportunities: visibleOpportunities,
+    actionContext: input.actionContext,
     metrics: [
       capacityMetric,
       {
