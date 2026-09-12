@@ -1,3 +1,8 @@
+import {
+  deriveDashboard,
+  type DashboardInput,
+} from "./dashboard-calculations";
+
 export type DataScenario = "current" | "partial" | "stale";
 
 export type Metric = {
@@ -63,13 +68,43 @@ const metric = (data: Partial<Metric> & Pick<Metric, "id" | "label" | "value" | 
   ...data,
 });
 
-const capacityMetric = metric({ id: "capacity", label: "Booked capacity", value: "70%", change: "↗ 8%", tone: "positive", context: "28 of 40 serviceable hours", formula: "Booked serviceable hours ÷ total serviceable hours: 28h ÷ 40h = 70%." });
+export const DASHBOARD_INPUTS = {
+  current: {
+    status: "current",
+    bookedHours: 28,
+    openHours: 12,
+    blockedHours: 6,
+    previousCapacityPercent: 62,
+    appointments: { confirmed: 24, completed: 4, previousTotal: 24 },
+    retention: { returned: 18, eligible: 29, previousRatePercent: 57 },
+    cancellations: { total: 6, refilled: 2 },
+    days: [
+      { label: "Mon", bookedHours: 8.2, openHours: 1.8 },
+      { label: "Tue", bookedHours: 7, openHours: 3 },
+      { label: "Wed", bookedHours: 8.8, openHours: 1.2 },
+      { label: "Thu", bookedHours: 4.2, openHours: 5.8 },
+      { label: "Fri", bookedHours: 6.8, openHours: 3.2 },
+      { label: "Sat", bookedHours: 7.8, openHours: 2.2 },
+    ],
+    opportunities: [
+      { id: "underbooked-thursday", estimatedCents: 36_000 },
+      { id: "overdue-clients", estimatedCents: 88_000 },
+    ],
+  },
+} satisfies { current: DashboardInput };
+
+const currentDashboard = deriveDashboard(DASHBOARD_INPUTS.current);
+const currentMetrics = Object.fromEntries(
+  currentDashboard.metrics.map((item) => [item.id, item]),
+) as Record<(typeof currentDashboard.metrics)[number]["id"], (typeof currentDashboard.metrics)[number]>;
+
+const capacityMetric = metric({ ...currentMetrics.capacity, label: "Booked capacity", tone: "positive" });
 
 const baseMetrics: Metric[] = [
   capacityMetric,
-  metric({ id: "appointments", label: "Appointments", value: "28", change: "+4", tone: "positive", context: "24 confirmed · 4 completed", formula: "Count of non-cancelled appointments whose start time falls in the selected week.", exclusions: "Cancelled, declined, duplicate, and test appointments are excluded." }),
-  metric({ id: "rebooking", label: "Rebooking rate", value: "62%", change: "↗ 5%", tone: "positive", context: "18 of 29 eligible visits", formula: "Eligible completed appointments followed by a future booking within 45 days ÷ eligible completed appointments: 18 ÷ 29 = 62%.", period: "Trailing 90 days through Sep 6, 2026", population: "29 completed visits with enough follow-up time", exclusions: "First visits inside the 45-day observation window, cancelled follow-ups, and suppressed test clients are excluded." }),
-  metric({ id: "cancellations", label: "Cancellations", value: "6", change: "2 refilled", tone: "caution", context: "4 slots remain open", formula: "Count of appointments cancelled during the selected week; refilled when a later active appointment overlaps the released slot.", exclusions: "Owner-created blocks and reschedules retaining the same service time are excluded." }),
+  metric({ ...currentMetrics.appointments, label: "Appointments", tone: "positive", exclusions: "Cancelled, declined, duplicate, and test appointments are excluded." }),
+  metric({ ...currentMetrics.rebooking, label: "Rebooking rate", tone: "positive", period: "Trailing 90 days through Sep 6, 2026", population: "29 completed visits with enough follow-up time", exclusions: "First visits inside the 45-day observation window, cancelled follow-ups, and suppressed test clients are excluded." }),
+  metric({ ...currentMetrics.cancellations, label: "Cancellations", tone: "caution", exclusions: "Owner-created blocks and reschedules retaining the same service time are excluded." }),
 ];
 
 const opportunities: Opportunity[] = [
@@ -82,18 +117,18 @@ const base: Fixture = {
   bannerTitle: "Square data is up to date",
   bannerCopy: "Last successful sync today at 8:42 AM · 100% source coverage",
   bannerAction: "View data health",
-  headline: "70% booked",
-  subheadline: "You have 12 serviceable hours still open and two focused ways to act.",
-  totalOpportunity: "$1,240",
+  headline: currentDashboard.headline,
+  subheadline: currentDashboard.subheadline,
+  totalOpportunity: currentDashboard.totalOpportunity,
   metrics: baseMetrics,
   capacityMetric,
-  capacityPercent: 70,
-  bookedHours: 28,
-  openHours: 12,
-  blockedHours: 6,
-  returnRate: 62,
-  returnChange: 5,
-  days: [{ label: "Mon", booked: 82, open: 18 }, { label: "Tue", booked: 70, open: 30 }, { label: "Wed", booked: 88, open: 12 }, { label: "Thu", booked: 42, open: 58 }, { label: "Fri", booked: 68, open: 32 }, { label: "Sat", booked: 78, open: 22 }],
+  capacityPercent: currentDashboard.capacity.percent,
+  bookedHours: currentDashboard.capacity.bookedHours,
+  openHours: currentDashboard.capacity.openHours,
+  blockedHours: currentDashboard.capacity.blockedHours,
+  returnRate: currentDashboard.returnPulse.rate,
+  returnChange: currentDashboard.returnPulse.change,
+  days: currentDashboard.days,
   opportunities,
 };
 
