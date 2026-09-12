@@ -26,9 +26,9 @@ Acceptance criteria:
 - BL-001 Establish deterministic quality gates — done (Plan 1)
 
 ### BL-002 — Reconcile synthetic dashboard calculations
-- **Status**: ready
+- **Status**: planned (Plan 3)
 - **Priority · Effort**: P0 · M
-- **Dependencies**: BL-001
+- **Dependencies**: BL-001, BL-010
 - **Context**: The validation prototype must earn trust from independently checkable synthetic data, not merely display plausible numbers. Source: former BI-002 and the business validation plan.
 - **Acceptance criteria**:
   1. Automated tests independently calculate and verify every displayed headline metric for the current, partial, and stale fixture scenarios.
@@ -36,9 +36,9 @@ Acceptance criteria:
   3. Unsupported or incomplete inputs produce explicit partial or unavailable states rather than fabricated precision.
 
 ### BL-003 — Complete the prototype action-validation flow
-- **Status**: ready
+- **Status**: planned (Plan 3)
 - **Priority · Effort**: P0 · M
-- **Dependencies**: BL-001, BL-002
+- **Dependencies**: BL-001, BL-002, BL-010
 - **Sketches**: docs/sketches/action-validation/option-a.html
 - **Context**: Owner research requires a realistic path from an explainable recommendation to a controlled action and provider handoff without implying that outreach or booking happened inside SessionScape.
 - **Acceptance criteria**:
@@ -91,5 +91,15 @@ Acceptance criteria:
   3. Tests, TypeScript checking, the production audit, and the static build remain green after the toolchain update.
 
 - BL-009 Run quality gates in GitHub CI — done (Plan 2)
+
+### BL-010 — Establish browser component interaction testing
+- **Status**: planned (Plan 3)
+- **Priority · Effort**: P0 · S
+- **Dependencies**: BL-001
+- **Context**: BL-003 requires realistic typing, selection, approval, dismissal, and provider-handoff tests, but the current Vitest harness has no browser-like environment or React interaction utilities. Source: planning discovery (Plan 3).
+- **Acceptance criteria**:
+  1. A colocated TSX component test renders the real client dashboard in a browser-like environment and drives representative user input without mocking project modules.
+  2. Browser component tests and existing pure Node tests remain non-interactive and pass together under `npm test`; lint, type checking, and the static production build remain green.
+  3. Test-only dependencies are exactly locked to versions compatible with React 19.1, Vitest 4.1, and Node 20.18, and do not enter production dependencies.
 
 ## Icebox
