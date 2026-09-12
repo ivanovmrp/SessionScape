@@ -5,8 +5,18 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Page from "./page";
+import { DASHBOARD_FIXTURES } from "../lib/dashboard-fixtures";
 
-afterEach(cleanup);
+const currentReturnHistory = DASHBOARD_FIXTURES.current.returnHistory;
+const currentReturnTrendLabel = DASHBOARD_FIXTURES.current.returnTrendLabel;
+const currentDays = DASHBOARD_FIXTURES.current.days;
+
+afterEach(() => {
+  cleanup();
+  DASHBOARD_FIXTURES.current.returnHistory = currentReturnHistory;
+  DASHBOARD_FIXTURES.current.returnTrendLabel = currentReturnTrendLabel;
+  DASHBOARD_FIXTURES.current.days = currentDays;
+});
 
 test("changes prototype state and opens a real recommendation", async () => {
   const user = userEvent.setup();
@@ -33,6 +43,37 @@ test("changes prototype state and opens a real recommendation", async () => {
   expect(
     screen.getByRole("dialog", { name: "14 returning clients are overdue" }),
   ).toBeDefined();
+});
+
+test("does not draw a trend from incomplete return history", () => {
+  DASHBOARD_FIXTURES.current.returnHistory = [
+    { label: "Sep", rate: 62 },
+  ];
+  DASHBOARD_FIXTURES.current.returnTrendLabel =
+    "Client return trend is unavailable because history is incomplete";
+
+  const { container } = render(<Page />);
+
+  expect(screen.getByText("Trend unavailable")).toBeDefined();
+  expect(
+    screen.getByRole("img", {
+      name: "Client return trend is unavailable because history is incomplete",
+    }),
+  ).toBeDefined();
+  expect(container.querySelector(".chart-line")).toBeNull();
+});
+
+test("labels a zero-total weekday as unavailable instead of drawing a zero bar", () => {
+  DASHBOARD_FIXTURES.current.days = [
+    { label: "Mon", booked: null, open: null },
+  ];
+
+  const { container } = render(<Page />);
+
+  expect(
+    screen.getByLabelText("Mon capacity unavailable"),
+  ).toBeDefined();
+  expect(container.querySelector(".bar-track")).toBeNull();
 });
 
 test("reconciles the opportunity total after a recommendation is dismissed", async () => {

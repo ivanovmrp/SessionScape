@@ -38,14 +38,16 @@ export default function Home() {
   const [audienceId, setAudienceId] = useState("eligible");
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
   const fixture = DASHBOARD_FIXTURES[scenario];
-  const returnChartPoints = fixture.returnHistory.flatMap((point, index) =>
+  const hasCompleteReturnTrend = fixture.returnHistory.length === 6
+    && fixture.returnHistory.every((point) => point.rate !== null);
+  const returnChartPoints = hasCompleteReturnTrend ? fixture.returnHistory.flatMap((point, index) =>
     point.rate === null
       ? []
       : [{
           x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
           y: 140 - point.rate * 1.8,
         }],
-  );
+  ) : [];
   const lastReturnPoint = returnChartPoints.at(-1);
   const opportunitySummary = useMemo(
     () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
@@ -138,15 +140,14 @@ export default function Home() {
                 <div className="donut" style={{ "--percentage": `${(fixture.capacityPercent ?? 0) * 3.6}deg` } as React.CSSProperties}><span><strong>{fixture.capacityPercent !== null ? `${fixture.capacityPercent}%` : "—"}</strong><small>booked</small></span></div>
                 <div className="capacity-key"><div><span className="key-dot booked"/><p><strong>{fixture.bookedHours}h</strong> booked</p></div><div><span className="key-dot open"/><p><strong>{fixture.openHours}h</strong> still open</p></div><div><span className="key-dot blocked"/><p><strong>{fixture.blockedHours}h</strong> unavailable</p></div></div>
               </div>
-              <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}><div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div><small>{day.label}</small></div>)}</div>
+              <div className="week-bars" aria-label="Capacity by weekday">{fixture.days.map((day) => <div className="day" key={day.label}>{day.booked === null || day.open === null ? <div className="bar-unavailable" aria-label={`${day.label} capacity unavailable`}>â€”</div> : <div className="bar-track"><span style={{ height: `${day.booked}%` }} /><i style={{ height: `${day.open}%` }} /></div>}<small>{day.label}</small></div>)}</div>
             </>}
           </div>
 
           <div className="panel pulse-panel" id="clients">
             <div className="panel-heading"><div><p className="eyebrow">CLIENT PULSE</p><h3>Return health</h3></div><button><span className="legend-dot"/>6-month trend</button></div>
             <div className="pulse-stat"><span><strong>{fixture.returnRate === null ? "—" : `${fixture.returnRate}%`}</strong><small>{fixture.returnRate === null ? "No eligible visits" : "of eligible clients returned"}</small></span><span className="change-positive">{fixture.returnChange === null ? "Unavailable" : `↗ ${fixture.returnChange}%`}</span></div>
-            <svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label={fixture.returnTrendLabel}><polyline className="chart-line" points={returnChartPoints.map((point) => `${point.x},${point.y}`).join(" ")} />{lastReturnPoint && <circle cx={lastReturnPoint.x} cy={lastReturnPoint.y} r="5" />}</svg>
-            <div className="chart-labels">{fixture.returnHistory.map((point) => <span key={point.label}>{point.label}</span>)}</div>
+            {hasCompleteReturnTrend ? <><svg className="line-chart" viewBox="0 0 480 150" role="img" aria-label={fixture.returnTrendLabel}><polyline className="chart-line" points={returnChartPoints.map((point) => `${point.x},${point.y}`).join(" ")} />{lastReturnPoint && <circle cx={lastReturnPoint.x} cy={lastReturnPoint.y} r="5" />}</svg><div className="chart-labels">{fixture.returnHistory.map((point) => <span key={point.label}>{point.label}</span>)}</div></> : <div className="chart-unavailable" role="img" aria-label={fixture.returnTrendLabel}>Trend unavailable</div>}
           </div>
         </section>
 
