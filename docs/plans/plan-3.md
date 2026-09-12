@@ -74,5 +74,6 @@ Derive every displayed dashboard value from inspectable synthetic inputs, establ
 - 2026-09-12 (BL-002): code review found that hard-coded pulse history and inconsistent weekday totals could fabricate a trend; derive history from reconciled numeric inputs and require full scenario assertions.
 - 2026-09-12 (BL-003): code review found preserved audience and provider-handoff fields were not fully rendered; approval and handoff now consume the frozen contract directly.
 - 2026-09-12 (BL-002): re-review found zero eligible visits became a fabricated 0%; zero denominators now yield unavailable and rendered fixtures share the cached derived scenario outputs.
+- 2026-09-12 (BL-002): final code review found zero-hour capacity and incomplete retention histories still implied supported trends; both now remain explicitly unavailable until their full denominators are present.
 
 ## Archived Specs

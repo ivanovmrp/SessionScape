@@ -299,6 +299,57 @@ test("marks retention as unavailable when no visits are eligible", () => {
   );
 });
 
+test("marks zero-hour capacity and zero-total weekdays as unavailable", () => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    capacity: {
+      ...currentInput.capacity,
+      bookedHours: 0,
+      openHours: 0,
+      days: [{ label: "Mon", bookedHours: 0, openHours: 0 }],
+    },
+  });
+
+  expect(dashboard.metrics[0]).toMatchObject({
+    id: "capacity",
+    value: "—",
+    change: "Unavailable",
+    state: "unavailable",
+  });
+  expect(dashboard.capacity).toMatchObject({
+    state: "unavailable",
+    percent: null,
+  });
+  expect(dashboard.days).toEqual([
+    { label: "Mon", booked: null, open: null },
+  ]);
+  expect(dashboard.headline).toBe("capacity unavailable");
+});
+
+test.each([
+  {
+    label: "only one history point",
+    history: [{ label: "Sep", returned: 18, eligible: 29 }],
+  },
+  {
+    label: "a history point without eligible visits",
+    history: [
+      ...currentInput.retention.history.slice(0, 5),
+      { label: "Sep", returned: 0, eligible: 0 },
+    ],
+  },
+])("marks retention history unavailable when it has $label", ({ history }) => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    retention: { ...currentInput.retention, history },
+  });
+
+  expect(dashboard.returnPulse).toEqual({ rate: 62, change: 5 });
+  expect(dashboard.returnTrendLabel).toBe(
+    "Client return trend is unavailable because history is incomplete",
+  );
+});
+
 test.each([
   {
     scenario: "partial" as const,

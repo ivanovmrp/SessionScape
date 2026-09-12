@@ -88,11 +88,11 @@ export type DerivedDashboard = {
   returnPulse: { rate: number | null; change: number | null };
   returnHistory: { label: string; rate: number | null }[];
   returnTrendLabel: string;
-  days: { label: string; booked: number; open: number }[];
+  days: { label: string; booked: number | null; open: number | null }[];
 };
 
 const percent = (part: number, whole: number) =>
-  whole === 0 ? 0 : Math.round((part / whole) * 100);
+  whole === 0 ? null : Math.round((part / whole) * 100);
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -127,7 +127,7 @@ export function deriveDashboard(
     label: point.label,
     rate: point.eligible === 0 ? null : percent(point.returned, point.eligible),
   }));
-  const historyComplete = returnHistory.length > 0
+  const historyComplete = returnHistory.length === 6
     && returnHistory.every((point) => point.rate !== null);
   const firstReturnRate = historyComplete ? returnHistory[0].rate : null;
   const lastReturnRate = historyComplete ? returnHistory.at(-1)?.rate ?? null : null;
@@ -152,7 +152,7 @@ export function deriveDashboard(
   );
   const stale = input.status === "stale";
   const supportedState = stale ? "stale" : "current";
-  const capacityMetric: DerivedMetric = capacitySource
+  const capacityMetric: DerivedMetric = capacitySource && capacityPercent !== null
     ? {
         id: "capacity",
         value: `${capacityPercent}%`,
@@ -165,9 +165,13 @@ export function deriveDashboard(
         id: "capacity",
         value: "—",
         change: "Unavailable",
-        context: "Availability coverage is incomplete",
+        context: capacitySource
+          ? "No serviceable hours are available"
+          : "Availability coverage is incomplete",
         formula:
-          "Not calculated. Reliable capacity requires complete serviceable availability for every active practitioner.",
+          capacitySource
+            ? "Not calculated. Capacity requires at least one serviceable hour."
+            : "Not calculated. Reliable capacity requires complete serviceable availability for every active practitioner.",
         state: "unavailable",
       };
 
@@ -176,13 +180,17 @@ export function deriveDashboard(
       ? "partially available"
       : input.status === "stale"
         ? "awaiting a refresh"
-        : `${capacityPercent}% booked`;
+        : capacityPercent === null
+          ? "capacity unavailable"
+          : `${capacityPercent}% booked`;
   const subheadline =
     input.status === "partial"
       ? "Appointment and retention metrics are current. Capacity estimates are hidden until coverage recovers."
       : input.status === "stale"
         ? "Use these numbers for context only. Review current bookings in Square before acting."
-        : `You have ${openHours} serviceable hours still open and ${visibleOpportunities.length === 1 ? "one" : visibleOpportunities.length === 2 ? "two" : visibleOpportunities.length} focused ways to act.`;
+        : capacityPercent === null
+          ? "Capacity requires at least one serviceable hour before it can be calculated."
+          : `You have ${openHours} serviceable hours still open and ${visibleOpportunities.length === 1 ? "one" : visibleOpportunities.length === 2 ? "two" : visibleOpportunities.length} focused ways to act.`;
 
   return {
     headline,
@@ -222,7 +230,7 @@ export function deriveDashboard(
       },
     ],
     capacity: {
-      state: input.capacity.state,
+      state: capacityPercent === null ? "unavailable" : input.capacity.state,
       percent: capacityPercent,
       bookedHours,
       openHours,
@@ -233,8 +241,10 @@ export function deriveDashboard(
       change: returnRate === null ? null : returnRate - input.retention.previousRatePercent,
     },
     returnHistory,
-    returnTrendLabel: returnDirection === null
+    returnTrendLabel: returnRate === null
       ? "Client return rate is unavailable because no visits are eligible"
+      : returnDirection === null
+        ? "Client return trend is unavailable because history is incomplete"
       : `Client return rate ${returnDirection} from ${firstReturnRate}% to ${lastReturnRate}% over six months`,
     days: capacitySource ? capacitySource.days.map((day) => {
       const total = day.bookedHours + day.openHours;

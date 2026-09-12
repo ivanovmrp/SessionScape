@@ -43,7 +43,7 @@ type Fixture = {
   returnChange: number | null;
   returnHistory: { label: string; rate: number | null }[];
   returnTrendLabel: string;
-  days: { label: string; booked: number; open: number }[];
+  days: { label: string; booked: number | null; open: number | null }[];
   opportunities: Opportunity[];
 };
 
