@@ -91,7 +91,7 @@ export default function Home() {
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
-            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { setScenario(event.target.value as DataScenario); setDismissed([]); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
+            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { setScenario(event.target.value as DataScenario); setDismissed([]); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
             <button className="date-button"><Icon name="calendar" />Sep 7 – 13<Icon name="chevron" size={15} /></button>
           </div>
         </header>
@@ -165,6 +165,11 @@ export default function Home() {
           <button className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button>
           <div className="action-steps" aria-label="Action progress">
             {(["Evidence", "Draft", "Approve", "Handoff"] as const).map((label, index) => <span className={index === ["evidence", "draft", "approval", "handoff"].indexOf(actionStage) ? "active" : ""} key={label}>{index + 1} {label}</span>)}
+          </div>
+          <div className={`action-context ${opportunitySummary.actionContext.recheckRequired ? "warning" : ""}`}>
+            <strong>{opportunitySummary.actionContext.freshness}</strong>
+            <span>{opportunitySummary.actionContext.coverage}</span>
+            <p>{opportunitySummary.actionContext.limitation}</p>
           </div>
 
           {actionStage === "evidence" && <>

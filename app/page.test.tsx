@@ -145,3 +145,84 @@ test("hands an approved draft to the representative provider without advancing v
   expect(screen.queryByText(/booking confirmed/i)).toBeNull();
   expect(screen.queryByText(/payment collected/i)).toBeNull();
 });
+
+test.each([
+  {
+    scenario: "current",
+    freshness: "Current data · synced today at 8:42 AM",
+    coverage: "100% source coverage",
+    limitation: "Synthetic prototype data; confirm availability in Square.",
+  },
+  {
+    scenario: "partial",
+    freshness: "Appointments current · availability incomplete",
+    coverage: "Appointments 100% · practitioner availability 58%",
+    limitation:
+      "Capacity actions are unavailable; supported retention actions may continue.",
+  },
+  {
+    scenario: "stale",
+    freshness: "Last successful sync Sep 5 at 6:14 PM",
+    coverage: "Changes after the last sync are not included",
+    limitation: "Recheck Square before approving; the estimate may have changed.",
+  },
+])("keeps $scenario data context visible throughout the action", async ({
+  scenario,
+  freshness,
+  coverage,
+  limitation,
+}) => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Prototype state" }),
+    scenario,
+  );
+
+  if (scenario === "partial") {
+    expect(screen.queryByText("Thursday afternoon has 3 open hours")).toBeNull();
+  }
+
+  const expectContext = () => {
+    expect(screen.getByText(freshness)).toBeDefined();
+    expect(screen.getByText(coverage)).toBeDefined();
+    expect(screen.getByText(limitation)).toBeDefined();
+  };
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  expectContext();
+  await user.click(screen.getByRole("button", { name: "Continue to draft" }));
+  expectContext();
+  await user.click(screen.getByRole("button", { name: "Review approval" }));
+  expectContext();
+  await user.click(screen.getByRole("button", { name: "Approve draft" }));
+  expectContext();
+});
+
+test("closes and resets an action when the data scenario changes", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(screen.getByRole("button", { name: "Continue to draft" }));
+  const draft = screen.getByRole("textbox", { name: "Message draft" });
+  await user.clear(draft);
+  await user.type(draft, "Unsaved scenario-specific edit");
+
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Prototype state" }),
+    "stale",
+  );
+  expect(screen.queryByRole("dialog")).toBeNull();
+
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Prototype state" }),
+    "current",
+  );
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(screen.getByRole("button", { name: "Continue to draft" }));
+  expect(
+    (screen.getByRole("textbox", { name: "Message draft" }) as HTMLTextAreaElement)
+      .value,
+  ).not.toContain("Unsaved scenario-specific edit");
+});
