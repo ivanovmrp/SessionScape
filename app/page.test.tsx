@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -13,6 +13,8 @@ const currentDays = DASHBOARD_FIXTURES.current.days;
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
+  window.localStorage.clear();
   DASHBOARD_FIXTURES.current.returnHistory = currentReturnHistory;
   DASHBOARD_FIXTURES.current.returnTrendLabel = currentReturnTrendLabel;
   DASHBOARD_FIXTURES.current.days = currentDays;
@@ -557,5 +559,143 @@ test("changing scenarios clears dismissed recommendations", async () => {
       "No dismissed recommendations",
     ),
   ).toBeDefined();
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
+});
+
+test("opens a separate empty owner practice workspace with a truthful source label", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  expect(screen.getByRole("heading", { name: "Practice data" })).toBeDefined();
+  expect(screen.getByText("Owner-entered data")).toBeDefined();
+  expect(screen.getByText("No owner-entered records yet")).toBeDefined();
+  expect(screen.getByText("Stored only in this browser")).toBeDefined();
+  expect(
+    screen.getByText(/No names, contact details, notes, health information/),
+  ).toBeDefined();
+  expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
+});
+
+test("explores canonical sample records without mutating the owner workspace", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+
+  expect(screen.getByText("Sample data · read only")).toBeDefined();
+  expect(screen.getByText("1 appointment record")).toBeDefined();
+  expect(screen.getByText("1 practitioner · 1 service")).toBeDefined();
+  expect(window.localStorage.length).toBe(0);
+
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  expect(screen.getByText("Owner-entered data")).toBeDefined();
+  expect(screen.getByText("No owner-entered records yet")).toBeDefined();
+});
+
+test("copies sample records into a separately labelled editable workspace", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+
+  expect(screen.getByText("Sample-derived data")).toBeDefined();
+  expect(screen.getByText("1 appointment record")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  expect(screen.getByText("Owner-entered data")).toBeDefined();
+  expect(screen.getByText("No owner-entered records yet")).toBeDefined();
+});
+
+test("offers the prototype scenario selector only for read-only sample data", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
+
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+  expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
+});
+
+test("confirms before replacing an existing editable sample copy", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm");
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+  expect(confirm).not.toHaveBeenCalled();
+
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  confirm.mockReturnValueOnce(false);
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+  expect(screen.getByText("Sample data · read only")).toBeDefined();
+
+  confirm.mockReturnValueOnce(true);
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+  expect(screen.getByText("Sample-derived data")).toBeDefined();
+});
+
+test("confirms and clears only the active editable sample workspace", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm");
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+
+  confirm.mockReturnValueOnce(false);
+  await user.click(
+    screen.getByRole("button", { name: "Clear sample-derived data" }),
+  );
+  expect(screen.getByText("1 appointment record")).toBeDefined();
+
+  confirm.mockReturnValueOnce(true);
+  await user.click(
+    screen.getByRole("button", { name: "Clear sample-derived data" }),
+  );
+  expect(screen.getByText("0 appointment records")).toBeDefined();
+  expect(screen.queryByText("1 appointment record")).toBeNull();
+});
+
+test("closes stale detail and resets dismissed recommendations on a source change", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(screen.getByRole("button", { name: "Dismiss recommendation" }));
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(1);
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  expect(screen.getByRole("dialog")).toBeDefined();
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
   expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
 });

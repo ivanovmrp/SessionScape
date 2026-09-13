@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
+import { RAW_SAMPLE_WORKSPACE, type PracticeWorkspace } from "../lib/practice-workspace";
 
 const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
   const paths: Record<string, React.ReactNode> = {
@@ -26,8 +27,26 @@ const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
 const scenarioLabels: Record<DataScenario, string> = { current: "Current data", partial: "Partial data", stale: "Stale data" };
 type ActionStage = "evidence" | "draft" | "approval" | "handoff";
 type ApprovalSnapshot = { draft: string; audienceLabel: string; audienceCount: number };
+type Surface = "overview" | "practice-data";
+type PracticeSource = "owner" | "sample" | "sample-derived";
+
+const emptyWorkspace = (
+  provenance: PracticeWorkspace["provenance"],
+): PracticeWorkspace => ({
+  version: 1,
+  provenance,
+  timezone: "America/New_York",
+  practitioners: [],
+  services: [],
+  availability: [],
+  appointments: [],
+});
 
 export default function Home() {
+  const [surface, setSurface] = useState<Surface>("overview");
+  const [practiceSource, setPracticeSource] = useState<PracticeSource>("owner");
+  const [ownerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
+  const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
   const [scenario, setScenario] = useState<DataScenario>("current");
   const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
@@ -67,6 +86,16 @@ export default function Home() {
   const selectedAudience = activeOpportunity?.audiences.find(
     (audience) => audience.id === audienceId,
   );
+  const practiceWorkspace = practiceSource === "sample"
+    ? RAW_SAMPLE_WORKSPACE
+    : practiceSource === "sample-derived"
+      ? sampleDerivedWorkspace ?? RAW_SAMPLE_WORKSPACE
+      : ownerWorkspace;
+  const practiceSourceLabel = practiceSource === "sample"
+    ? "Sample data · read only"
+    : practiceSource === "sample-derived"
+      ? "Sample-derived data"
+      : "Owner-entered data";
 
   useEffect(() => {
     if (activeMetric) {
@@ -103,6 +132,42 @@ export default function Home() {
   const closeOpportunity = (restoreFocus = true) => {
     restoreOpportunityFocusRef.current = restoreFocus;
     setActiveOpportunity(null);
+  };
+
+  const showSurface = (nextSurface: Surface) => {
+    restoreMetricFocusRef.current = false;
+    restoreOpportunityFocusRef.current = false;
+    setActiveMetric(null);
+    setActiveOpportunity(null);
+    setNotice("");
+    setSurface(nextSurface);
+  };
+
+  const changePracticeSource = (nextSource: PracticeSource) => {
+    restoreMetricFocusRef.current = false;
+    restoreOpportunityFocusRef.current = false;
+    setActiveMetric(null);
+    setActiveOpportunity(null);
+    setActionStage("evidence");
+    setDraft("");
+    setAudienceId("eligible");
+    setApprovalSnapshot(null);
+    setDismissed([]);
+    setNotice("");
+    setPracticeSource(nextSource);
+  };
+
+  const copySample = () => {
+    if (sampleDerivedWorkspace && !window.confirm(
+      "Replace the existing sample-derived data with a fresh sample copy?",
+    )) return;
+    setSampleDerivedWorkspace(structuredClone(RAW_SAMPLE_WORKSPACE));
+    changePracticeSource("sample-derived");
+  };
+
+  const clearSampleDerived = () => {
+    if (!window.confirm("Clear all sample-derived practice data?")) return;
+    setSampleDerivedWorkspace(emptyWorkspace("sample-derived"));
   };
 
   const handleDialogKeyDown = (
@@ -174,10 +239,11 @@ export default function Home() {
       <aside className="sidebar">
         <a className="wordmark" href="#top" aria-label="SessionScape home"><span className="mark">S</span><strong>SessionScape</strong></a>
         <nav aria-label="Primary navigation">
-          <a className="active" href="#top"><Icon name="grid" />Overview</a>
+          <a className={surface === "overview" ? "active" : ""} href="#top" onClick={() => showSurface("overview")}><Icon name="grid" />Overview</a>
           <a href="#opportunities"><Icon name="spark" />Opportunities<span className="nav-count">{opportunities.length}</span></a>
           <a href="#clients"><Icon name="users" />Clients</a>
           <a href="#activity"><Icon name="action" />Activity</a>
+          <a className={surface === "practice-data" ? "active" : ""} href="#practice-data" onClick={(event) => { event.preventDefault(); showSurface("practice-data"); }}><Icon name="calendar" />Practice data</a>
         </nav>
         <div className="sidebar-bottom">
           <a href="#settings"><Icon name="settings" />Settings</a>
@@ -185,7 +251,37 @@ export default function Home() {
         </div>
       </aside>
 
-      <main id="top">
+      {surface === "practice-data" ? <main id="practice-data">
+        <header className="topbar">
+          <div><p>Private practice workspace</p><h1>Practice data</h1></div>
+          {practiceSource === "sample" && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => setScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
+        </header>
+
+        <section className="practice-workspace panel">
+          <div className="panel-heading">
+            <div><p className="eyebrow">CURRENT SOURCE</p><h2>{practiceSourceLabel}</h2></div>
+            <strong>{practiceWorkspace.appointments.length} appointment {practiceWorkspace.appointments.length === 1 ? "record" : "records"}</strong>
+          </div>
+          <p>{practiceWorkspace.practitioners.length} practitioner · {practiceWorkspace.services.length} service</p>
+
+          {practiceSource === "owner" && practiceWorkspace.appointments.length === 0 && <div className="empty-state">
+            <strong>No owner-entered records yet</strong>
+            <p>Add practitioners, services, availability, and appointments when you are ready.</p>
+          </div>}
+
+          <div className="practice-actions">
+            {practiceSource === "owner" && <button className="button-primary" onClick={() => changePracticeSource("sample")}>Explore sample data</button>}
+            {practiceSource === "sample" && <button className="button-primary" onClick={copySample}>Create editable sample copy</button>}
+            {practiceSource === "sample-derived" && <button className="button-secondary" onClick={clearSampleDerived}>Clear sample-derived data</button>}
+            {practiceSource !== "owner" && <button className="button-secondary" onClick={() => changePracticeSource("owner")}>Return to owner data</button>}
+          </div>
+        </section>
+
+        <section className="privacy-note">
+          <strong>Stored only in this browser</strong>
+          <p>No names, contact details, notes, health information, or payment details belong in this workspace.</p>
+        </section>
+      </main> : <main id="top">
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
@@ -258,7 +354,7 @@ export default function Home() {
         </section>
 
         <footer><span>SessionScape uses synthetic prototype data</span><span>Metric rules v1.0 · America/New_York</span></footer>
-      </main>
+      </main>}
 
       {activeMetric && <div className="modal-backdrop" onClick={() => closeMetric()}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onKeyDown={(event) => handleDialogKeyDown(event, closeMetric)} onClick={(event) => event.stopPropagation()}><button ref={metricCloseRef} className="drawer-close" onClick={() => closeMetric()} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
 
