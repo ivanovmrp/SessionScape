@@ -1121,6 +1121,18 @@ test("keeps appointment identity stable through status changes and confirms dele
   const ownerWorkspace = {
     ...structuredClone(RAW_SAMPLE_WORKSPACE),
     provenance: "owner-entered" as const,
+    practitioners: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.practitioners),
+      { id: "practitioner_aria00000001", label: "Aria", active: true },
+    ],
+    services: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.services),
+      { id: "service_relaxation01", label: "Relaxation", defaultDurationMinutes: 60, defaultValueCents: 11_000, active: true },
+    ],
+    availability: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.availability),
+      { id: "availability_ariasep080001", practitionerId: "practitioner_aria00000001", localDate: "2026-09-08", closed: false as const, startMinute: 540, endMinute: 1020 },
+    ],
   };
   window.localStorage.setItem(
     PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
@@ -1130,12 +1142,37 @@ test("keeps appointment identity stable through status changes and confirms dele
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(await screen.findByRole("button", { name: /Edit appointment/ }));
 
-  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment status" }), "cancelled");
+  await user.clear(screen.getByLabelText("Appointment date"));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-08");
+  await user.clear(screen.getByLabelText("Start time"));
+  await user.type(screen.getByLabelText("Start time"), "10:00");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment practitioner" }), "practitioner_aria00000001");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment service" }), "service_relaxation01");
+  await user.clear(screen.getByLabelText("Appointment duration in minutes"));
+  await user.type(screen.getByLabelText("Appointment duration in minutes"), "75");
+  await user.clear(screen.getByLabelText("Appointment value in cents"));
+  await user.type(screen.getByLabelText("Appointment value in cents"), "12345");
+  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment status" }), "no-show");
   await user.click(screen.getByRole("button", { name: "Save appointment" }));
   let stored = JSON.parse(
     window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
   );
   expect(stored.appointments[0].id).toBe(ownerWorkspace.appointments[0].id);
+  expect(stored.appointments[0]).toMatchObject({
+    practitionerId: "practitioner_aria00000001",
+    serviceId: "service_relaxation01",
+    startAt: "2026-09-08T14:00:00.000Z",
+    durationMinutes: 75,
+    valueCents: 12345,
+    status: "no-show",
+  });
+
+  await user.click(screen.getByRole("button", { name: /Edit appointment/ }));
+  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment status" }), "cancelled");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  stored = JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  );
   expect(stored.appointments[0].status).toBe("cancelled");
   expect(stored.appointments[0].cancelledAt).toBe(stored.appointments[0].statusChangedAt);
 
@@ -1218,6 +1255,13 @@ test("persists weekly availability and explicit closed days for active practitio
   await user.type(screen.getByLabelText("Availability end time"), "17:15");
   await user.click(screen.getByRole("button", { name: "Save availability" }));
 
+  await user.click(screen.getByRole("button", { name: "Edit availability Tue Sep 8 for Maya" }));
+  await user.clear(screen.getByLabelText("Availability start time"));
+  await user.type(screen.getByLabelText("Availability start time"), "10:00");
+  await user.clear(screen.getByLabelText("Availability end time"));
+  await user.type(screen.getByLabelText("Availability end time"), "16:00");
+  await user.click(screen.getByRole("button", { name: "Save availability" }));
+
   await user.click(screen.getByRole("button", { name: "Edit availability Wed Sep 9 for Maya" }));
   await user.click(screen.getByRole("checkbox", { name: "Closed all day" }));
   await user.click(screen.getByRole("button", { name: "Save availability" }));
@@ -1231,8 +1275,8 @@ test("persists weekly availability and explicit closed days for active practitio
       practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
       localDate: "2026-09-08",
       closed: false,
-      startMinute: 570,
-      endMinute: 1035,
+      startMinute: 600,
+      endMinute: 960,
     }),
     expect.objectContaining({
       practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
@@ -1245,7 +1289,7 @@ test("persists weekly availability and explicit closed days for active practitio
   render(<Page />);
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(screen.getByRole("tab", { name: "Availability" }));
-  expect(await screen.findByText("9:30 AM–5:15 PM")).toBeDefined();
+  expect(await screen.findByText("10:00 AM–4:00 PM")).toBeDefined();
   expect(screen.getByText("Closed", { selector: ".availability-value" })).toBeDefined();
   stored = JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null");
   expect(stored.availability).toHaveLength(3);
@@ -1509,6 +1553,7 @@ test("keeps sample-derived insights on the owner-only evidence path", async () =
 
   await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
   expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeDefined();
+  expect(screen.getByText("Sample-derived records in this browser")).toBeDefined();
   expect(screen.queryByRole("button", { name: /Continue to draft/ })).toBeNull();
   expect(screen.queryByText("Eligible audience")).toBeNull();
 });

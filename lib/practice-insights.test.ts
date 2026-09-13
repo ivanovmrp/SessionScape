@@ -191,6 +191,36 @@ test("does not surface selected-week capacity that is already past the evaluatio
   }).opportunities.some(({ type }) => type === "capacity")).toBe(false);
 });
 
+test("counts only the in-availability portion of an outside-hours appointment", () => {
+  const workspace = workspaceForWeek();
+  workspace.appointments = [
+    ...[1, 2, 3].map((day) => ({
+      ...workspace.appointments[1],
+      id: `appointment_overlaprate${day}`,
+      startAt: `2026-08-0${day}T14:00:00.000Z`,
+      durationMinutes: 60,
+      valueCents: 12_000,
+      createdAt: "2026-07-01T12:00:00.000Z",
+      statusChangedAt: `2026-08-0${day}T15:00:00.000Z`,
+    })),
+    {
+      ...workspace.appointments[0],
+      id: "appointment_partialoutside1",
+      startAt: "2026-09-10T20:30:00.000Z",
+      durationMinutes: 60,
+    },
+  ];
+  const week = getPracticeWeek(workspace.timezone, "2026-09-09");
+  const input = adaptPracticeWorkspaceToDashboardInput(workspace, week, {
+    evaluationAt: "2026-09-07T12:00:00.000Z",
+  });
+
+  expect(input.capacity).toMatchObject({ bookedHours: 0.5, openHours: 55.5 });
+  expect(input.opportunities.find(({ id }) => id.includes("2026-09-10"))).toMatchObject({
+    estimatedCents: 90_000,
+  });
+});
+
 test.each([
   { hourlyValueCents: 7438, endMinute: 901, estimatedCents: 14999, surfaced: false },
   { hourlyValueCents: 7500, endMinute: 900, estimatedCents: 15000, surfaced: false },

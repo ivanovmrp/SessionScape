@@ -147,15 +147,34 @@ export function adaptPracticeWorkspaceToDashboardInput(
       availability.endMinute >= endLocal.minute,
     );
   };
+  const minutesInsideAvailability = (record: AppointmentRecord) => {
+    const startLocal = localParts(record.startAt, workspace.timezone);
+    const endLocal = localParts(
+      new Date(Date.parse(record.startAt) + record.durationMinutes * 60_000).toISOString(),
+      workspace.timezone,
+    );
+    if (startLocal.localDate !== endLocal.localDate) return 0;
+    return workspace.availability.reduce((total, availability) => {
+      if (
+        availability.closed ||
+        availability.practitionerId !== record.practitionerId ||
+        availability.localDate !== startLocal.localDate
+      ) return total;
+      return total + Math.max(
+        0,
+        Math.min(endLocal.minute, availability.endMinute) -
+          Math.max(startLocal.minute, availability.startMinute),
+      );
+    }, 0);
+  };
   const bookedByDate = new Map(dates.map((localDate) => [
     localDate,
     activeSelected
       .filter((record) =>
         activePractitionerIds.has(record.practitionerId) &&
-        localParts(record.startAt, workspace.timezone).localDate === localDate &&
-        insideAvailability(record),
+        localParts(record.startAt, workspace.timezone).localDate === localDate,
       )
-      .reduce((total, record) => total + record.durationMinutes / 60, 0),
+      .reduce((total, record) => total + minutesInsideAvailability(record) / 60, 0),
   ]));
   const bookedHours = [...bookedByDate.values()].reduce((total, hours) => total + hours, 0);
   const availabilityHours = [...availabilityHoursByDate.values()].reduce((total, hours) => total + hours, 0);
@@ -262,7 +281,9 @@ export function adaptPracticeWorkspaceToDashboardInput(
   return {
     status: capacityComplete ? "current" : "partial",
     actionContext: {
-      freshness: "Owner-entered records in this browser",
+      freshness: workspace.provenance === "owner-entered"
+        ? "Owner-entered records in this browser"
+        : "Sample-derived records in this browser",
       coverage: `Availability ${coverage.coveredDays} of ${coverage.totalDays} days`,
       limitation: "Manual records cannot prove outreach eligibility, consent, or suppressions.",
       recheckRequired: false,
