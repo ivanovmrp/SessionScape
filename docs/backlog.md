@@ -102,4 +102,49 @@ Give practitioners without a supported booking platform a manual data source, an
   5. Sample data retains its clearly representative provider handoff; owner-entered and sample-derived data stop at owner-only evidence review and expose no audience, draft, export, provider link, send, booking, or payment claim.
   6. Manual and sample-derived records are active calculation sources only when no provider is connected; a future connected provider becomes authoritative without merging or deleting separately stored manual data.
 
+### BL-014 — Restore dashboard destinations from Practice Data
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: The Opportunities, Clients, and Activity links target dashboard sections that are not mounted while Practice Data is open, so they appear broken. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Choosing Opportunities, Clients, or Activity from Practice Data restores the dashboard before navigating to the requested section.
+  2. Component tests prove every primary-navigation destination remains reachable from both surfaces.
+
+### BL-015 — Keep Practice Data reachable on small screens
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012, BL-013
+- **Context**: The current narrow-screen rules hide both the Practice Data navigation item and the dashboard week control, preventing mobile-width access to Plan 5 flows. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. At supported narrow widths, owners can open Practice Data and move between dashboard and ledger weeks without hidden controls.
+  2. Responsive tests cover the navigation and week controls at the smallest supported viewport.
+
+### BL-016 — Cover complete ledger record editing
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: Existing component tests cover appointment status edits and new availability, but not edits to appointment assignments, date, time, duration, value, or existing availability. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Component tests edit every appointment field and prove the same stable record is persisted with the new valid values.
+  2. Component tests overwrite an existing availability record and prove validation and persistence use the edited interval.
+
+### BL-017 — Use one anonymous-client ID generator
+- **Status**: ready
+- **Priority · Effort**: P2 · S
+- **Dependencies**: BL-011
+- **Context**: The tested `anonymousClientIdFromUuid` helper is unused by production while the UI carries a separate generator, so its unit test cannot protect the actual path. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Production UI generation uses the single tested anonymous-client ID helper with no duplicate implementation.
+  2. Unit and component tests prove generated IDs match the persisted `anon_[a-z0-9]{12}` contract.
+
+### BL-018 — Complete keyboard semantics for Practice Data tabs
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: The Practice Data controls declare tab roles without associated tabpanels, relationships, roving focus, or arrow-key behavior. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
+  2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.
+
 ## Icebox
