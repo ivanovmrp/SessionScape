@@ -71,8 +71,8 @@ Give practitioners without a supported booking platform a manual data source, an
 - **Sketches**: docs/sketches/manual-practice-data/option-b.html
 - **Context**: Replace fixed-only fixtures with an owner-controlled prototype workspace. Start browser-local to validate behavior before paying for account storage; reject identifiable or clinical fields rather than inviting unsafe test data.
 - **Acceptance criteria**:
-  1. The owner can start with an empty workspace or explicitly load the existing sample dataset, and the interface labels whether displayed results come from sample or owner-entered data.
-  2. The workspace represents weekly practitioner availability and appointments using only practitioner, service, start time, duration, value, status, and an optional anonymous returning-client key; it has no fields for names, contact details, notes, health information, intake content, or payment-card data.
+  1. The owner can start with an empty workspace or explicitly explore the sample dataset without overwriting owner records; copying sample data into a non-empty owner workspace requires confirmation, and every state is labeled as sample, owner-entered, or sample-derived.
+  2. Availability and appointment records carry stable generated identifiers and the minimum practitioner, service, time, integer-cent value, status, and lifecycle metadata needed for editing and calculation. Returning-client links use only system-generated, format-constrained opaque identifiers selected from the workspace; no free-form client identifier or fields for names, contact details, notes, health information, intake content, or payment-card data exist.
   3. Owner-entered workspace data survives a browser reload on the same device, can be cleared in one deliberate action, and recovers safely from missing or invalid stored data.
   4. Unit and component tests cover empty, sample, persisted, cleared, and invalid-data states without writing to an external service.
 
@@ -84,7 +84,7 @@ Give practitioners without a supported booking platform a manual data source, an
 - **Context**: Make the existing date control lead to a ledger-first practice-data workspace rather than a decorative calendar. Weekly availability has its own tab so appointment editing stays focused. This is an internal appointment ledger, not client booking: owners maintain records and availability, but clients cannot book, reschedule, or pay. A calendar-first layout was rejected because it would imply a broader scheduling product.
 - **Acceptance criteria**:
   1. The owner can move to the previous or next week and return to the current week, with the visible date range and ledger changing together in the practice time zone.
-  2. The owner can add and edit weekly availability plus appointment records with practitioner, service, date/time, duration, value, status, and optional anonymous returning-client key.
+  2. The owner can add and edit weekly availability plus appointment records with practitioner, service, date/time, duration, value, status, and an optional existing system-generated anonymous returning-client identifier.
   3. The owner can mark an appointment scheduled, completed, cancelled, or no-show and can remove an erroneous record through a deliberate confirmation.
   4. Invalid times, durations, values, and overlapping active appointments are blocked before saving; appointments outside recorded availability require an explicit owner override. Component tests cover creation, editing, status changes, deletion, week navigation, blocked validation, and the outside-hours override.
 
@@ -99,5 +99,6 @@ Give practitioners without a supported booking platform a manual data source, an
   2. Capacity and retention recommendations are derived only when the manual records contain the availability, status, and anonymous history required by their documented rules; otherwise the affected metric or recommendation shows an explicit unavailable reason.
   3. Metric definitions and recommendation evidence identify the selected period, record coverage, exclusions, and whether the source is sample or owner-entered data without exposing individual records.
   4. Calculation and component tests prove input-to-insight changes, insufficient-data behavior, repeated edits without duplicates, and continued separation of estimated, attributed, completed, and realized value.
+  5. Sample data retains its clearly representative provider handoff; owner-entered and sample-derived data stop at owner-only evidence review and expose no audience, draft, export, provider link, send, booking, or payment claim.
 
 ## Icebox
