@@ -1,5 +1,5 @@
 # Plan 4: Remove the final prototype interaction blockers
-Status: IN PROGRESS
+Status: COMPLETE
 Advances: Owners can recover dismissed recommendations and operate both dashboard drawers by keyboard, enabling accessible, trustworthy prototype validation.
 
 ## Goal
@@ -54,3 +54,23 @@ Make recommendation dismissal honestly reversible and make both dashboard drawer
 - 2026-09-12 (BL-004): code review found dismissal reset across scenario changes was implemented but unprotected; add a combined dismiss-then-change regression test.
 
 ## Archived Specs
+
+### BL-004 — Make dismissed recommendations truthfully recoverable
+- **Status**: planned (Plan 4)
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-001
+- **Context**: The current confirmation says dismissed recommendations can be restored from Activity, but Activity has no restore interface.
+- **Acceptance criteria**:
+  1. A dismissed recommendation appears in Activity with enough context to identify what was dismissed.
+  2. The owner can restore it, after which it reappears in the opportunity list and counts exactly once.
+  3. Tests cover dismissal, restoration, and repeated actions without duplicate recommendations.
+
+### BL-005 — Make dashboard dialogs keyboard accessible
+- **Status**: planned (Plan 4)
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-001
+- **Context**: Metric and recommendation drawers expose dialog semantics but have no verified focus, Escape, or focus-return behavior. Source: review (Plan 3).
+- **Acceptance criteria**:
+  1. Opening a drawer moves focus to a meaningful control or heading, and Tab navigation remains within the open dialog.
+  2. Escape closes the drawer and returns focus to the control that opened it.
+  3. Automated accessibility-focused interaction tests cover both drawer types and their close controls.
