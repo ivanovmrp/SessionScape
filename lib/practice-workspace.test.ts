@@ -7,6 +7,7 @@ import {
   anonymousClientIdFromUuid,
   createPracticeWorkspaceRepository,
   getPracticeWeek,
+  isCancellationRefilled,
   parsePracticeWorkspace,
   resolveLocalDateTime,
   shiftPracticeWeek,
@@ -292,4 +293,38 @@ test("builds Monday-through-Sunday practice weeks across clock changes", () => {
 test("moves practice weeks without drifting across month boundaries", () => {
   expect(shiftPracticeWeek("2026-09-07", -1)).toBe("2026-08-31");
   expect(shiftPracticeWeek("2026-09-07", 1)).toBe("2026-09-14");
+});
+
+test("counts a cancellation as refilled only by a later-created overlapping active appointment", () => {
+  const cancelled = {
+    ...validWorkspace().appointments[0],
+    status: "cancelled" as const,
+    startAt: "2026-09-07T13:00:00.000Z",
+    durationMinutes: 60,
+    cancelledAt: "2026-09-01T12:00:00.000Z",
+    statusChangedAt: "2026-09-01T12:00:00.000Z",
+  };
+  const replacement = {
+    ...validWorkspace().appointments[0],
+    id: "appointment_replacement01",
+    status: "scheduled" as const,
+    startAt: "2026-09-07T13:30:00.000Z",
+    durationMinutes: 60,
+    createdAt: "2026-09-02T12:00:00.000Z",
+    statusChangedAt: "2026-09-02T12:00:00.000Z",
+  };
+
+  expect(isCancellationRefilled(cancelled, [cancelled, replacement])).toBe(true);
+  expect(isCancellationRefilled(cancelled, [
+    cancelled,
+    { ...replacement, createdAt: "2026-08-31T12:00:00.000Z" },
+  ])).toBe(false);
+  expect(isCancellationRefilled(cancelled, [
+    cancelled,
+    { ...replacement, startAt: "2026-09-07T14:00:00.000Z" },
+  ])).toBe(false);
+  expect(isCancellationRefilled(cancelled, [
+    cancelled,
+    { ...replacement, status: "no-show" },
+  ])).toBe(false);
 });

@@ -962,3 +962,127 @@ test("keeps catalog editing controls out of read-only sample data", async () => 
   expect(screen.queryByRole("button", { name: "Add practitioner" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add service" })).toBeNull();
 });
+
+test("creates a persisted weekly appointment with generated identity and UTC time", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    appointments: [],
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(await screen.findByRole("button", { name: "Add appointment" }));
+
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-08");
+  await user.type(screen.getByLabelText("Start time"), "10:30");
+  await user.click(screen.getByRole("button", { name: "Generate anonymous client ID" }));
+  const client = screen.getByRole("combobox", { name: "Anonymous client ID" }) as HTMLSelectElement;
+  expect(client.value).toMatch(/^anon_[a-z0-9]{12}$/);
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+
+  expect(screen.getByText("Tue Sep 8 · 10:30 AM")).toBeDefined();
+  expect(screen.getByText("Scheduled")).toBeDefined();
+  const stored = JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  );
+  expect(stored.appointments).toHaveLength(1);
+  expect(stored.appointments[0]).toMatchObject({
+    practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
+    serviceId: RAW_SAMPLE_WORKSPACE.services[0].id,
+    startAt: "2026-09-08T14:30:00.000Z",
+    durationMinutes: 90,
+    valueCents: 14500,
+    status: "scheduled",
+    anonymousClientId: client.value,
+  });
+  expect(stored.appointments[0].id).toMatch(/^appointment_[a-z0-9]{8,32}$/);
+});
+
+test("keeps appointment identity stable through status changes and confirms deletion", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm");
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(await screen.findByRole("button", { name: /Edit appointment/ }));
+
+  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment status" }), "cancelled");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  let stored = JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  );
+  expect(stored.appointments[0].id).toBe(ownerWorkspace.appointments[0].id);
+  expect(stored.appointments[0].status).toBe("cancelled");
+  expect(stored.appointments[0].cancelledAt).toBe(stored.appointments[0].statusChangedAt);
+
+  await user.click(screen.getByRole("button", { name: /Edit appointment/ }));
+  await user.selectOptions(screen.getByRole("combobox", { name: "Appointment status" }), "scheduled");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  stored = JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  );
+  expect(stored.appointments[0].id).toBe(ownerWorkspace.appointments[0].id);
+  expect(stored.appointments[0].cancelledAt).toBeUndefined();
+
+  await user.click(screen.getByRole("button", { name: /Edit appointment/ }));
+  confirm.mockReturnValueOnce(false);
+  await user.click(screen.getByRole("button", { name: "Delete appointment" }));
+  expect(screen.getByRole("button", { name: /Edit appointment/ })).toBeDefined();
+  confirm.mockReturnValueOnce(true);
+  await user.click(screen.getByRole("button", { name: "Delete appointment" }));
+  expect(screen.queryByRole("button", { name: /Edit appointment/ })).toBeNull();
+  expect(screen.getByText("0 appointment records")).toBeDefined();
+});
+
+test("keeps inactive historical assignments visible but out of new appointment choices", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    practitioners: [
+      { ...RAW_SAMPLE_WORKSPACE.practitioners[0], active: false },
+      { id: "practitioner_aria00000001", label: "Aria", active: true },
+    ],
+    services: [
+      { ...RAW_SAMPLE_WORKSPACE.services[0], active: false },
+      {
+        id: "service_relaxation01",
+        label: "Relaxation",
+        defaultDurationMinutes: 60,
+        defaultValueCents: 11000,
+        active: true,
+      },
+    ],
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  expect(await screen.findByText("Maya")).toBeDefined();
+  expect(screen.getByText("Deep tissue")).toBeDefined();
+  await user.click(screen.getByRole("button", { name: /Edit appointment/ }));
+  expect((screen.getByRole("option", { name: "Maya · inactive historical assignment" }) as HTMLOptionElement).disabled).toBe(true);
+  expect((screen.getByRole("option", { name: "Deep tissue · inactive historical assignment" }) as HTMLOptionElement).disabled).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Cancel appointment editing" }));
+
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  expect(screen.queryByRole("option", { name: /Maya/ })).toBeNull();
+  expect(screen.queryByRole("option", { name: /Deep tissue/ })).toBeNull();
+  expect(screen.getByRole("option", { name: "Aria" })).toBeDefined();
+  expect(screen.getByRole("option", { name: "Relaxation" })).toBeDefined();
+});

@@ -514,6 +514,30 @@ export function getAvailabilityCoverage(
   };
 }
 
+export function isCancellationRefilled(
+  cancelled: AppointmentRecord,
+  appointments: AppointmentRecord[],
+) {
+  if (cancelled.status !== "cancelled" || !cancelled.cancelledAt) return false;
+  const cancelledStart = Date.parse(cancelled.startAt);
+  const cancelledEnd = cancelledStart + cancelled.durationMinutes * 60_000;
+  const cancelledAt = Date.parse(cancelled.cancelledAt);
+
+  return appointments.some((candidate) => {
+    if (
+      candidate.id === cancelled.id ||
+      candidate.practitionerId !== cancelled.practitionerId ||
+      (candidate.status !== "scheduled" && candidate.status !== "completed") ||
+      Date.parse(candidate.createdAt) <= cancelledAt
+    ) {
+      return false;
+    }
+    const candidateStart = Date.parse(candidate.startAt);
+    const candidateEnd = candidateStart + candidate.durationMinutes * 60_000;
+    return candidateStart < cancelledEnd && candidateEnd > cancelledStart;
+  });
+}
+
 export function anonymousClientIdFromUuid(uuid: string) {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

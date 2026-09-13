@@ -9,7 +9,10 @@ import {
   getPracticeWeek,
   parsePracticeWorkspace,
   RAW_SAMPLE_WORKSPACE,
+  resolveLocalDateTime,
   shiftPracticeWeek,
+  type AppointmentRecord,
+  type AppointmentStatus,
   type PracticeWorkspace,
   type WorkspaceSlot,
 } from "../lib/practice-workspace";
@@ -48,6 +51,17 @@ type CatalogEditor =
       durationMinutes: string;
       valueCents: string;
     };
+type AppointmentEditor = {
+  id?: string;
+  date: string;
+  time: string;
+  practitionerId: string;
+  serviceId: string;
+  durationMinutes: string;
+  valueCents: string;
+  status: AppointmentStatus;
+  anonymousClientId: string;
+};
 
 const emptyWorkspace = (
   provenance: PracticeWorkspace["provenance"],
@@ -70,6 +84,8 @@ export default function Home() {
   const [storageAlerts, setStorageAlerts] = useState<Partial<Record<StorageAlertKey, string>>>({});
   const [catalogEditor, setCatalogEditor] = useState<CatalogEditor | null>(null);
   const [catalogError, setCatalogError] = useState("");
+  const [appointmentEditor, setAppointmentEditor] = useState<AppointmentEditor | null>(null);
+  const [appointmentError, setAppointmentError] = useState("");
   const [scenario, setScenario] = useState<DataScenario>("current");
   const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
@@ -127,6 +143,11 @@ export default function Home() {
     practiceWorkspace,
     practiceWeek,
   );
+  const activePractitioners = practiceWorkspace.practitioners.filter(({ active }) => active);
+  const activeServices = practiceWorkspace.services.filter(({ active }) => active);
+  const weeklyAppointments = practiceWorkspace.appointments
+    .filter(({ startAt }) => startAt >= practiceWeek.startAt && startAt < practiceWeek.endAt)
+    .sort((left, right) => left.startAt.localeCompare(right.startAt));
 
   useEffect(() => {
     let active = true;
@@ -229,6 +250,8 @@ export default function Home() {
     setApprovalSnapshot(null);
     setDismissed([]);
     setNotice("");
+    setAppointmentEditor(null);
+    setAppointmentError("");
     setPracticeSource(nextSource);
   };
 
@@ -249,7 +272,7 @@ export default function Home() {
     }
   };
 
-  const generatedId = (prefix: "practitioner" | "service") => {
+  const generatedId = (prefix: "practitioner" | "service" | "appointment") => {
     const values = new Uint32Array(2);
     crypto.getRandomValues(values);
     return `${prefix}_${[...values].map((value) => value.toString(16).padStart(8, "0")).join("")}`;
@@ -323,6 +346,127 @@ export default function Home() {
           ),
         };
     saveActiveWorkspace(next);
+  };
+
+  const localAppointmentParts = (startAt: string) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+      timeZone: practiceWorkspace.timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(startAt)).map(({ type, value }) => [type, value]));
+    return {
+      date: `${parts.year}-${parts.month}-${parts.day}`,
+      time: `${parts.hour}:${parts.minute}`,
+    };
+  };
+
+  const formatAppointmentTime = (startAt: string) => {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+      timeZone: practiceWorkspace.timezone,
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).formatToParts(new Date(startAt)).map(({ type, value }) => [type, value]));
+    return `${parts.weekday} ${parts.month} ${parts.day} · ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
+  };
+
+  const openNewAppointment = () => {
+    const practitioner = activePractitioners[0];
+    const service = activeServices[0];
+    if (!practitioner || !service) return;
+    setAppointmentError("");
+    setAppointmentEditor({
+      date: "",
+      time: "",
+      practitionerId: practitioner.id,
+      serviceId: service.id,
+      durationMinutes: String(service.defaultDurationMinutes),
+      valueCents: String(service.defaultValueCents),
+      status: "scheduled",
+      anonymousClientId: "",
+    });
+  };
+
+  const openExistingAppointment = (record: AppointmentRecord) => {
+    setAppointmentError("");
+    setAppointmentEditor({
+      id: record.id,
+      ...localAppointmentParts(record.startAt),
+      practitionerId: record.practitionerId,
+      serviceId: record.serviceId,
+      durationMinutes: String(record.durationMinutes),
+      valueCents: String(record.valueCents),
+      status: record.status,
+      anonymousClientId: record.anonymousClientId ?? "",
+    });
+  };
+
+  const generateAnonymousClientId = () => {
+    if (!appointmentEditor) return;
+    const values = new Uint8Array(6);
+    crypto.getRandomValues(values);
+    const id = `anon_${[...values].map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+    setAppointmentEditor({ ...appointmentEditor, anonymousClientId: id });
+  };
+
+  const saveAppointment = () => {
+    if (!appointmentEditor) return;
+    const [hour, minute] = appointmentEditor.time.split(":").map(Number);
+    const resolved = resolveLocalDateTime(
+      practiceWorkspace.timezone,
+      appointmentEditor.date,
+      hour * 60 + minute,
+    );
+    if (!resolved.ok) {
+      setAppointmentError("Choose a valid local appointment date and time.");
+      return;
+    }
+    const previous = appointmentEditor.id
+      ? practiceWorkspace.appointments.find(({ id }) => id === appointmentEditor.id)
+      : undefined;
+    const now = new Date().toISOString();
+    const statusChangedAt = previous?.status === appointmentEditor.status
+      ? previous.statusChangedAt
+      : now;
+    const record: AppointmentRecord = {
+      id: previous?.id ?? generatedId("appointment"),
+      practitionerId: appointmentEditor.practitionerId,
+      serviceId: appointmentEditor.serviceId,
+      startAt: resolved.value,
+      durationMinutes: Number(appointmentEditor.durationMinutes),
+      valueCents: Number(appointmentEditor.valueCents),
+      status: appointmentEditor.status,
+      ...(appointmentEditor.anonymousClientId
+        ? { anonymousClientId: appointmentEditor.anonymousClientId }
+        : {}),
+      createdAt: previous?.createdAt ?? now,
+      statusChangedAt,
+      ...(appointmentEditor.status === "cancelled"
+        ? { cancelledAt: previous?.status === "cancelled" ? previous.cancelledAt : statusChangedAt }
+        : {}),
+    };
+    const appointments = previous
+      ? practiceWorkspace.appointments.map((item) => item.id === previous.id ? record : item)
+      : [...practiceWorkspace.appointments, record];
+    if (saveActiveWorkspace({ ...practiceWorkspace, appointments })) {
+      setAppointmentEditor(null);
+      setAppointmentError("");
+    }
+  };
+
+  const deleteAppointment = () => {
+    if (!appointmentEditor?.id || !window.confirm("Delete this appointment?")) return;
+    const appointments = practiceWorkspace.appointments.filter(({ id }) => id !== appointmentEditor.id);
+    if (saveActiveWorkspace({ ...practiceWorkspace, appointments })) {
+      setAppointmentEditor(null);
+      setAppointmentError("");
+    }
   };
 
   const copySample = () => {
@@ -477,6 +621,53 @@ export default function Home() {
             {practiceSource === "sample-derived" && <button className="button-secondary" onClick={() => clearWorkspace("sample-derived")}>Clear sample-derived data</button>}
             {practiceSource !== "owner" && <button className="button-secondary" onClick={() => changePracticeSource("owner")}>Return to owner data</button>}
           </div>
+        </section>
+
+        <section className="panel appointment-ledger">
+          <div className="panel-heading">
+            <div><h2>Appointments</h2><p className="muted">{practiceWeek.label} · {practiceWorkspace.timezone}</p></div>
+            {practiceSource !== "sample" && activePractitioners.length > 0 && activeServices.length > 0 && <button onClick={openNewAppointment}>Add appointment</button>}
+          </div>
+          {weeklyAppointments.length === 0 ? <p className="muted">No appointments in this week.</p> : <ul className="appointment-list">
+            {weeklyAppointments.map((record) => {
+              const practitioner = practiceWorkspace.practitioners.find(({ id }) => id === record.practitionerId);
+              const service = practiceWorkspace.services.find(({ id }) => id === record.serviceId);
+              return <li key={record.id}>
+                <span><strong>{formatAppointmentTime(record.startAt)}</strong><small>{practitioner?.label} · {service?.label}</small></span>
+                <span><strong>{record.status === "no-show" ? "No-show" : `${record.status[0].toUpperCase()}${record.status.slice(1)}`}</strong><small>{record.anonymousClientId ?? "Not linked"} · ${(record.valueCents / 100).toFixed(2)}</small></span>
+                {practiceSource !== "sample" && <button aria-label={`Edit appointment ${formatAppointmentTime(record.startAt)}`} onClick={() => openExistingAppointment(record)}>Edit</button>}
+              </li>;
+            })}
+          </ul>}
+
+          {appointmentEditor && <form className="appointment-editor" onSubmit={(event) => { event.preventDefault(); saveAppointment(); }}>
+            <label>Appointment date<input aria-label="Appointment date" type="date" value={appointmentEditor.date} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, date: event.target.value })} /></label>
+            <label>Start time<input aria-label="Start time" type="time" value={appointmentEditor.time} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, time: event.target.value })} /></label>
+            <label>Practitioner<select aria-label="Appointment practitioner" value={appointmentEditor.practitionerId} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, practitionerId: event.target.value })}>
+              {practiceWorkspace.practitioners.filter((record) => record.active || (appointmentEditor.id && record.id === appointmentEditor.practitionerId)).map((record) => <option key={record.id} value={record.id} disabled={!record.active}>{record.label}{!record.active ? " · inactive historical assignment" : ""}</option>)}
+            </select></label>
+            <label>Service<select aria-label="Appointment service" value={appointmentEditor.serviceId} onChange={(event) => {
+              const service = practiceWorkspace.services.find(({ id }) => id === event.target.value);
+              setAppointmentEditor({ ...appointmentEditor, serviceId: event.target.value, durationMinutes: service ? String(service.defaultDurationMinutes) : appointmentEditor.durationMinutes, valueCents: service ? String(service.defaultValueCents) : appointmentEditor.valueCents });
+            }}>
+              {practiceWorkspace.services.filter((record) => record.active || (appointmentEditor.id && record.id === appointmentEditor.serviceId)).map((record) => <option key={record.id} value={record.id} disabled={!record.active}>{record.label}{!record.active ? " · inactive historical assignment" : ""}</option>)}
+            </select></label>
+            <label>Duration in minutes<input aria-label="Appointment duration in minutes" type="number" min="1" step="1" value={appointmentEditor.durationMinutes} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, durationMinutes: event.target.value })} /></label>
+            <label>Value in cents<input aria-label="Appointment value in cents" type="number" min="0" step="1" value={appointmentEditor.valueCents} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, valueCents: event.target.value })} /></label>
+            <label>Appointment status<select aria-label="Appointment status" value={appointmentEditor.status} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, status: event.target.value as AppointmentStatus })}>
+              <option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option>
+            </select></label>
+            <label>Anonymous client ID<select aria-label="Anonymous client ID" value={appointmentEditor.anonymousClientId} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, anonymousClientId: event.target.value })}>
+              <option value="">Not linked</option>{appointmentEditor.anonymousClientId && <option value={appointmentEditor.anonymousClientId}>{appointmentEditor.anonymousClientId}</option>}
+            </select></label>
+            <button type="button" onClick={generateAnonymousClientId}>Generate anonymous client ID</button>
+            {appointmentError && <p className="warning" role="alert">{appointmentError}</p>}
+            <div className="appointment-editor-actions">
+              {appointmentEditor.id && <button type="button" onClick={deleteAppointment}>Delete appointment</button>}
+              <button type="button" onClick={() => { setAppointmentEditor(null); setAppointmentError(""); }}>Cancel appointment editing</button>
+              <button className="button-primary" type="submit">Save appointment</button>
+            </div>
+          </form>}
         </section>
 
         <section className="catalog-grid" aria-label="Practice catalogs">
