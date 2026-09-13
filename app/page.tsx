@@ -5,7 +5,9 @@ import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 import {
   createPracticeWorkspaceRepository,
+  getPracticeWeek,
   RAW_SAMPLE_WORKSPACE,
+  shiftPracticeWeek,
   type PracticeWorkspace,
   type WorkspaceSlot,
 } from "../lib/practice-workspace";
@@ -51,6 +53,7 @@ const emptyWorkspace = (
 export default function Home() {
   const [surface, setSurface] = useState<Surface>("overview");
   const [practiceSource, setPracticeSource] = useState<PracticeSource>("owner");
+  const [selectedWeekDate, setSelectedWeekDate] = useState("2026-09-13");
   const [ownerWorkspace, setOwnerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
   const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
   const [storageAlerts, setStorageAlerts] = useState<Partial<Record<StorageAlertKey, string>>>({});
@@ -103,6 +106,10 @@ export default function Home() {
     : practiceSource === "sample-derived"
       ? "Sample-derived data"
       : "Owner-entered data";
+  const practiceWeek = getPracticeWeek(
+    practiceWorkspace.timezone,
+    selectedWeekDate,
+  );
 
   useEffect(() => {
     let active = true;
@@ -238,6 +245,11 @@ export default function Home() {
     changePracticeSource("sample-derived");
   };
 
+  const movePracticeWeek = (weeks: number) => {
+    changePracticeSource(practiceSource);
+    setSelectedWeekDate(shiftPracticeWeek(practiceWeek.startLocalDate, weeks));
+  };
+
   const clearWorkspace = (slot: WorkspaceSlot) => {
     const label = slot === "owner" ? "owner" : "sample-derived";
     if (!window.confirm(`Clear all ${label} practice data?`)) return;
@@ -342,6 +354,13 @@ export default function Home() {
           {practiceSource === "sample" && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => setScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
         </header>
 
+        <div className="week-toolbar">
+          <button aria-label="Previous week" onClick={() => movePracticeWeek(-1)}>←</button>
+          <strong>{practiceWeek.label}</strong>
+          <button aria-label="Next week" onClick={() => movePracticeWeek(1)}>→</button>
+          <button onClick={() => { changePracticeSource(practiceSource); setSelectedWeekDate("2026-09-13"); }}>Today</button>
+        </div>
+
         <section className="practice-workspace panel">
           <div className="panel-heading">
             <div><p className="eyebrow">CURRENT SOURCE</p><h2>{practiceSourceLabel}</h2></div>
@@ -374,7 +393,7 @@ export default function Home() {
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
             <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { restoreMetricFocusRef.current = false; restoreOpportunityFocusRef.current = false; setScenario(event.target.value as DataScenario); setDismissed([]); setActiveMetric(null); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
-            <button className="date-button"><Icon name="calendar" />Sep 7 – 13<Icon name="chevron" size={15} /></button>
+            <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{practiceWeek.label}<Icon name="chevron" size={15} /></button>
           </div>
         </header>
 

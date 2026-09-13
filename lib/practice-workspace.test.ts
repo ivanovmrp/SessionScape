@@ -6,7 +6,10 @@ import {
   RAW_SAMPLE_WORKSPACE,
   anonymousClientIdFromUuid,
   createPracticeWorkspaceRepository,
+  getPracticeWeek,
   parsePracticeWorkspace,
+  resolveLocalDateTime,
+  shiftPracticeWeek,
   type PracticeWorkspace,
   type StoragePort,
 } from "./practice-workspace";
@@ -228,4 +231,65 @@ test("reports unavailable and failing storage without claiming persistence", () 
     ok: false,
     error: "clear-failed",
   });
+});
+
+test("resolves ordinary local appointment times to UTC instants", () => {
+  expect(
+    resolveLocalDateTime("America/New_York", "2026-09-07", 9 * 60),
+  ).toEqual({ ok: true, value: "2026-09-07T13:00:00.000Z" });
+});
+
+test("rejects a daylight-saving gap and requires a repeated-hour choice", () => {
+  expect(
+    resolveLocalDateTime("America/New_York", "2026-03-08", 2 * 60 + 30),
+  ).toEqual({ ok: false, error: "nonexistent-local-time" });
+
+  const repeated = resolveLocalDateTime(
+    "America/New_York",
+    "2026-11-01",
+    1 * 60 + 30,
+  );
+  expect(repeated).toEqual({
+    ok: false,
+    error: "ambiguous-local-time",
+    candidates: ["2026-11-01T05:30:00.000Z", "2026-11-01T06:30:00.000Z"],
+  });
+  expect(
+    resolveLocalDateTime(
+      "America/New_York",
+      "2026-11-01",
+      1 * 60 + 30,
+      "earlier",
+    ),
+  ).toEqual({ ok: true, value: "2026-11-01T05:30:00.000Z" });
+  expect(
+    resolveLocalDateTime(
+      "America/New_York",
+      "2026-11-01",
+      1 * 60 + 30,
+      "later",
+    ),
+  ).toEqual({ ok: true, value: "2026-11-01T06:30:00.000Z" });
+});
+
+test("builds Monday-through-Sunday practice weeks across clock changes", () => {
+  expect(getPracticeWeek("America/New_York", "2026-09-09")).toEqual({
+    startLocalDate: "2026-09-07",
+    endLocalDate: "2026-09-13",
+    startAt: "2026-09-07T04:00:00.000Z",
+    endAt: "2026-09-14T04:00:00.000Z",
+    label: "Sep 7–13, 2026",
+  });
+
+  const springWeek = getPracticeWeek("America/New_York", "2026-03-08");
+  expect(springWeek.startAt).toBe("2026-03-02T05:00:00.000Z");
+  expect(springWeek.endAt).toBe("2026-03-09T04:00:00.000Z");
+  expect(
+    (Date.parse(springWeek.endAt) - Date.parse(springWeek.startAt)) / 3_600_000,
+  ).toBe(167);
+});
+
+test("moves practice weeks without drifting across month boundaries", () => {
+  expect(shiftPracticeWeek("2026-09-07", -1)).toBe("2026-08-31");
+  expect(shiftPracticeWeek("2026-09-07", 1)).toBe("2026-09-14");
 });

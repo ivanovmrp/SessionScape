@@ -320,6 +320,176 @@ export function parsePracticeWorkspace(value: unknown): ParseResult {
   return { ok: true, value: value as PracticeWorkspace };
 }
 
+type RepeatedTimeChoice = "earlier" | "later";
+
+type LocalTimeResolution =
+  | { ok: true; value: string }
+  | { ok: false; error: "invalid-local-time" | "nonexistent-local-time" }
+  | {
+      ok: false;
+      error: "ambiguous-local-time";
+      candidates: [string, string];
+    };
+
+export type PracticeWeek = {
+  startLocalDate: string;
+  endLocalDate: string;
+  startAt: string;
+  endAt: string;
+  label: string;
+};
+
+const parseExactLocalDate = (localDate: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
+  if (!match) return null;
+  const parts = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  return date.toISOString().slice(0, 10) === localDate ? parts : null;
+};
+
+const localPartsAt = (instant: number, timezone: string) => {
+  const values = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(instant).map(({ type, value }) => [type, value]),
+  );
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  };
+};
+
+export function resolveLocalDateTime(
+  timezone: string,
+  localDate: string,
+  minuteOfDay: number,
+  repeatedTimeChoice?: RepeatedTimeChoice,
+): LocalTimeResolution {
+  const date = parseExactLocalDate(localDate);
+  if (
+    !date ||
+    !isTimezone(timezone) ||
+    !Number.isInteger(minuteOfDay) ||
+    minuteOfDay < 0 ||
+    minuteOfDay >= 24 * 60
+  ) {
+    return { ok: false, error: "invalid-local-time" };
+  }
+
+  const hour = Math.floor(minuteOfDay / 60);
+  const minute = minuteOfDay % 60;
+  const localAsUtc = Date.UTC(date.year, date.month - 1, date.day, hour, minute);
+  const offsets = new Set<number>();
+  for (let deltaHours = -36; deltaHours <= 36; deltaHours += 6) {
+    const sample = localAsUtc + deltaHours * 3_600_000;
+    const parts = localPartsAt(sample, timezone);
+    const formattedAsUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+    );
+    offsets.add(formattedAsUtc - sample);
+  }
+
+  const candidates = [...offsets]
+    .map((offset) => localAsUtc - offset)
+    .filter((instant) => {
+      const parts = localPartsAt(instant, timezone);
+      return parts.year === date.year &&
+        parts.month === date.month &&
+        parts.day === date.day &&
+        parts.hour === hour &&
+        parts.minute === minute;
+    })
+    .sort((left, right) => left - right)
+    .map((instant) => new Date(instant).toISOString());
+
+  if (candidates.length === 0) {
+    return { ok: false, error: "nonexistent-local-time" };
+  }
+  if (candidates.length === 1) {
+    return { ok: true, value: candidates[0] };
+  }
+  const repeatedCandidates: [string, string] = [candidates[0], candidates[1]];
+  if (!repeatedTimeChoice) {
+    return {
+      ok: false,
+      error: "ambiguous-local-time",
+      candidates: repeatedCandidates,
+    };
+  }
+  return {
+    ok: true,
+    value: repeatedTimeChoice === "earlier"
+      ? repeatedCandidates[0]
+      : repeatedCandidates[1],
+  };
+}
+
+const shiftLocalDate = (localDate: string, days: number) => {
+  const date = parseExactLocalDate(localDate);
+  if (!date || !Number.isInteger(days)) throw new Error("A valid local date and whole-day shift are required");
+  return new Date(Date.UTC(date.year, date.month - 1, date.day + days))
+    .toISOString()
+    .slice(0, 10);
+};
+
+export function shiftPracticeWeek(localDate: string, weeks: number) {
+  if (!Number.isInteger(weeks)) throw new Error("A whole-week shift is required");
+  return shiftLocalDate(localDate, weeks * 7);
+}
+
+const formatWeekLabel = (startLocalDate: string, endLocalDate: string) => {
+  const start = new Date(`${startLocalDate}T00:00:00.000Z`);
+  const end = new Date(`${endLocalDate}T00:00:00.000Z`);
+  const month = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" });
+  const startMonth = month.format(start);
+  const endMonth = month.format(end);
+  const startYear = start.getUTCFullYear();
+  const endYear = end.getUTCFullYear();
+  if (startYear !== endYear) {
+    return `${startMonth} ${start.getUTCDate()}, ${startYear}–${endMonth} ${end.getUTCDate()}, ${endYear}`;
+  }
+  if (startMonth !== endMonth) {
+    return `${startMonth} ${start.getUTCDate()}–${endMonth} ${end.getUTCDate()}, ${endYear}`;
+  }
+  return `${startMonth} ${start.getUTCDate()}–${end.getUTCDate()}, ${endYear}`;
+};
+
+export function getPracticeWeek(timezone: string, localDate: string): PracticeWeek {
+  const date = parseExactLocalDate(localDate);
+  if (!date || !isTimezone(timezone)) throw new Error("A valid timezone and local date are required");
+  const day = new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+  const startLocalDate = shiftLocalDate(localDate, -((day + 6) % 7));
+  const endLocalDate = shiftLocalDate(startLocalDate, 6);
+  const nextStartLocalDate = shiftLocalDate(startLocalDate, 7);
+  const start = resolveLocalDateTime(timezone, startLocalDate, 0, "earlier");
+  const end = resolveLocalDateTime(timezone, nextStartLocalDate, 0, "earlier");
+  if (!start.ok || !end.ok) throw new Error("The practice week boundary is not resolvable");
+  return {
+    startLocalDate,
+    endLocalDate,
+    startAt: start.value,
+    endAt: end.value,
+    label: formatWeekLabel(startLocalDate, endLocalDate),
+  };
+}
+
 export function anonymousClientIdFromUuid(uuid: string) {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

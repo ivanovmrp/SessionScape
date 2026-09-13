@@ -845,3 +845,36 @@ test("does not claim persistence when saving an editable copy exceeds quota", as
     window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"]),
   ).toBeNull();
 });
+
+test("moves the practice ledger by whole local weeks and returns to today", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Next week" }));
+  expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Previous week" }));
+  await user.click(screen.getByRole("button", { name: "Previous week" }));
+  expect(screen.getByText("Aug 31–Sep 6, 2026")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Today" }));
+  expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
+});
+
+test("keeps the dashboard date control connected to the selected ledger week", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Next week" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+
+  const selectedWeek = screen.getByRole("button", { name: /Sep 14–20/ });
+  expect(selectedWeek).toBeDefined();
+  await user.click(selectedWeek);
+  expect(screen.getByRole("heading", { name: "Practice data" })).toBeDefined();
+  expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
+});
