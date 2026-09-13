@@ -1052,6 +1052,10 @@ export default function Home() {
             <strong>{opportunitySummary.actionContext.freshness}</strong>
             <span>{opportunitySummary.actionContext.coverage}</span>
             <p>{opportunitySummary.actionContext.limitation}</p>
+            {!sampleDashboard && "evidence" in dashboardInput && <>
+              <span>Period {dashboardInput.evidence.period}</span>
+              <p>Excluded records: {dashboardInput.evidence.excluded.cancelled} cancelled, {dashboardInput.evidence.excluded.noShow} no-show, {dashboardInput.evidence.excluded.outsideAvailability} outside availability, {dashboardInput.evidence.deduplicatedRecords} duplicate IDs.</p>
+            </>}
           </div>
 
           {actionStage === "evidence" && <>

@@ -73,7 +73,7 @@ export type DerivedDashboard = {
   headline: string;
   subheadline: string;
   totalOpportunity: string;
-  totalOpportunityCents: number;
+  totalOpportunityCents: number | null;
   opportunityCount: number;
   opportunities: DerivedOpportunity[];
   actionContext: ActionContext;
@@ -148,10 +148,12 @@ export function deriveDashboard(
         : currency.format(opportunity.estimatedCents / 100),
       audience: opportunity.audiences[0]?.count ?? 0,
     }));
-  const opportunityTotal = visibleOpportunities.reduce(
-    (total, opportunity) => total + (opportunity.estimatedCents ?? 0),
-    0,
-  );
+  const opportunityTotal = visibleOpportunities.some(({ estimatedCents }) => estimatedCents === null)
+    ? null
+    : visibleOpportunities.reduce(
+        (total, opportunity) => total + (opportunity.estimatedCents ?? 0),
+        0,
+      );
   const stale = input.status === "stale";
   const supportedState = stale ? "stale" : "current";
   const capacityMetric: DerivedMetric = capacitySource && capacityPercent !== null
@@ -197,7 +199,9 @@ export function deriveDashboard(
   return {
     headline,
     subheadline,
-    totalOpportunity: currency.format(opportunityTotal / 100),
+    totalOpportunity: opportunityTotal === null
+      ? "Unavailable"
+      : currency.format(opportunityTotal / 100),
     totalOpportunityCents: opportunityTotal,
     opportunityCount: visibleOpportunities.length,
     opportunities: visibleOpportunities,

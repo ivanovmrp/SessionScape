@@ -463,8 +463,8 @@ test("keeps an unavailable opportunity value distinct from zero", () => {
   });
 
   expect(dashboard.opportunities[0].value).toBe("Unavailable");
-  expect(dashboard.totalOpportunityCents).toBe(0);
-  expect(dashboard.totalOpportunity).toBe("$0");
+  expect(dashboard.totalOpportunityCents).toBeNull();
+  expect(dashboard.totalOpportunity).toBe("Unavailable");
 });
 
 test.each([

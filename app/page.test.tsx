@@ -887,13 +887,32 @@ test("does not claim persistence when saving an editable copy exceeds quota", as
 
 test("moves the practice ledger by whole local weeks and returns to today", async () => {
   const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    appointments: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.appointments),
+      {
+        ...structuredClone(RAW_SAMPLE_WORKSPACE.appointments[0]),
+        id: "appointment_nextweek001",
+        startAt: "2026-09-14T13:00:00.000Z",
+        createdAt: "2026-09-08T12:00:00.000Z",
+        statusChangedAt: "2026-09-14T14:30:00.000Z",
+      },
+    ],
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
   render(<Page />);
 
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
+  expect(screen.getByRole("button", { name: /Edit appointment Mon Sep 7/ })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Edit appointment Mon Sep 14/ })).toBeNull();
 
   await user.click(screen.getByRole("button", { name: "Next week" }));
   expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
+  expect(screen.getByRole("button", { name: /Edit appointment Mon Sep 14/ })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Edit appointment Mon Sep 7/ })).toBeNull();
 
   await user.click(screen.getByRole("button", { name: "Previous week" }));
   await user.click(screen.getByRole("button", { name: "Previous week" }));
@@ -901,6 +920,8 @@ test("moves the practice ledger by whole local weeks and returns to today", asyn
 
   await user.click(screen.getByRole("button", { name: "Today" }));
   expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
+  expect(screen.getByRole("button", { name: /Edit appointment Mon Sep 7/ })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Edit appointment Mon Sep 14/ })).toBeNull();
 });
 
 test("selects the current local week after client hydration", async () => {
@@ -1390,6 +1411,9 @@ test("binds the active owner source to evidence-only dashboard actions", async (
   expect(within(metricDetails).getByText(/outside-availability/)).toBeDefined();
   await user.click(within(metricDetails).getByRole("button", { name: "Close" }));
   await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  const opportunityDetails = screen.getByRole("dialog");
+  expect(within(opportunityDetails).getByText("Period Sep 7–13, 2026")).toBeDefined();
+  expect(within(opportunityDetails).getByText("Excluded records: 0 cancelled, 0 no-show, 0 outside availability, 0 duplicate IDs.")).toBeDefined();
   expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeDefined();
   expect(screen.queryByRole("button", { name: /Continue to draft/ })).toBeNull();
   expect(screen.queryByText("Eligible audience")).toBeNull();
