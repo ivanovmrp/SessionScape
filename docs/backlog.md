@@ -68,6 +68,7 @@ Give practitioners without a supported booking platform a manual data source, an
 - **Status**: ready
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-002
+- **Sketches**: docs/sketches/manual-practice-data/option-b.html
 - **Context**: Replace fixed-only fixtures with an owner-controlled prototype workspace. Start browser-local to validate behavior before paying for account storage; reject identifiable or clinical fields rather than inviting unsafe test data.
 - **Acceptance criteria**:
   1. The owner can start with an empty workspace or explicitly load the existing sample dataset, and the interface labels whether displayed results come from sample or owner-entered data.
@@ -79,17 +80,19 @@ Give practitioners without a supported booking platform a manual data source, an
 - **Status**: ready
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-011
-- **Context**: Make the existing date control lead to a real owner-operated week rather than a decorative calendar. This is an internal appointment ledger, not client booking: owners maintain records and availability, but clients cannot book, reschedule, or pay.
+- **Sketches**: docs/sketches/manual-practice-data/option-b.html
+- **Context**: Make the existing date control lead to a ledger-first practice-data workspace rather than a decorative calendar. Weekly availability has its own tab so appointment editing stays focused. This is an internal appointment ledger, not client booking: owners maintain records and availability, but clients cannot book, reschedule, or pay. A calendar-first layout was rejected because it would imply a broader scheduling product.
 - **Acceptance criteria**:
   1. The owner can move to the previous or next week and return to the current week, with the visible date range and ledger changing together in the practice time zone.
   2. The owner can add and edit weekly availability plus appointment records with practitioner, service, date/time, duration, value, status, and optional anonymous returning-client key.
   3. The owner can mark an appointment scheduled, completed, cancelled, or no-show and can remove an erroneous record through a deliberate confirmation.
-  4. Invalid times, durations, values, and overlapping active appointments are identified before saving, and component tests cover creation, editing, status changes, deletion, week navigation, and validation failures.
+  4. Invalid times, durations, values, and overlapping active appointments are blocked before saving; appointments outside recorded availability require an explicit owner override. Component tests cover creation, editing, status changes, deletion, week navigation, blocked validation, and the outside-hours override.
 
 ### BL-013 — Derive dashboard opportunities from manual records
 - **Status**: ready
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-011, BL-012
+- **Sketches**: docs/sketches/manual-practice-data/option-b.html
 - **Context**: The prototype becomes useful for validation only when owner edits visibly change its metrics and recommendations. Reuse the existing calculation boundary and truthfulness rules; do not introduce a second manual-only dashboard path.
 - **Acceptance criteria**:
   1. Saving, editing, completing, cancelling, or removing a manual appointment immediately reconciles the selected week's appointment, capacity, cancellation, and value displays from the workspace records.
