@@ -912,6 +912,17 @@ test("selects the current local week after client hydration", async () => {
   expect(await screen.findByText("Sep 14–20, 2026")).toBeDefined();
 });
 
+test("returns the fixed sample ledger to the sample fixture week", async () => {
+  vi.mocked(Date.now).mockReturnValue(Date.parse("2026-09-15T12:00:00.000Z"));
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(await screen.findByText("Sep 14–20, 2026")).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
+});
+
 test("keeps the dashboard date control connected to the selected ledger week", async () => {
   const user = userEvent.setup();
   render(<Page />);
@@ -1330,6 +1341,7 @@ test("requires an explicit offset choice for a repeated daylight-saving hour", a
 
 test("binds the active owner source to evidence-only dashboard actions", async () => {
   const user = userEvent.setup();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   const practitionerId = RAW_SAMPLE_WORKSPACE.practitioners[0].id;
   const ownerWorkspace = {
     ...structuredClone(RAW_SAMPLE_WORKSPACE),
@@ -1362,12 +1374,13 @@ test("binds the active owner source to evidence-only dashboard actions", async (
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(screen.getByRole("button", { name: "Explore sample data" }));
   await user.click(screen.getByRole("button", { name: "Return to owner data" }));
-  expect(screen.getByRole("button", { name: "Use browser-only data for insights" })).toBeDefined();
-  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  expect(screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" })).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
 
   expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
   expect(screen.getByText(/Owner-entered records in this browser/)).toBeDefined();
+  expect(screen.getByText("Retention recommendations require at least three completed visits linked to one anonymous client ID.")).toBeDefined();
   const appointmentsMetric = within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 1/ });
   expect(appointmentsMetric).toBeDefined();
   await user.click(appointmentsMetric);
@@ -1393,6 +1406,7 @@ test("binds the active owner source to evidence-only dashboard actions", async (
 
 test("keeps connected insights authoritative until the owner explicitly switches sources", async () => {
   const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
   const ownerWorkspace = {
     ...structuredClone(RAW_SAMPLE_WORKSPACE),
     provenance: "owner-entered" as const,
@@ -1407,7 +1421,15 @@ test("keeps connected insights authoritative until the owner explicitly switches
 
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(screen.getByRole("button", { name: "Return to owner data" }));
-  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  const disconnect = screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" });
+  await user.click(disconnect);
+  expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/disconnect/i));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
+
+  confirm.mockReturnValue(true);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
   expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
 
@@ -1419,6 +1441,7 @@ test("keeps connected insights authoritative until the owner explicitly switches
 
 test("keeps sample-derived insights on the owner-only evidence path", async () => {
   const user = userEvent.setup();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   const practitionerId = RAW_SAMPLE_WORKSPACE.practitioners[0].id;
   const sampleDerivedWorkspace = {
     ...structuredClone(RAW_SAMPLE_WORKSPACE),
@@ -1454,7 +1477,7 @@ test("keeps sample-derived insights on the owner-only evidence path", async () =
 
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(await screen.findByRole("button", { name: "Open editable sample copy" }));
-  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  await user.click(screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
   expect(screen.getByText("Editable sample-derived practice data")).toBeDefined();
   expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
@@ -1500,7 +1523,7 @@ test("reconciles appointment, capacity, cancellation, and value evidence through
   render(<Page />);
 
   await user.click(screen.getByRole("link", { name: "Practice data" }));
-  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  await user.click(screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" }));
   await user.click(screen.getByRole("button", { name: "Add appointment" }));
   await user.type(screen.getByLabelText("Appointment date"), "2026-09-10");
   await user.type(screen.getByLabelText("Start time"), "11:00");

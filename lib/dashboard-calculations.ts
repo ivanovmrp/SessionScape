@@ -7,7 +7,7 @@ export type ActionContext = {
 
 export type DashboardOpportunityInput = {
   id: string;
-  estimatedCents: number;
+  estimatedCents: number | null;
   type: "capacity" | "retention";
   kicker: string;
   urgency: string;
@@ -143,11 +143,13 @@ export function deriveDashboard(
     .filter((opportunity) => !dismissed.has(opportunity.id))
     .map((opportunity) => ({
       ...opportunity,
-      value: currency.format(opportunity.estimatedCents / 100),
+      value: opportunity.estimatedCents === null
+        ? "Unavailable"
+        : currency.format(opportunity.estimatedCents / 100),
       audience: opportunity.audiences[0]?.count ?? 0,
     }));
   const opportunityTotal = visibleOpportunities.reduce(
-    (total, opportunity) => total + opportunity.estimatedCents,
+    (total, opportunity) => total + (opportunity.estimatedCents ?? 0),
     0,
   );
   const stale = input.status === "stale";

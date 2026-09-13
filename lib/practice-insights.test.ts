@@ -126,6 +126,10 @@ test("adapts a selected local week into reconciled dashboard inputs", () => {
     coveredDays: 7,
     excluded: { cancelled: 1, noShow: 1, outsideAvailability: 1 },
   });
+  expect(input.evidence.unavailableRecommendations).toEqual([
+    "Capacity recommendations require at least three completed appointments per active practitioner.",
+    "Retention recommendations require at least three completed visits linked to one anonymous client ID.",
+  ]);
 });
 
 test("deduplicates stable IDs and suppresses capacity when active coverage is incomplete", () => {
@@ -238,7 +242,7 @@ test("surfaces only evidence-backed overdue anonymous clients without outreach c
   });
   const retention = input.opportunities.find(({ type }) => type === "retention");
 
-  expect(retention).toMatchObject({ estimatedCents: 0, audiences: [], draft: "" });
+  expect(retention).toMatchObject({ estimatedCents: null, audiences: [], draft: "" });
   expect(retention?.title).toContain("1 anonymous client");
 
   workspace.appointments.push({

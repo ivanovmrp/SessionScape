@@ -452,6 +452,21 @@ test("preserves the representative action contract through derivation", () => {
   );
 });
 
+test("keeps an unavailable opportunity value distinct from zero", () => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    opportunities: [{
+      ...currentInput.opportunities[1],
+      estimatedCents: null,
+      valueNote: "No outreach value estimated",
+    }],
+  });
+
+  expect(dashboard.opportunities[0].value).toBe("Unavailable");
+  expect(dashboard.totalOpportunityCents).toBe(0);
+  expect(dashboard.totalOpportunity).toBe("$0");
+});
+
 test.each([
   {
     scenario: "current" as const,

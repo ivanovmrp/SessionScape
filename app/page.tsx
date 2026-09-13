@@ -188,6 +188,9 @@ export default function Home() {
     opportunities: opportunitySummary.opportunities,
   };
   const opportunities = opportunitySummary.opportunities;
+  const unavailableRecommendations = "evidence" in dashboardInput
+    ? dashboardInput.evidence.unavailableRecommendations
+    : [];
   const dismissedOpportunities = allOpportunitySummary.opportunities.filter((item) => dismissed.includes(item.id));
   const selectedAudience = activeOpportunity?.audiences.find((audience) => audience.id === audienceId);
   const hasCompleteReturnTrend = fixture.returnHistory.length === 6
@@ -340,7 +343,16 @@ export default function Home() {
     setCatalogEditor(null);
     setCatalogError("");
     setPracticeSource(nextSource);
+    if (nextSource === "sample") {
+      setSelectedWeekDate(RAW_SAMPLE_WORKSPACE.availability[0].localDate);
+    }
     if (dashboardSource !== "connected") setDashboardSource(nextSource);
+  };
+
+  const disconnectConnectedInsights = () => {
+    if (!window.confirm("Disconnect connected data before using browser-only insights?")) return;
+    setDashboardSource(practiceSource);
+    setDismissed([]);
   };
 
   const updateStorageAlert = (key: StorageAlertKey, message?: string) => {
@@ -817,7 +829,7 @@ export default function Home() {
           </div>}
 
           <div className="practice-actions">
-            {practiceSource !== "sample" && dashboardSource === "connected" && <button className="button-secondary" onClick={() => { setDashboardSource(practiceSource); setDismissed([]); }}>Use browser-only data for insights</button>}
+            {practiceSource !== "sample" && dashboardSource === "connected" && <button className="button-secondary" onClick={disconnectConnectedInsights}>Disconnect connected data and use browser-only insights</button>}
             {dashboardSource !== "connected" && <button className="button-secondary" onClick={() => { setDashboardSource("connected"); setDismissed([]); }}>Use connected data for insights</button>}
             {practiceSource === "owner" && <button className="button-primary" onClick={() => changePracticeSource("sample")}>Explore sample data</button>}
             {practiceSource === "owner" && sampleDerivedWorkspace && <button className="button-secondary" onClick={() => changePracticeSource("sample-derived")}>Open editable sample copy</button>}
@@ -1015,7 +1027,8 @@ export default function Home() {
                 <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={(event) => startAction(opportunity, event.currentTarget)}>Review action<Icon name="arrow" size={15} /></button></div>
               </article>
             ))}
-            {opportunities.length === 0 && <div className="empty-state"><strong>You’re all caught up</strong><p>Dismissed recommendations remain available in Activity.</p></div>}
+            {unavailableRecommendations.length > 0 && <div className="empty-state"><strong>Some recommendations are unavailable</strong><ul>{unavailableRecommendations.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
+            {opportunities.length === 0 && unavailableRecommendations.length === 0 && <div className="empty-state"><strong>No opportunities meet the documented rules</strong><p>Dismissed recommendations remain available in Activity.</p></div>}
           </div>
         </section>
 

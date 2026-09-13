@@ -17,6 +17,7 @@ export type PracticeDashboardInput = DashboardInput & {
     activePractitioners: number;
     coveredDays: number;
     deduplicatedRecords: number;
+    unavailableRecommendations: string[];
     excluded: {
       cancelled: number;
       noShow: number;
@@ -171,16 +172,17 @@ export function adaptPracticeWorkspaceToDashboardInput(
   }).length;
   const evaluationAt = Date.parse(options.evaluationAt ?? week.startAt);
   const sixMonthsAgo = Date.parse(week.endAt) - 183 * 24 * 60 * 60_000;
+  const completedRatesForPractitioner = (practitionerId: string) => appointments
+    .filter((record) =>
+      record.practitionerId === practitionerId &&
+      record.status === "completed" &&
+      Date.parse(record.startAt) >= sixMonthsAgo &&
+      Date.parse(record.startAt) < Date.parse(week.endAt),
+    )
+    .map((record) => Math.floor(record.valueCents * 60 / record.durationMinutes));
   const capacityOpportunities = capacityComplete ? workspace.practitioners.flatMap((practitioner) => {
     if (!practitioner.active) return [];
-    const rates = appointments
-      .filter((record) =>
-        record.practitionerId === practitioner.id &&
-        record.status === "completed" &&
-        Date.parse(record.startAt) >= sixMonthsAgo &&
-        Date.parse(record.startAt) < Date.parse(week.endAt),
-      )
-      .map((record) => Math.floor(record.valueCents * 60 / record.durationMinutes));
+    const rates = completedRatesForPractitioner(practitioner.id);
     if (rates.length < 3) return [];
     const hourlyValueCents = median(rates);
     return workspace.availability.flatMap((availability) => {
@@ -245,7 +247,7 @@ export function adaptPracticeWorkspaceToDashboardInput(
   });
   const retentionOpportunities = overdueClients.length === 0 ? [] : [ownerReviewOpportunity({
     id: "retention-owner-review",
-    estimatedCents: 0,
+    estimatedCents: null,
     type: "retention",
     kicker: "RETURN PATTERN",
     urgency: "Owner review",
@@ -301,6 +303,18 @@ export function adaptPracticeWorkspaceToDashboardInput(
       activePractitioners: coverage.activePractitioners,
       coveredDays: coverage.coveredDays,
       deduplicatedRecords,
+      unavailableRecommendations: [
+        ...(!capacityComplete
+          ? ["Capacity recommendations require complete availability for every active practitioner."]
+          : workspace.practitioners.some(({ id, active }) =>
+              active && completedRatesForPractitioner(id).length < 3,
+            )
+            ? ["Capacity recommendations require at least three completed appointments per active practitioner."]
+            : []),
+        ...([...completedByClient.values()].some((records) => records.length >= 3)
+          ? []
+          : ["Retention recommendations require at least three completed visits linked to one anonymous client ID."]),
+      ],
       excluded: {
         cancelled: selected.filter(({ status }) => status === "cancelled").length,
         noShow: selected.filter(({ status }) => status === "no-show").length,
