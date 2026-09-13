@@ -89,6 +89,15 @@ main { min-height: 100vh; margin-left: 244px; padding: 34px clamp(28px, 4vw, 66p
 
 .dashboard-grid { display: grid; grid-template-columns: 1.12fr .88fr; gap: 16px; margin-top: 16px; }
 .panel { border: 1px solid var(--line); border-radius: 12px; background: var(--paper); padding: 24px 25px; box-shadow: var(--shadow); }
+.practice-workspace { max-width: 820px; margin-top: 30px; }
+.practice-workspace h2 { margin: 0; font-family: "Fraunces", Georgia, serif; font-size: 25px; }
+.practice-workspace > p { color: var(--muted); font-size: 12px; }
+.practice-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+.practice-actions .button-primary { margin-top: 0; padding: 10px 15px; }
+.privacy-note, .storage-alert { max-width: 820px; margin-top: 16px; border-radius: 9px; padding: 14px 16px; font-size: 12px; }
+.privacy-note { border: 1px solid var(--line); background: #f5f8f6; color: var(--ink-2); }
+.privacy-note p { margin: 5px 0 0; color: var(--muted); }
+.storage-alert { border: 1px solid #d9a874; background: #fff8ef; color: #71481e; }
 .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .panel-heading h3 { margin: 0; font-family: "Fraunces", Georgia, serif; font-size: 21px; }
 .panel-heading button { display: flex; align-items: center; gap: 3px; border: 0; background: transparent; color: var(--muted); font-size: 9px; font-weight: 700; cursor: pointer; }

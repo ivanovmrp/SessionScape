@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
 import { afterEach, expect, test, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Page from "./page";
 import { DASHBOARD_FIXTURES } from "../lib/dashboard-fixtures";
+import {
+  PRACTICE_WORKSPACE_STORAGE_KEYS,
+  RAW_SAMPLE_WORKSPACE,
+} from "../lib/practice-workspace";
 
 const currentReturnHistory = DASHBOARD_FIXTURES.current.returnHistory;
 const currentReturnTrendLabel = DASHBOARD_FIXTURES.current.returnTrendLabel;
@@ -698,4 +702,114 @@ test("closes stale detail and resets dismissed recommendations on a source chang
   await user.click(screen.getByRole("button", { name: "Return to owner data" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
   expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
+});
+
+test("reloads the owner and sample-derived workspaces from separate browser slots", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  const firstRender = render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(await screen.findByText("1 appointment record")).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+  await waitFor(() => expect(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"]),
+  ).not.toBeNull());
+
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  expect(screen.getByText("1 appointment record")).toBeDefined();
+  expect(JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  )).toEqual(ownerWorkspace);
+
+  firstRender.unmount();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Open editable sample copy" }),
+  );
+  expect(screen.getByText("Sample-derived data")).toBeDefined();
+  expect(screen.getByText("1 appointment record")).toBeDefined();
+});
+
+test("removes cleared sample-derived data from browser storage", async () => {
+  const user = userEvent.setup();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const firstRender = render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+  await user.click(
+    screen.getByRole("button", { name: "Clear sample-derived data" }),
+  );
+  expect(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"]),
+  ).toBeNull();
+
+  firstRender.unmount();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(
+    screen.queryByRole("button", { name: "Open editable sample copy" }),
+  ).toBeNull();
+});
+
+test("leaves invalid stored data untouched and shows recovery guidance", async () => {
+  const raw = '{"version":99,"clientName":"unsafe"}';
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, raw);
+  render(<Page />);
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Stored owner data could not be loaded",
+  );
+  expect(screen.getByRole("alert").textContent).toContain("left unchanged");
+  expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner)).toBe(raw);
+});
+
+test("shows when browser storage is unavailable", async () => {
+  vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
+    throw new Error("blocked");
+  });
+  render(<Page />);
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Browser storage is unavailable",
+  );
+  expect(screen.getByRole("alert").textContent).toContain("will not be saved");
+});
+
+test("does not claim persistence when saving an editable copy exceeds quota", async () => {
+  const user = userEvent.setup();
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("quota exceeded");
+  });
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(
+    screen.getByRole("button", { name: "Create editable sample copy" }),
+  );
+
+  expect(screen.getByText("Sample-derived data")).toBeDefined();
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "could not be saved",
+  );
+  expect(screen.getByRole("alert").textContent).toContain("not persisted");
+  expect(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"]),
+  ).toBeNull();
 });

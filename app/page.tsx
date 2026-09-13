@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
-import { RAW_SAMPLE_WORKSPACE, type PracticeWorkspace } from "../lib/practice-workspace";
+import {
+  createPracticeWorkspaceRepository,
+  RAW_SAMPLE_WORKSPACE,
+  type PracticeWorkspace,
+  type WorkspaceSlot,
+} from "../lib/practice-workspace";
 
 const Icon = ({ name, size = 18 }: { name: string; size?: number }) => {
   const paths: Record<string, React.ReactNode> = {
@@ -29,6 +34,7 @@ type ActionStage = "evidence" | "draft" | "approval" | "handoff";
 type ApprovalSnapshot = { draft: string; audienceLabel: string; audienceCount: number };
 type Surface = "overview" | "practice-data";
 type PracticeSource = "owner" | "sample" | "sample-derived";
+type StorageAlertKey = WorkspaceSlot | "general";
 
 const emptyWorkspace = (
   provenance: PracticeWorkspace["provenance"],
@@ -45,8 +51,9 @@ const emptyWorkspace = (
 export default function Home() {
   const [surface, setSurface] = useState<Surface>("overview");
   const [practiceSource, setPracticeSource] = useState<PracticeSource>("owner");
-  const [ownerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
+  const [ownerWorkspace, setOwnerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
   const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
+  const [storageAlerts, setStorageAlerts] = useState<Partial<Record<StorageAlertKey, string>>>({});
   const [scenario, setScenario] = useState<DataScenario>("current");
   const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
@@ -96,6 +103,50 @@ export default function Home() {
     : practiceSource === "sample-derived"
       ? "Sample-derived data"
       : "Owner-entered data";
+
+  useEffect(() => {
+    let active = true;
+    const hydrate = async () => {
+      await Promise.resolve();
+      if (!active) return;
+
+      let storage: Storage;
+      try {
+        storage = window.localStorage;
+      } catch {
+        setStorageAlerts({
+          general: "Browser storage is unavailable. Changes will not be saved.",
+        });
+        return;
+      }
+
+      const repository = createPracticeWorkspaceRepository(storage);
+      const owner = repository.load("owner");
+      const sampleDerived = repository.load("sample-derived");
+      const alerts: Partial<Record<StorageAlertKey, string>> = {};
+
+      if (owner.ok) {
+        if (owner.value) setOwnerWorkspace(owner.value);
+      } else {
+        alerts.owner = owner.error === "invalid-data"
+          ? "Stored owner data could not be loaded. It was left unchanged so you can recover it."
+          : "Browser storage could not read owner data. It was left unchanged and changes will not be saved.";
+      }
+
+      if (sampleDerived.ok) {
+        if (sampleDerived.value) setSampleDerivedWorkspace(sampleDerived.value);
+      } else {
+        alerts["sample-derived"] = sampleDerived.error === "invalid-data"
+          ? "Stored sample-derived data could not be loaded. It was left unchanged so you can recover it."
+          : "Browser storage could not read sample-derived data. It was left unchanged and changes will not be saved.";
+      }
+      setStorageAlerts(alerts);
+    };
+    void hydrate();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (activeMetric) {
@@ -157,16 +208,47 @@ export default function Home() {
     setPracticeSource(nextSource);
   };
 
+  const updateStorageAlert = (key: StorageAlertKey, message?: string) => {
+    setStorageAlerts((current) => {
+      const next = { ...current };
+      if (message) next[key] = message;
+      else delete next[key];
+      return next;
+    });
+  };
+
+  const browserRepository = () => {
+    try {
+      return createPracticeWorkspaceRepository(window.localStorage);
+    } catch {
+      return createPracticeWorkspaceRepository(null);
+    }
+  };
+
   const copySample = () => {
     if (sampleDerivedWorkspace && !window.confirm(
       "Replace the existing sample-derived data with a fresh sample copy?",
     )) return;
-    setSampleDerivedWorkspace(structuredClone(RAW_SAMPLE_WORKSPACE));
+    const copy = structuredClone(RAW_SAMPLE_WORKSPACE);
+    const saved = browserRepository().save("sample-derived", copy);
+    updateStorageAlert("sample-derived", saved.ok
+      ? undefined
+      : "The editable sample copy is open, but it could not be saved. This change was not persisted.");
+    setSampleDerivedWorkspace(copy);
     changePracticeSource("sample-derived");
   };
 
   const clearSampleDerived = () => {
     if (!window.confirm("Clear all sample-derived practice data?")) return;
+    const cleared = browserRepository().clear("sample-derived");
+    if (!cleared.ok) {
+      updateStorageAlert(
+        "sample-derived",
+        "Sample-derived data could not be cleared. The stored copy was left unchanged.",
+      );
+      return;
+    }
+    updateStorageAlert("sample-derived");
     setSampleDerivedWorkspace(emptyWorkspace("sample-derived"));
   };
 
@@ -252,6 +334,7 @@ export default function Home() {
       </aside>
 
       {surface === "practice-data" ? <main id="practice-data">
+        {Object.entries(storageAlerts).map(([key, message]) => <div className="storage-alert" role="alert" key={key}>{message}</div>)}
         <header className="topbar">
           <div><p>Private practice workspace</p><h1>Practice data</h1></div>
           {practiceSource === "sample" && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => setScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
@@ -271,6 +354,7 @@ export default function Home() {
 
           <div className="practice-actions">
             {practiceSource === "owner" && <button className="button-primary" onClick={() => changePracticeSource("sample")}>Explore sample data</button>}
+            {practiceSource === "owner" && sampleDerivedWorkspace && <button className="button-secondary" onClick={() => changePracticeSource("sample-derived")}>Open editable sample copy</button>}
             {practiceSource === "sample" && <button className="button-primary" onClick={copySample}>Create editable sample copy</button>}
             {practiceSource === "sample-derived" && <button className="button-secondary" onClick={clearSampleDerived}>Clear sample-derived data</button>}
             {practiceSource !== "owner" && <button className="button-secondary" onClick={() => changePracticeSource("owner")}>Return to owner data</button>}
@@ -282,6 +366,7 @@ export default function Home() {
           <p>No names, contact details, notes, health information, or payment details belong in this workspace.</p>
         </section>
       </main> : <main id="top">
+        {Object.entries(storageAlerts).map(([key, message]) => <div className="storage-alert" role="alert" key={key}>{message}</div>)}
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
