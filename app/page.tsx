@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
+import { adaptPracticeWorkspaceToDashboardInput } from "../lib/practice-insights";
 import {
   createPracticeWorkspaceRepository,
   getAvailabilityCoverage,
@@ -42,6 +43,7 @@ type ActionStage = "evidence" | "draft" | "approval" | "handoff";
 type ApprovalSnapshot = { draft: string; audienceLabel: string; audienceCount: number };
 type Surface = "overview" | "practice-data";
 type PracticeSource = "owner" | "sample" | "sample-derived";
+type DashboardSource = "connected" | PracticeSource;
 type StorageAlertKey = WorkspaceSlot | "general";
 type CatalogEditor =
   | { kind: "practitioner"; id?: string; label: string }
@@ -87,6 +89,7 @@ const emptyWorkspace = (
 export default function Home() {
   const [surface, setSurface] = useState<Surface>("overview");
   const [practiceSource, setPracticeSource] = useState<PracticeSource>("owner");
+  const [dashboardSource, setDashboardSource] = useState<DashboardSource>("connected");
   const [selectedWeekDate, setSelectedWeekDate] = useState("2026-09-13");
   const [ownerWorkspace, setOwnerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
   const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
@@ -118,27 +121,6 @@ export default function Home() {
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const approvalInitialRef = useRef<HTMLButtonElement>(null);
   const handoffRef = useRef<HTMLAnchorElement>(null);
-  const fixture = DASHBOARD_FIXTURES[scenario];
-  const hasCompleteReturnTrend = fixture.returnHistory.length === 6
-    && fixture.returnHistory.every((point) => point.rate !== null);
-  const returnChartPoints = hasCompleteReturnTrend ? fixture.returnHistory.flatMap((point, index) =>
-    point.rate === null
-      ? []
-      : [{
-          x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
-          y: 140 - point.rate * 1.8,
-        }],
-  ) : [];
-  const lastReturnPoint = returnChartPoints.at(-1);
-  const opportunitySummary = useMemo(
-    () => deriveDashboard(DASHBOARD_INPUTS[scenario], dismissed),
-    [dismissed, scenario],
-  );
-  const opportunities = useMemo(() => fixture.opportunities.filter((item) => !dismissed.includes(item.id)), [dismissed, fixture.opportunities]);
-  const dismissedOpportunities = useMemo(() => fixture.opportunities.filter((item) => dismissed.includes(item.id)), [dismissed, fixture.opportunities]);
-  const selectedAudience = activeOpportunity?.audiences.find(
-    (audience) => audience.id === audienceId,
-  );
   const practiceWorkspace = practiceSource === "sample"
     ? RAW_SAMPLE_WORKSPACE
     : practiceSource === "sample-derived"
@@ -153,6 +135,61 @@ export default function Home() {
     practiceWorkspace.timezone,
     selectedWeekDate,
   );
+  const dashboardWorkspace = dashboardSource === "sample-derived"
+    ? sampleDerivedWorkspace ?? RAW_SAMPLE_WORKSPACE
+    : ownerWorkspace;
+  const sampleDashboard = dashboardSource === "connected" || dashboardSource === "sample";
+  const dashboardInput = sampleDashboard
+    ? DASHBOARD_INPUTS[scenario]
+    : adaptPracticeWorkspaceToDashboardInput(dashboardWorkspace, getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate));
+  const allOpportunitySummary = deriveDashboard(dashboardInput);
+  const opportunitySummary = deriveDashboard(dashboardInput, dismissed);
+  const sampleFixture = DASHBOARD_FIXTURES[scenario];
+  const manualMetrics: Metric[] = sampleFixture.metrics.map((template, index) => ({
+    ...template,
+    ...opportunitySummary.metrics[index],
+    tone: opportunitySummary.metrics[index].id === "cancellations" || opportunitySummary.metrics[index].state === "unavailable" ? "caution" : "neutral",
+    period: getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate).label,
+    population: `${dashboardSource === "owner" ? "Owner-entered" : "Sample-derived"} records · active practitioners`,
+    coverage: dashboardInput.actionContext.coverage,
+    exclusions: "Cancelled, no-show, outside-availability, duplicate-ID, and inactive-catalog records are excluded where applicable.",
+    classification: opportunitySummary.metrics[index].id === "capacity" ? "Estimated" : "Observed",
+  }));
+  const fixture = sampleDashboard ? sampleFixture : {
+    ...sampleFixture,
+    status: dashboardInput.status,
+    bannerTitle: dashboardSource === "owner" ? "Owner-entered practice data" : "Editable sample-derived practice data",
+    bannerCopy: `${dashboardInput.actionContext.freshness} · ${dashboardInput.actionContext.coverage} · stored only in this browser`,
+    bannerAction: "Review practice data",
+    headline: opportunitySummary.headline,
+    subheadline: opportunitySummary.subheadline,
+    totalOpportunity: opportunitySummary.totalOpportunity,
+    metrics: manualMetrics,
+    capacityMetric: manualMetrics[0],
+    capacityState: opportunitySummary.capacity.state,
+    capacityPercent: opportunitySummary.capacity.percent,
+    bookedHours: opportunitySummary.capacity.bookedHours,
+    openHours: opportunitySummary.capacity.openHours,
+    blockedHours: opportunitySummary.capacity.blockedHours,
+    returnRate: opportunitySummary.returnPulse.rate,
+    returnChange: opportunitySummary.returnPulse.change,
+    returnHistory: opportunitySummary.returnHistory,
+    returnTrendLabel: opportunitySummary.returnTrendLabel,
+    days: opportunitySummary.days,
+    opportunities: opportunitySummary.opportunities,
+  };
+  const opportunities = opportunitySummary.opportunities;
+  const dismissedOpportunities = allOpportunitySummary.opportunities.filter((item) => dismissed.includes(item.id));
+  const selectedAudience = activeOpportunity?.audiences.find((audience) => audience.id === audienceId);
+  const hasCompleteReturnTrend = fixture.returnHistory.length === 6
+    && fixture.returnHistory.every((point) => point.rate !== null);
+  const returnChartPoints = hasCompleteReturnTrend ? fixture.returnHistory.flatMap((point, index) =>
+    point.rate === null ? [] : [{
+      x: fixture.returnHistory.length === 1 ? 240 : index * (480 / (fixture.returnHistory.length - 1)),
+      y: 140 - point.rate * 1.8,
+    }],
+  ) : [];
+  const lastReturnPoint = returnChartPoints.at(-1);
   const availabilityCoverage = getAvailabilityCoverage(
     practiceWorkspace,
     practiceWeek,
@@ -276,6 +313,7 @@ export default function Home() {
     setAvailabilityEditor(null);
     setAvailabilityError("");
     setPracticeSource(nextSource);
+    setDashboardSource(nextSource);
   };
 
   const updateStorageAlert = (key: StorageAlertKey, message?: string) => {
@@ -313,6 +351,7 @@ export default function Home() {
       : "Your change is open, but it could not be saved. This change was not persisted.");
     if (slot === "owner") setOwnerWorkspace(workspace);
     else setSampleDerivedWorkspace(workspace);
+    setDashboardSource(practiceSource);
     setCatalogError("");
     return true;
   };
@@ -873,7 +912,7 @@ export default function Home() {
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
-            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { restoreMetricFocusRef.current = false; restoreOpportunityFocusRef.current = false; setScenario(event.target.value as DataScenario); setDismissed([]); setActiveMetric(null); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
+            {sampleDashboard && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { restoreMetricFocusRef.current = false; restoreOpportunityFocusRef.current = false; setScenario(event.target.value as DataScenario); setDismissed([]); setActiveMetric(null); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
             <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{practiceWeek.label}<Icon name="chevron" size={15} /></button>
           </div>
         </header>
@@ -941,7 +980,7 @@ export default function Home() {
           {dismissedOpportunities.length === 0 ? <div className="empty-state"><strong>No dismissed recommendations</strong><p>Recommendations you dismiss will appear here.</p></div> : <div className="activity-list">{dismissedOpportunities.map((opportunity) => <article className="activity-card" key={opportunity.id}><div><span>{opportunity.type === "capacity" ? "Capacity" : "Retention"} opportunity</span><strong>{opportunity.title}</strong></div><div className="activity-actions"><strong>{opportunity.value}</strong><button onClick={() => restore(opportunity.id)}>Restore recommendation</button></div></article>)}</div>}
         </section>
 
-        <footer><span>SessionScape uses synthetic prototype data</span><span>Metric rules v1.0 · America/New_York</span></footer>
+        <footer><span>{sampleDashboard ? "SessionScape uses synthetic prototype data" : "SessionScape is using browser-local practice records"}</span><span>Metric rules v1.0 · {dashboardWorkspace.timezone}</span></footer>
       </main>}
 
       {activeMetric && <div className="modal-backdrop" onClick={() => closeMetric()}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onKeyDown={(event) => handleDialogKeyDown(event, closeMetric)} onClick={(event) => event.stopPropagation()}><button ref={metricCloseRef} className="drawer-close" onClick={() => closeMetric()} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
@@ -949,9 +988,9 @@ export default function Home() {
       {activeOpportunity && <div className="modal-backdrop" onClick={() => closeOpportunity()}>
         <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onKeyDown={(event) => handleDialogKeyDown(event, closeOpportunity)} onClick={(event) => event.stopPropagation()}>
           <button ref={opportunityCloseRef} className="drawer-close" onClick={() => closeOpportunity()} aria-label="Close"><Icon name="close" /></button>
-          <div className="action-steps" aria-label="Action progress">
+          {sampleDashboard && <div className="action-steps" aria-label="Action progress">
             {(["Evidence", "Draft", "Approve", "Handoff"] as const).map((label, index) => <span className={index === ["evidence", "draft", "approval", "handoff"].indexOf(actionStage) ? "active" : ""} key={label}>{index + 1} {label}</span>)}
-          </div>
+          </div>}
           <div className={`action-context ${opportunitySummary.actionContext.recheckRequired ? "warning" : ""}`}>
             <strong>{opportunitySummary.actionContext.freshness}</strong>
             <span>{opportunitySummary.actionContext.coverage}</span>
@@ -959,12 +998,12 @@ export default function Home() {
           </div>
 
           {actionStage === "evidence" && <>
-            <p className="eyebrow">{activeOpportunity.ruleVersion} · {scenarioLabels[scenario]}</p>
+            <p className="eyebrow">{activeOpportunity.ruleVersion} · {sampleDashboard ? scenarioLabels[scenario] : dashboardSource === "owner" ? "Owner-entered data" : "Sample-derived data"}</p>
             <h2 id="opportunity-title">{activeOpportunity.title}</h2>
-            <div className="review-summary"><span>Estimated opportunity<strong>{activeOpportunity.value}</strong></span><span>Eligible audience<strong>{activeOpportunity.audience}</strong></span></div>
+            <div className="review-summary"><span>Estimated opportunity<strong>{activeOpportunity.value}</strong></span>{sampleDashboard && <span>Eligible audience<strong>{activeOpportunity.audience}</strong></span>}</div>
             <div className="rule-box"><span>Why this appeared</span><p>{activeOpportunity.reason}</p><small>Rule {activeOpportunity.ruleVersion}: {activeOpportunity.rule}</small></div>
-            <p className="muted"><strong>Nothing has been sent.</strong> You will review the message and audience before approval.</p>
-            <div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>Dismiss recommendation</button><button className="button-primary" onClick={() => setActionStage("draft")}>Continue to draft<Icon name="arrow" size={15} /></button></div>
+            <p className="muted"><strong>Nothing has been sent.</strong> {sampleDashboard ? "You will review the message and audience before approval." : "Manual records support evidence review only; they do not prove consent or suppression status."}</p>
+            <div className="drawer-actions"><button className="button-secondary" onClick={() => dismiss(activeOpportunity.id)}>{sampleDashboard ? "Dismiss recommendation" : "Mark reviewed"}</button>{sampleDashboard && <button className="button-primary" onClick={() => setActionStage("draft")}>Continue to draft<Icon name="arrow" size={15} /></button>}</div>
           </>}
 
           {actionStage === "draft" && <>

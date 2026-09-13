@@ -1,8 +1,10 @@
 import type { DashboardInput, DashboardOpportunityInput } from "./dashboard-calculations";
 import {
   getAvailabilityCoverage,
+  getPracticeWeek,
   isCancellationRefilled,
   resolveLocalDateTime,
+  shiftPracticeWeek,
   type AppointmentRecord,
   type PracticeWeek,
   type PracticeWorkspace,
@@ -103,7 +105,12 @@ export function adaptPracticeWorkspaceToDashboardInput(
   const deduplicatedRecords = workspace.appointments.length - appointments.length;
   const start = Date.parse(week.startAt);
   const end = Date.parse(week.endAt);
-  const previousStart = start - 7 * 24 * 60 * 60_000;
+  const previousWeek = getPracticeWeek(
+    workspace.timezone,
+    shiftPracticeWeek(week.startLocalDate, -1),
+  );
+  const previousStart = Date.parse(previousWeek.startAt);
+  const previousEnd = Date.parse(previousWeek.endAt);
   const selected = appointments.filter(({ startAt }) => {
     const instant = Date.parse(startAt);
     return instant >= start && instant < end;
@@ -151,7 +158,7 @@ export function adaptPracticeWorkspaceToDashboardInput(
   });
   const previousTotal = appointments.filter((record) => {
     const instant = Date.parse(record.startAt);
-    return instant >= previousStart && instant < start && activeStatus(record);
+    return instant >= previousStart && instant < previousEnd && activeStatus(record);
   }).length;
   const evaluationAt = Date.parse(options.evaluationAt ?? week.startAt);
   const sixMonthsAgo = Date.parse(week.endAt) - 183 * 24 * 60 * 60_000;

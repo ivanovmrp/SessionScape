@@ -700,6 +700,7 @@ test("closes stale detail and resets dismissed recommendations on a source chang
 
   await user.click(screen.getByRole("button", { name: "Explore sample data" }));
   await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
   expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
 });
@@ -1229,4 +1230,58 @@ test("requires an explicit offset choice for a repeated daylight-saving hour", a
 
   const stored = JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null");
   expect(stored.appointments.at(-1).startAt).toBe("2026-11-01T06:30:00.000Z");
+});
+
+test("binds the active owner source to evidence-only dashboard actions", async () => {
+  const user = userEvent.setup();
+  const practitionerId = RAW_SAMPLE_WORKSPACE.practitioners[0].id;
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    availability: ["07", "08", "09", "10", "11", "12", "13"].map((day) => ({
+      id: `availability_sep${day}000001`,
+      practitionerId,
+      localDate: `2026-09-${day}`,
+      closed: false as const,
+      startMinute: 540,
+      endMinute: 1020,
+    })),
+    appointments: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.appointments),
+      ...[1, 2, 3].map((day) => ({
+        id: `appointment_history000${day}`,
+        practitionerId,
+        serviceId: RAW_SAMPLE_WORKSPACE.services[0].id,
+        startAt: `2026-08-0${day}T14:00:00.000Z`,
+        durationMinutes: 60,
+        valueCents: 12_000,
+        status: "completed" as const,
+        createdAt: "2026-07-01T12:00:00.000Z",
+        statusChangedAt: `2026-08-0${day}T15:00:00.000Z`,
+      })),
+    ],
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+
+  expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
+  expect(screen.getByText(/Owner-entered records in this browser/)).toBeDefined();
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 1/ })).toBeDefined();
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Continue to draft/ })).toBeNull();
+  expect(screen.queryByText("Eligible audience")).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Mark reviewed" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  expect(screen.getByRole("button", { name: /Continue to draft/ })).toBeDefined();
 });
