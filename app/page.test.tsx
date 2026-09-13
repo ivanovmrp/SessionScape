@@ -1086,3 +1086,77 @@ test("keeps inactive historical assignments visible but out of new appointment c
   expect(screen.getByRole("option", { name: "Aria" })).toBeDefined();
   expect(screen.getByRole("option", { name: "Relaxation" })).toBeDefined();
 });
+
+test("persists weekly availability and explicit closed days for active practitioners", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  const { unmount } = render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("tab", { name: "Availability" }));
+
+  await user.click(screen.getByRole("button", { name: "Edit availability Tue Sep 8 for Maya" }));
+  await user.type(screen.getByLabelText("Availability start time"), "09:30");
+  await user.type(screen.getByLabelText("Availability end time"), "17:15");
+  await user.click(screen.getByRole("button", { name: "Save availability" }));
+
+  await user.click(screen.getByRole("button", { name: "Edit availability Wed Sep 9 for Maya" }));
+  await user.click(screen.getByRole("checkbox", { name: "Closed all day" }));
+  await user.click(screen.getByRole("button", { name: "Save availability" }));
+
+  expect(screen.getByText("Availability coverage: 3 of 7 days")).toBeDefined();
+  let stored = JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  );
+  expect(stored.availability).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
+      localDate: "2026-09-08",
+      closed: false,
+      startMinute: 570,
+      endMinute: 1035,
+    }),
+    expect.objectContaining({
+      practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
+      localDate: "2026-09-09",
+      closed: true,
+    }),
+  ]));
+
+  unmount();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("tab", { name: "Availability" }));
+  expect(await screen.findByText("9:30 AM–5:15 PM")).toBeDefined();
+  expect(screen.getByText("Closed", { selector: ".availability-value" })).toBeDefined();
+  stored = JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null");
+  expect(stored.availability).toHaveLength(3);
+});
+
+test("keeps inactive practitioners out of current availability editing", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    practitioners: [
+      { ...RAW_SAMPLE_WORKSPACE.practitioners[0], active: false },
+      { id: "practitioner_aria00000001", label: "Aria", active: true },
+    ],
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("tab", { name: "Availability" }));
+
+  expect(screen.queryByRole("button", { name: /for Maya/ })).toBeNull();
+  expect(screen.getAllByRole("button", { name: /for Aria/ })).toHaveLength(7);
+});

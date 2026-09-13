@@ -62,6 +62,13 @@ type AppointmentEditor = {
   status: AppointmentStatus;
   anonymousClientId: string;
 };
+type AvailabilityEditor = {
+  practitionerId: string;
+  localDate: string;
+  closed: boolean;
+  startTime: string;
+  endTime: string;
+};
 
 const emptyWorkspace = (
   provenance: PracticeWorkspace["provenance"],
@@ -86,6 +93,9 @@ export default function Home() {
   const [catalogError, setCatalogError] = useState("");
   const [appointmentEditor, setAppointmentEditor] = useState<AppointmentEditor | null>(null);
   const [appointmentError, setAppointmentError] = useState("");
+  const [practiceDataTab, setPracticeDataTab] = useState<"appointments" | "availability">("appointments");
+  const [availabilityEditor, setAvailabilityEditor] = useState<AvailabilityEditor | null>(null);
+  const [availabilityError, setAvailabilityError] = useState("");
   const [scenario, setScenario] = useState<DataScenario>("current");
   const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
@@ -148,6 +158,11 @@ export default function Home() {
   const weeklyAppointments = practiceWorkspace.appointments
     .filter(({ startAt }) => startAt >= practiceWeek.startAt && startAt < practiceWeek.endAt)
     .sort((left, right) => left.startAt.localeCompare(right.startAt));
+  const weekLocalDates = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(`${practiceWeek.startLocalDate}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + index);
+    return date.toISOString().slice(0, 10);
+  });
 
   useEffect(() => {
     let active = true;
@@ -252,6 +267,8 @@ export default function Home() {
     setNotice("");
     setAppointmentEditor(null);
     setAppointmentError("");
+    setAvailabilityEditor(null);
+    setAvailabilityError("");
     setPracticeSource(nextSource);
   };
 
@@ -272,7 +289,7 @@ export default function Home() {
     }
   };
 
-  const generatedId = (prefix: "practitioner" | "service" | "appointment") => {
+  const generatedId = (prefix: "practitioner" | "service" | "appointment" | "availability") => {
     const values = new Uint32Array(2);
     crypto.getRandomValues(values);
     return `${prefix}_${[...values].map((value) => value.toString(16).padStart(8, "0")).join("")}`;
@@ -469,6 +486,71 @@ export default function Home() {
     }
   };
 
+  const formatAvailabilityDate = (localDate: string) => new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${localDate}T00:00:00.000Z`)).replace(",", "");
+
+  const minuteToTime = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+  const timeToMinute = (time: string) => {
+    const [hour, minute] = time.split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const formatMinute = (minute: number) => new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, 0, 1, Math.floor(minute / 60), minute % 60)));
+
+  const openAvailability = (practitionerId: string, localDate: string) => {
+    const existing = practiceWorkspace.availability.find((record) =>
+      record.practitionerId === practitionerId && record.localDate === localDate,
+    );
+    setAvailabilityError("");
+    setAvailabilityEditor({
+      practitionerId,
+      localDate,
+      closed: existing?.closed ?? false,
+      startTime: existing && !existing.closed ? minuteToTime(existing.startMinute) : "",
+      endTime: existing && !existing.closed ? minuteToTime(existing.endMinute) : "",
+    });
+  };
+
+  const saveAvailability = () => {
+    if (!availabilityEditor) return;
+    const previous = practiceWorkspace.availability.find((record) =>
+      record.practitionerId === availabilityEditor.practitionerId && record.localDate === availabilityEditor.localDate,
+    );
+    const record = availabilityEditor.closed
+      ? {
+          id: previous?.id ?? generatedId("availability"),
+          practitionerId: availabilityEditor.practitionerId,
+          localDate: availabilityEditor.localDate,
+          closed: true as const,
+        }
+      : {
+          id: previous?.id ?? generatedId("availability"),
+          practitionerId: availabilityEditor.practitionerId,
+          localDate: availabilityEditor.localDate,
+          closed: false as const,
+          startMinute: timeToMinute(availabilityEditor.startTime),
+          endMinute: timeToMinute(availabilityEditor.endTime),
+        };
+    const availability = previous
+      ? practiceWorkspace.availability.map((item) => item.id === previous.id ? record : item)
+      : [...practiceWorkspace.availability, record];
+    if (!parsePracticeWorkspace({ ...practiceWorkspace, availability }).ok) {
+      setAvailabilityError("Choose a start time before the end time, or mark the day closed.");
+      return;
+    }
+    if (saveActiveWorkspace({ ...practiceWorkspace, availability })) {
+      setAvailabilityEditor(null);
+      setAvailabilityError("");
+    }
+  };
+
   const copySample = () => {
     if (sampleDerivedWorkspace && !window.confirm(
       "Replace the existing sample-derived data with a fresh sample copy?",
@@ -623,7 +705,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel appointment-ledger">
+        <div className="practice-tabs" role="tablist" aria-label="Practice data views">
+          <button role="tab" aria-selected={practiceDataTab === "appointments"} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); }}>Appointments</button>
+          <button role="tab" aria-selected={practiceDataTab === "availability"} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); }}>Availability</button>
+        </div>
+
+        {practiceDataTab === "appointments" && <section className="panel appointment-ledger">
           <div className="panel-heading">
             <div><h2>Appointments</h2><p className="muted">{practiceWeek.label} · {practiceWorkspace.timezone}</p></div>
             {practiceSource !== "sample" && activePractitioners.length > 0 && activeServices.length > 0 && <button onClick={openNewAppointment}>Add appointment</button>}
@@ -668,7 +755,36 @@ export default function Home() {
               <button className="button-primary" type="submit">Save appointment</button>
             </div>
           </form>}
-        </section>
+        </section>}
+
+        {practiceDataTab === "availability" && <section className="panel availability-panel">
+          <div className="panel-heading">
+            <div><h2>Weekly availability</h2><p className="muted">Closed days count as complete coverage.</p></div>
+          </div>
+          {activePractitioners.length === 0 ? <p className="muted">Add an active practitioner to enter availability.</p> : activePractitioners.map((practitioner) => <div className="practitioner-availability" key={practitioner.id}>
+            <h3>{practitioner.label}</h3>
+            <ul className="availability-list">
+              {weekLocalDates.map((localDate) => {
+                const record = practiceWorkspace.availability.find((item) => item.practitionerId === practitioner.id && item.localDate === localDate);
+                return <li key={localDate}>
+                  <strong>{formatAvailabilityDate(localDate)}</strong>
+                  <span className="availability-value">{!record ? "Not entered" : record.closed ? "Closed" : `${formatMinute(record.startMinute)}–${formatMinute(record.endMinute)}`}</span>
+                  {practiceSource !== "sample" && <button aria-label={`Edit availability ${formatAvailabilityDate(localDate)} for ${practitioner.label}`} onClick={() => openAvailability(practitioner.id, localDate)}>Edit</button>}
+                </li>;
+              })}
+            </ul>
+          </div>)}
+          {availabilityEditor && <form className="availability-editor" onSubmit={(event) => { event.preventDefault(); saveAvailability(); }}>
+            <strong>{formatAvailabilityDate(availabilityEditor.localDate)}</strong>
+            <label className="closed-control"><input aria-label="Closed all day" type="checkbox" checked={availabilityEditor.closed} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, closed: event.target.checked })} />Closed all day</label>
+            {!availabilityEditor.closed && <>
+              <label>Start time<input aria-label="Availability start time" type="time" value={availabilityEditor.startTime} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, startTime: event.target.value })} /></label>
+              <label>End time<input aria-label="Availability end time" type="time" value={availabilityEditor.endTime} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, endTime: event.target.value })} /></label>
+            </>}
+            {availabilityError && <p className="warning" role="alert">{availabilityError}</p>}
+            <div><button type="button" onClick={() => { setAvailabilityEditor(null); setAvailabilityError(""); }}>Cancel availability editing</button><button className="button-primary" type="submit">Save availability</button></div>
+          </form>}
+        </section>}
 
         <section className="catalog-grid" aria-label="Practice catalogs">
           <div className="panel catalog-panel">
