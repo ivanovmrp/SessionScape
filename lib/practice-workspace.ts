@@ -490,6 +490,30 @@ export function getPracticeWeek(timezone: string, localDate: string): PracticeWe
   };
 }
 
+export function getAvailabilityCoverage(
+  workspace: PracticeWorkspace,
+  week: PracticeWeek,
+) {
+  const activePractitionerIds = workspace.practitioners
+    .filter(({ active }) => active)
+    .map(({ id }) => id);
+  if (activePractitionerIds.length === 0) {
+    return { activePractitioners: 0, coveredDays: 0, totalDays: 7 };
+  }
+  const coveredDays = Array.from({ length: 7 }, (_, index) =>
+    shiftLocalDate(week.startLocalDate, index),
+  ).filter((localDate) => activePractitionerIds.every((practitionerId) =>
+    workspace.availability.some((record) =>
+      record.practitionerId === practitionerId && record.localDate === localDate,
+    ),
+  )).length;
+  return {
+    activePractitioners: activePractitionerIds.length,
+    coveredDays,
+    totalDays: 7,
+  };
+}
+
 export function anonymousClientIdFromUuid(uuid: string) {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

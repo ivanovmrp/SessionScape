@@ -5,7 +5,9 @@ import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 import {
   createPracticeWorkspaceRepository,
+  getAvailabilityCoverage,
   getPracticeWeek,
+  parsePracticeWorkspace,
   RAW_SAMPLE_WORKSPACE,
   shiftPracticeWeek,
   type PracticeWorkspace,
@@ -37,6 +39,15 @@ type ApprovalSnapshot = { draft: string; audienceLabel: string; audienceCount: n
 type Surface = "overview" | "practice-data";
 type PracticeSource = "owner" | "sample" | "sample-derived";
 type StorageAlertKey = WorkspaceSlot | "general";
+type CatalogEditor =
+  | { kind: "practitioner"; id?: string; label: string }
+  | {
+      kind: "service";
+      id?: string;
+      label: string;
+      durationMinutes: string;
+      valueCents: string;
+    };
 
 const emptyWorkspace = (
   provenance: PracticeWorkspace["provenance"],
@@ -57,6 +68,8 @@ export default function Home() {
   const [ownerWorkspace, setOwnerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
   const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
   const [storageAlerts, setStorageAlerts] = useState<Partial<Record<StorageAlertKey, string>>>({});
+  const [catalogEditor, setCatalogEditor] = useState<CatalogEditor | null>(null);
+  const [catalogError, setCatalogError] = useState("");
   const [scenario, setScenario] = useState<DataScenario>("current");
   const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
@@ -109,6 +122,10 @@ export default function Home() {
   const practiceWeek = getPracticeWeek(
     practiceWorkspace.timezone,
     selectedWeekDate,
+  );
+  const availabilityCoverage = getAvailabilityCoverage(
+    practiceWorkspace,
+    practiceWeek,
   );
 
   useEffect(() => {
@@ -230,6 +247,82 @@ export default function Home() {
     } catch {
       return createPracticeWorkspaceRepository(null);
     }
+  };
+
+  const generatedId = (prefix: "practitioner" | "service") => {
+    const values = new Uint32Array(2);
+    crypto.getRandomValues(values);
+    return `${prefix}_${[...values].map((value) => value.toString(16).padStart(8, "0")).join("")}`;
+  };
+
+  const saveActiveWorkspace = (workspace: PracticeWorkspace) => {
+    if (practiceSource === "sample" || !parsePracticeWorkspace(workspace).ok) {
+      setCatalogError("Enter a privacy-safe label and positive whole-number defaults.");
+      return false;
+    }
+    const slot: WorkspaceSlot = practiceSource === "owner" ? "owner" : "sample-derived";
+    const saved = browserRepository().save(slot, workspace);
+    updateStorageAlert(slot, saved.ok
+      ? undefined
+      : "Your change is open, but it could not be saved. This change was not persisted.");
+    if (slot === "owner") setOwnerWorkspace(workspace);
+    else setSampleDerivedWorkspace(workspace);
+    setCatalogError("");
+    return true;
+  };
+
+  const saveCatalogRecord = () => {
+    if (!catalogEditor) return;
+    if (catalogEditor.kind === "practitioner") {
+      const record = catalogEditor.id
+        ? practiceWorkspace.practitioners.find(({ id }) => id === catalogEditor.id)
+        : undefined;
+      const nextRecord = {
+        id: record?.id ?? generatedId("practitioner"),
+        label: catalogEditor.label.trim(),
+        active: record?.active ?? true,
+      };
+      const practitioners = record
+        ? practiceWorkspace.practitioners.map((item) => item.id === record.id ? nextRecord : item)
+        : [...practiceWorkspace.practitioners, nextRecord];
+      if (saveActiveWorkspace({ ...practiceWorkspace, practitioners })) setCatalogEditor(null);
+      return;
+    }
+
+    const record = catalogEditor.id
+      ? practiceWorkspace.services.find(({ id }) => id === catalogEditor.id)
+      : undefined;
+    const nextRecord = {
+      id: record?.id ?? generatedId("service"),
+      label: catalogEditor.label.trim(),
+      defaultDurationMinutes: Number(catalogEditor.durationMinutes),
+      defaultValueCents: Number(catalogEditor.valueCents),
+      active: record?.active ?? true,
+    };
+    const services = record
+      ? practiceWorkspace.services.map((item) => item.id === record.id ? nextRecord : item)
+      : [...practiceWorkspace.services, nextRecord];
+    if (saveActiveWorkspace({ ...practiceWorkspace, services })) setCatalogEditor(null);
+  };
+
+  const deactivateCatalogRecord = (
+    kind: "practitioner" | "service",
+    id: string,
+  ) => {
+    const next = kind === "practitioner"
+      ? {
+          ...practiceWorkspace,
+          practitioners: practiceWorkspace.practitioners.map((record) =>
+            record.id === id ? { ...record, active: false } : record,
+          ),
+        }
+      : {
+          ...practiceWorkspace,
+          services: practiceWorkspace.services.map((record) =>
+            record.id === id ? { ...record, active: false } : record,
+          ),
+        };
+    saveActiveWorkspace(next);
   };
 
   const copySample = () => {
@@ -367,6 +460,9 @@ export default function Home() {
             <strong>{practiceWorkspace.appointments.length} appointment {practiceWorkspace.appointments.length === 1 ? "record" : "records"}</strong>
           </div>
           <p>{practiceWorkspace.practitioners.length} practitioner · {practiceWorkspace.services.length} service</p>
+          <p>{availabilityCoverage.activePractitioners === 0
+            ? "No active practitioners"
+            : `Availability coverage: ${availabilityCoverage.coveredDays} of ${availabilityCoverage.totalDays} days`}</p>
 
           {practiceSource === "owner" && practiceWorkspace.appointments.length === 0 && <div className="empty-state">
             <strong>No owner-entered records yet</strong>
@@ -380,6 +476,40 @@ export default function Home() {
             {practiceSource === "sample" && <button className="button-primary" onClick={copySample}>Create editable sample copy</button>}
             {practiceSource === "sample-derived" && <button className="button-secondary" onClick={() => clearWorkspace("sample-derived")}>Clear sample-derived data</button>}
             {practiceSource !== "owner" && <button className="button-secondary" onClick={() => changePracticeSource("owner")}>Return to owner data</button>}
+          </div>
+        </section>
+
+        <section className="catalog-grid" aria-label="Practice catalogs">
+          <div className="panel catalog-panel">
+            <div className="panel-heading"><h2>Practitioners</h2>{practiceSource !== "sample" && <button onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "practitioner", label: "" }); }}>Add practitioner</button>}</div>
+            {practiceWorkspace.practitioners.length === 0 ? <p className="muted">No practitioners yet.</p> : <ul className="catalog-list">
+              {practiceWorkspace.practitioners.map((record) => <li key={record.id}>
+                <span><strong>{record.label}</strong>{!record.active && <small>Inactive practitioner</small>}</span>
+                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit practitioner ${record.label}`} onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "practitioner", id: record.id, label: record.label }); }}>Edit</button>{record.active && <button aria-label={`Deactivate practitioner ${record.label}`} onClick={() => deactivateCatalogRecord("practitioner", record.id)}>Deactivate</button>}</span>}
+              </li>)}
+            </ul>}
+            {catalogEditor?.kind === "practitioner" && <form className="catalog-editor" onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
+              <label>Practitioner label<input aria-label="Practitioner label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
+              {catalogError && <p className="warning" role="alert">{catalogError}</p>}
+              <div><button type="button" onClick={() => setCatalogEditor(null)}>Cancel</button><button className="button-primary" type="submit">Save practitioner</button></div>
+            </form>}
+          </div>
+
+          <div className="panel catalog-panel">
+            <div className="panel-heading"><h2>Services</h2>{practiceSource !== "sample" && <button onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueCents: "" }); }}>Add service</button>}</div>
+            {practiceWorkspace.services.length === 0 ? <p className="muted">No services yet.</p> : <ul className="catalog-list">
+              {practiceWorkspace.services.map((record) => <li key={record.id}>
+                <span><strong>{record.label}</strong><small>{record.defaultDurationMinutes} minutes · ${(record.defaultValueCents / 100).toFixed(2)}</small>{!record.active && <small>Inactive service</small>}</span>
+                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit service ${record.label}`} onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "service", id: record.id, label: record.label, durationMinutes: String(record.defaultDurationMinutes), valueCents: String(record.defaultValueCents) }); }}>Edit</button>{record.active && <button aria-label={`Deactivate service ${record.label}`} onClick={() => deactivateCatalogRecord("service", record.id)}>Deactivate</button>}</span>}
+              </li>)}
+            </ul>}
+            {catalogEditor?.kind === "service" && <form className="catalog-editor" onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
+              <label>Service label<input aria-label="Service label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
+              <label>Default duration in minutes<input aria-label="Default duration in minutes" type="number" min="1" step="1" value={catalogEditor.durationMinutes} onChange={(event) => setCatalogEditor({ ...catalogEditor, durationMinutes: event.target.value })} /></label>
+              <label>Default value in cents<input aria-label="Default value in cents" type="number" min="0" step="1" value={catalogEditor.valueCents} onChange={(event) => setCatalogEditor({ ...catalogEditor, valueCents: event.target.value })} /></label>
+              {catalogError && <p className="warning" role="alert">{catalogError}</p>}
+              <div><button type="button" onClick={() => setCatalogEditor(null)}>Cancel</button><button className="button-primary" type="submit">Save service</button></div>
+            </form>}
           </div>
         </section>
 

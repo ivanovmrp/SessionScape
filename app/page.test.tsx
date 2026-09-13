@@ -878,3 +878,87 @@ test("keeps the dashboard date control connected to the selected ledger week", a
   expect(screen.getByRole("heading", { name: "Practice data" })).toBeDefined();
   expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
 });
+
+test("creates, renames, and deactivates a practitioner in the owner catalog", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  await user.click(screen.getByRole("button", { name: "Add practitioner" }));
+  await user.type(screen.getByRole("textbox", { name: "Practitioner label" }), "Maya");
+  await user.click(screen.getByRole("button", { name: "Save practitioner" }));
+  expect(screen.getByText("Maya")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Edit practitioner Maya" }));
+  const label = screen.getByRole("textbox", { name: "Practitioner label" });
+  await user.clear(label);
+  await user.type(label, "Morgan");
+  await user.click(screen.getByRole("button", { name: "Save practitioner" }));
+  expect(screen.getByText("Morgan")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Deactivate practitioner Morgan" }));
+  expect(screen.getByText("Inactive practitioner")).toBeDefined();
+  expect(screen.getByText("No active practitioners")).toBeDefined();
+});
+
+test("creates, edits, and deactivates a service with integer-cent defaults", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  await user.click(screen.getByRole("button", { name: "Add service" }));
+  await user.type(screen.getByRole("textbox", { name: "Service label" }), "Relaxation");
+  await user.type(screen.getByRole("spinbutton", { name: "Default duration in minutes" }), "60");
+  await user.type(screen.getByRole("spinbutton", { name: "Default value in cents" }), "11000");
+  await user.click(screen.getByRole("button", { name: "Save service" }));
+  expect(screen.getByText("Relaxation")).toBeDefined();
+  expect(screen.getByText("60 minutes · $110.00")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Edit service Relaxation" }));
+  const value = screen.getByRole("spinbutton", { name: "Default value in cents" });
+  await user.clear(value);
+  await user.type(value, "12000");
+  await user.click(screen.getByRole("button", { name: "Save service" }));
+  expect(screen.getByText("60 minutes · $120.00")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Deactivate service Relaxation" }));
+  expect(screen.getByText("Inactive service")).toBeDefined();
+});
+
+test("preserves historical catalog labels and excludes inactive practitioners from coverage", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  expect(await screen.findByText("Availability coverage: 1 of 7 days")).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Deactivate practitioner Maya" }));
+  await user.click(screen.getByRole("button", { name: "Deactivate service Deep tissue" }));
+
+  expect(screen.getByText("Maya")).toBeDefined();
+  expect(screen.getByText("Deep tissue")).toBeDefined();
+  expect(screen.getByText("No active practitioners")).toBeDefined();
+  const stored = JSON.parse(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null",
+  );
+  expect(stored.appointments).toEqual(ownerWorkspace.appointments);
+  expect(stored.practitioners[0]).toMatchObject({ label: "Maya", active: false });
+  expect(stored.services[0]).toMatchObject({ label: "Deep tissue", active: false });
+});
+
+test("keeps catalog editing controls out of read-only sample data", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+
+  expect(screen.queryByRole("button", { name: "Add practitioner" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add service" })).toBeNull();
+});
