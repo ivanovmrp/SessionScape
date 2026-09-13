@@ -11,6 +11,7 @@ import {
   RAW_SAMPLE_WORKSPACE,
   resolveLocalDateTime,
   shiftPracticeWeek,
+  validateAppointmentSave,
   type AppointmentRecord,
   type AppointmentStatus,
   type PracticeWorkspace,
@@ -61,6 +62,7 @@ type AppointmentEditor = {
   valueCents: string;
   status: AppointmentStatus;
   anonymousClientId: string;
+  repeatedTimeChoice?: "earlier" | "later";
 };
 type AvailabilityEditor = {
   practitionerId: string;
@@ -93,6 +95,8 @@ export default function Home() {
   const [catalogError, setCatalogError] = useState("");
   const [appointmentEditor, setAppointmentEditor] = useState<AppointmentEditor | null>(null);
   const [appointmentError, setAppointmentError] = useState("");
+  const [outsideHoursPending, setOutsideHoursPending] = useState(false);
+  const [repeatedHourPending, setRepeatedHourPending] = useState(false);
   const [practiceDataTab, setPracticeDataTab] = useState<"appointments" | "availability">("appointments");
   const [availabilityEditor, setAvailabilityEditor] = useState<AvailabilityEditor | null>(null);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -267,6 +271,8 @@ export default function Home() {
     setNotice("");
     setAppointmentEditor(null);
     setAppointmentError("");
+    setOutsideHoursPending(false);
+    setRepeatedHourPending(false);
     setAvailabilityEditor(null);
     setAvailabilityError("");
     setPracticeSource(nextSource);
@@ -398,6 +404,8 @@ export default function Home() {
     const service = activeServices[0];
     if (!practitioner || !service) return;
     setAppointmentError("");
+    setOutsideHoursPending(false);
+    setRepeatedHourPending(false);
     setAppointmentEditor({
       date: "",
       time: "",
@@ -412,6 +420,8 @@ export default function Home() {
 
   const openExistingAppointment = (record: AppointmentRecord) => {
     setAppointmentError("");
+    setOutsideHoursPending(false);
+    setRepeatedHourPending(false);
     setAppointmentEditor({
       id: record.id,
       ...localAppointmentParts(record.startAt),
@@ -432,16 +442,25 @@ export default function Home() {
     setAppointmentEditor({ ...appointmentEditor, anonymousClientId: id });
   };
 
-  const saveAppointment = () => {
+  const saveAppointment = (outsideHoursOverride = false) => {
     if (!appointmentEditor) return;
     const [hour, minute] = appointmentEditor.time.split(":").map(Number);
     const resolved = resolveLocalDateTime(
       practiceWorkspace.timezone,
       appointmentEditor.date,
       hour * 60 + minute,
+      appointmentEditor.repeatedTimeChoice,
     );
     if (!resolved.ok) {
-      setAppointmentError("Choose a valid local appointment date and time.");
+      if (resolved.error === "ambiguous-local-time") {
+        setRepeatedHourPending(true);
+        setAppointmentError("This hour occurs twice. Choose the earlier or later occurrence.");
+      } else {
+        setRepeatedHourPending(false);
+        setAppointmentError(resolved.error === "nonexistent-local-time"
+          ? "That local time does not exist because the clock moves forward."
+          : "Choose a valid local appointment date and time.");
+      }
       return;
     }
     const previous = appointmentEditor.id
@@ -468,12 +487,33 @@ export default function Home() {
         ? { cancelledAt: previous?.status === "cancelled" ? previous.cancelledAt : statusChangedAt }
         : {}),
     };
+    const validation = validateAppointmentSave(
+      practiceWorkspace,
+      record,
+      practiceWeek,
+      { outsideHoursOverride },
+    );
+    if (!validation.ok) {
+      const messages = {
+        "invalid-record": "Enter a valid duration, value, assignment, and lifecycle state.",
+        "inactive-assignment": "Choose active practitioner and service assignments.",
+        "outside-week": "Keep the appointment inside the selected week.",
+        "cross-midnight": "Appointments cannot cross midnight.",
+        overlap: "This appointment overlaps another active appointment for the practitioner.",
+        "outside-availability": "This appointment is outside regular availability. Review it before saving outside hours.",
+      };
+      setAppointmentError(messages[validation.error]);
+      setOutsideHoursPending(validation.error === "outside-availability");
+      return;
+    }
     const appointments = previous
       ? practiceWorkspace.appointments.map((item) => item.id === previous.id ? record : item)
       : [...practiceWorkspace.appointments, record];
     if (saveActiveWorkspace({ ...practiceWorkspace, appointments })) {
       setAppointmentEditor(null);
       setAppointmentError("");
+      setOutsideHoursPending(false);
+      setRepeatedHourPending(false);
     }
   };
 
@@ -728,8 +768,8 @@ export default function Home() {
           </ul>}
 
           {appointmentEditor && <form className="appointment-editor" onSubmit={(event) => { event.preventDefault(); saveAppointment(); }}>
-            <label>Appointment date<input aria-label="Appointment date" type="date" value={appointmentEditor.date} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, date: event.target.value })} /></label>
-            <label>Start time<input aria-label="Start time" type="time" value={appointmentEditor.time} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, time: event.target.value })} /></label>
+            <label>Appointment date<input aria-label="Appointment date" type="date" value={appointmentEditor.date} onChange={(event) => { setRepeatedHourPending(false); setAppointmentEditor({ ...appointmentEditor, date: event.target.value, repeatedTimeChoice: undefined }); }} /></label>
+            <label>Start time<input aria-label="Start time" type="time" value={appointmentEditor.time} onChange={(event) => { setRepeatedHourPending(false); setAppointmentEditor({ ...appointmentEditor, time: event.target.value, repeatedTimeChoice: undefined }); }} /></label>
             <label>Practitioner<select aria-label="Appointment practitioner" value={appointmentEditor.practitionerId} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, practitionerId: event.target.value })}>
               {practiceWorkspace.practitioners.filter((record) => record.active || (appointmentEditor.id && record.id === appointmentEditor.practitionerId)).map((record) => <option key={record.id} value={record.id} disabled={!record.active}>{record.label}{!record.active ? " · inactive historical assignment" : ""}</option>)}
             </select></label>
@@ -748,10 +788,14 @@ export default function Home() {
               <option value="">Not linked</option>{appointmentEditor.anonymousClientId && <option value={appointmentEditor.anonymousClientId}>{appointmentEditor.anonymousClientId}</option>}
             </select></label>
             <button type="button" onClick={generateAnonymousClientId}>Generate anonymous client ID</button>
+            {repeatedHourPending && <label>Repeated hour choice<select aria-label="Repeated hour choice" value={appointmentEditor.repeatedTimeChoice ?? ""} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, repeatedTimeChoice: event.target.value as "earlier" | "later" })}>
+              <option value="" disabled>Choose an occurrence</option><option value="earlier">Earlier occurrence</option><option value="later">Later occurrence</option>
+            </select></label>}
             {appointmentError && <p className="warning" role="alert">{appointmentError}</p>}
             <div className="appointment-editor-actions">
               {appointmentEditor.id && <button type="button" onClick={deleteAppointment}>Delete appointment</button>}
               <button type="button" onClick={() => { setAppointmentEditor(null); setAppointmentError(""); }}>Cancel appointment editing</button>
+              {outsideHoursPending && <button type="button" onClick={() => saveAppointment(true)}>Save outside hours</button>}
               <button className="button-primary" type="submit">Save appointment</button>
             </div>
           </form>}

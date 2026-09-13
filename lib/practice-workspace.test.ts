@@ -11,6 +11,7 @@ import {
   parsePracticeWorkspace,
   resolveLocalDateTime,
   shiftPracticeWeek,
+  validateAppointmentSave,
   type PracticeWorkspace,
   type StoragePort,
 } from "./practice-workspace";
@@ -327,4 +328,60 @@ test("counts a cancellation as refilled only by a later-created overlapping acti
     cancelled,
     { ...replacement, status: "no-show" },
   ])).toBe(false);
+});
+
+test("validates appointment week, overlap, active assignment, and regular hours", () => {
+  const workspace = validWorkspace();
+  const week = getPracticeWeek(workspace.timezone, "2026-09-09");
+  const candidate = {
+    ...workspace.appointments[0],
+    id: "appointment_candidate001",
+    status: "scheduled" as const,
+    startAt: "2026-09-07T15:00:00.000Z",
+    durationMinutes: 60,
+    createdAt: "2026-09-01T13:00:00.000Z",
+    statusChangedAt: "2026-09-01T13:00:00.000Z",
+  };
+
+  expect(validateAppointmentSave(workspace, candidate, week)).toEqual({ ok: true });
+  expect(validateAppointmentSave(workspace, {
+    ...candidate,
+    startAt: "2026-09-07T13:30:00.000Z",
+  }, week)).toEqual({ ok: false, error: "overlap" });
+  expect(validateAppointmentSave(workspace, {
+    ...candidate,
+    startAt: "2026-09-07T14:30:00.000Z",
+  }, week)).toEqual({ ok: true });
+  expect(validateAppointmentSave({
+    ...workspace,
+    appointments: [{ ...workspace.appointments[0], status: "cancelled", cancelledAt: workspace.appointments[0].statusChangedAt }],
+  }, { ...candidate, startAt: "2026-09-07T13:30:00.000Z" }, week)).toEqual({ ok: true });
+  expect(validateAppointmentSave({
+    ...workspace,
+    appointments: [{ ...workspace.appointments[0], status: "no-show" }],
+  }, { ...candidate, startAt: "2026-09-07T13:30:00.000Z" }, week)).toEqual({ ok: true });
+  expect(validateAppointmentSave(workspace, workspace.appointments[0], week)).toEqual({ ok: true });
+
+  expect(validateAppointmentSave(workspace, {
+    ...candidate,
+    startAt: "2026-09-07T21:00:00.000Z",
+  }, week)).toEqual({ ok: false, error: "outside-availability" });
+  expect(validateAppointmentSave(workspace, {
+    ...candidate,
+    startAt: "2026-09-07T21:00:00.000Z",
+  }, week, { outsideHoursOverride: true })).toEqual({ ok: true });
+  expect(validateAppointmentSave(workspace, {
+    ...candidate,
+    startAt: "2026-09-08T03:30:00.000Z",
+    durationMinutes: 90,
+  }, week, { outsideHoursOverride: true })).toEqual({ ok: false, error: "cross-midnight" });
+  expect(validateAppointmentSave(workspace, {
+    ...candidate,
+    startAt: week.endAt,
+  }, week, { outsideHoursOverride: true })).toEqual({ ok: false, error: "outside-week" });
+
+  const inactive = clone(workspace);
+  inactive.practitioners[0].active = false;
+  expect(validateAppointmentSave(inactive, candidate, week)).toEqual({ ok: false, error: "inactive-assignment" });
+  expect(validateAppointmentSave(inactive, inactive.appointments[0], week)).toEqual({ ok: true });
 });

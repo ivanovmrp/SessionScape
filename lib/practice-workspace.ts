@@ -538,6 +538,78 @@ export function isCancellationRefilled(
   });
 }
 
+type AppointmentSaveError =
+  | "invalid-record"
+  | "inactive-assignment"
+  | "outside-week"
+  | "cross-midnight"
+  | "overlap"
+  | "outside-availability";
+
+export function validateAppointmentSave(
+  workspace: PracticeWorkspace,
+  candidate: AppointmentRecord,
+  week: PracticeWeek,
+  options: { outsideHoursOverride?: boolean } = {},
+): { ok: true } | { ok: false; error: AppointmentSaveError } {
+  if (!isAppointment(candidate)) return { ok: false, error: "invalid-record" };
+  const existing = workspace.appointments.find(({ id }) => id === candidate.id);
+  const practitioner = workspace.practitioners.find(({ id }) => id === candidate.practitionerId);
+  const service = workspace.services.find(({ id }) => id === candidate.serviceId);
+  if (
+    !practitioner ||
+    !service ||
+    (!practitioner.active && existing?.practitionerId !== practitioner.id) ||
+    (!service.active && existing?.serviceId !== service.id)
+  ) {
+    return { ok: false, error: "inactive-assignment" };
+  }
+
+  const start = Date.parse(candidate.startAt);
+  const end = start + candidate.durationMinutes * 60_000;
+  if (start < Date.parse(week.startAt) || start >= Date.parse(week.endAt) || end > Date.parse(week.endAt)) {
+    return { ok: false, error: "outside-week" };
+  }
+  const startParts = localPartsAt(start, workspace.timezone);
+  const endParts = localPartsAt(end, workspace.timezone);
+  if (
+    startParts.year !== endParts.year ||
+    startParts.month !== endParts.month ||
+    startParts.day !== endParts.day
+  ) {
+    return { ok: false, error: "cross-midnight" };
+  }
+
+  if (candidate.status === "scheduled" || candidate.status === "completed") {
+    const overlaps = workspace.appointments.some((record) => {
+      if (
+        record.id === candidate.id ||
+        record.practitionerId !== candidate.practitionerId ||
+        (record.status !== "scheduled" && record.status !== "completed")
+      ) return false;
+      const otherStart = Date.parse(record.startAt);
+      const otherEnd = otherStart + record.durationMinutes * 60_000;
+      return start < otherEnd && end > otherStart;
+    });
+    if (overlaps) return { ok: false, error: "overlap" };
+  }
+
+  if (!options.outsideHoursOverride) {
+    const localDate = `${startParts.year}-${String(startParts.month).padStart(2, "0")}-${String(startParts.day).padStart(2, "0")}`;
+    const startMinute = startParts.hour * 60 + startParts.minute;
+    const endMinute = endParts.hour * 60 + endParts.minute;
+    const covered = workspace.availability.some((record) =>
+      record.practitionerId === candidate.practitionerId &&
+      record.localDate === localDate &&
+      !record.closed &&
+      record.startMinute <= startMinute &&
+      record.endMinute >= endMinute,
+    );
+    if (!covered) return { ok: false, error: "outside-availability" };
+  }
+  return { ok: true };
+}
+
 export function anonymousClientIdFromUuid(uuid: string) {
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(

@@ -969,6 +969,17 @@ test("creates a persisted weekly appointment with generated identity and UTC tim
     ...structuredClone(RAW_SAMPLE_WORKSPACE),
     provenance: "owner-entered" as const,
     appointments: [],
+    availability: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.availability),
+      {
+        id: "availability_sep08000001",
+        practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
+        localDate: "2026-09-08",
+        closed: false as const,
+        startMinute: 540,
+        endMinute: 1020,
+      },
+    ],
   };
   window.localStorage.setItem(
     PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
@@ -1159,4 +1170,63 @@ test("keeps inactive practitioners out of current availability editing", async (
 
   expect(screen.queryByRole("button", { name: /for Maya/ })).toBeNull();
   expect(screen.getAllByRole("button", { name: /for Aria/ })).toHaveLength(7);
+});
+
+test("blocks overlapping appointments and requires an outside-hours override", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "09:30");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  expect(screen.getByRole("alert").textContent).toMatch(/overlaps/i);
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(1);
+
+  await user.clear(screen.getByLabelText("Start time"));
+  await user.type(screen.getByLabelText("Start time"), "18:00");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  expect(screen.getByRole("alert").textContent).toMatch(/outside regular availability/i);
+  await user.click(screen.getByRole("button", { name: "Save outside hours" }));
+
+  const stored = JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null");
+  expect(stored.appointments).toHaveLength(2);
+  expect(stored.appointments[1].startAt).toBe("2026-09-07T22:00:00.000Z");
+});
+
+test("requires an explicit offset choice for a repeated daylight-saving hour", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  for (let week = 0; week < 7; week += 1) {
+    await user.click(screen.getByRole("button", { name: "Next week" }));
+  }
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-11-01");
+  await user.type(screen.getByLabelText("Start time"), "01:30");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+
+  expect(screen.getByRole("combobox", { name: "Repeated hour choice" })).toBeDefined();
+  await user.selectOptions(screen.getByRole("combobox", { name: "Repeated hour choice" }), "later");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  await user.click(screen.getByRole("button", { name: "Save outside hours" }));
+
+  const stored = JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null");
+  expect(stored.appointments.at(-1).startAt).toBe("2026-11-01T06:30:00.000Z");
 });
