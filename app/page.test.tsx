@@ -396,3 +396,93 @@ test("contains recommendation drawer focus and advances it with each stage", asy
     }),
   );
 });
+
+test("closes both drawer types with Escape and restores their openers", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  const metricOpener = screen.getByRole("button", { name: /Booked capacity/ });
+  await user.click(metricOpener);
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(metricOpener);
+
+  const opportunityOpener = screen.getAllByRole("button", {
+    name: "Review action",
+  })[0];
+  await user.click(opportunityOpener);
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(opportunityOpener);
+});
+
+test("returns focus from both labeled drawer close controls", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  const metricOpener = screen.getByRole("button", { name: /Booked capacity/ });
+  await user.click(metricOpener);
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+  );
+  expect(document.activeElement).toBe(metricOpener);
+
+  const opportunityOpener = screen.getAllByRole("button", {
+    name: "Review action",
+  })[0];
+  await user.click(opportunityOpener);
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+  );
+  expect(document.activeElement).toBe(opportunityOpener);
+});
+
+test("returns focus when either drawer backdrop is clicked", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<Page />);
+
+  const metricOpener = screen.getByRole("button", { name: /Booked capacity/ });
+  await user.click(metricOpener);
+  await user.click(container.querySelector(".modal-backdrop") as HTMLElement);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(metricOpener);
+
+  const opportunityOpener = screen.getAllByRole("button", {
+    name: "Review action",
+  })[0];
+  await user.click(opportunityOpener);
+  await user.click(container.querySelector(".modal-backdrop") as HTMLElement);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(opportunityOpener);
+});
+
+test("scenario changes close either drawer and keep focus on the scenario control", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  const scenario = screen.getByRole("combobox", { name: "Prototype state" });
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  await user.selectOptions(scenario, "partial");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(scenario);
+
+  await user.selectOptions(scenario, "current");
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.selectOptions(scenario, "stale");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(scenario);
+});
+
+test("dismissal does not focus an opener removed with its recommendation", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  const opener = screen.getAllByRole("button", { name: "Review action" })[0];
+
+  await user.click(opener);
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+
+  expect(opener.isConnected).toBe(false);
+  expect(document.activeElement).not.toBe(opener);
+});

@@ -37,6 +37,10 @@ export default function Home() {
   const [draft, setDraft] = useState("");
   const [audienceId, setAudienceId] = useState("eligible");
   const [approvalSnapshot, setApprovalSnapshot] = useState<ApprovalSnapshot | null>(null);
+  const metricOpenerRef = useRef<HTMLElement | null>(null);
+  const opportunityOpenerRef = useRef<HTMLElement | null>(null);
+  const restoreMetricFocusRef = useRef(false);
+  const restoreOpportunityFocusRef = useRef(false);
   const metricCloseRef = useRef<HTMLButtonElement>(null);
   const opportunityCloseRef = useRef<HTMLButtonElement>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
@@ -65,11 +69,22 @@ export default function Home() {
   );
 
   useEffect(() => {
-    if (activeMetric) metricCloseRef.current?.focus();
+    if (activeMetric) {
+      metricCloseRef.current?.focus();
+    } else if (restoreMetricFocusRef.current) {
+      if (metricOpenerRef.current?.isConnected) metricOpenerRef.current.focus();
+      restoreMetricFocusRef.current = false;
+    }
   }, [activeMetric]);
 
   useEffect(() => {
-    if (!activeOpportunity) return;
+    if (!activeOpportunity) {
+      if (restoreOpportunityFocusRef.current && opportunityOpenerRef.current?.isConnected) {
+        opportunityOpenerRef.current.focus();
+      }
+      restoreOpportunityFocusRef.current = false;
+      return;
+    }
     const target = actionStage === "evidence"
       ? opportunityCloseRef.current
       : actionStage === "draft"
@@ -80,7 +95,25 @@ export default function Home() {
     target?.focus();
   }, [activeOpportunity, actionStage]);
 
-  const trapDialogFocus = (event: React.KeyboardEvent<HTMLElement>) => {
+  const closeMetric = (restoreFocus = true) => {
+    restoreMetricFocusRef.current = restoreFocus;
+    setActiveMetric(null);
+  };
+
+  const closeOpportunity = (restoreFocus = true) => {
+    restoreOpportunityFocusRef.current = restoreFocus;
+    setActiveOpportunity(null);
+  };
+
+  const handleDialogKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>,
+    close: () => void,
+  ) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
     if (event.key !== "Tab") return;
     const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
       'button:not([disabled]), a[href], textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -97,7 +130,8 @@ export default function Home() {
     }
   };
 
-  const startAction = (opportunity: Opportunity) => {
+  const startAction = (opportunity: Opportunity, opener: HTMLElement) => {
+    opportunityOpenerRef.current = opener;
     setActiveOpportunity(opportunity);
     setActionStage("evidence");
     setDraft(opportunity.draft);
@@ -107,7 +141,7 @@ export default function Home() {
 
   const dismiss = (id: string) => {
     setDismissed((items) => items.includes(id) ? items : [...items, id]);
-    setActiveOpportunity(null);
+    closeOpportunity();
     setNotice("Recommendation dismissed. You can restore it from Activity.");
   };
 
@@ -146,7 +180,7 @@ export default function Home() {
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
-            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { setScenario(event.target.value as DataScenario); setDismissed([]); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
+            <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { restoreMetricFocusRef.current = false; restoreOpportunityFocusRef.current = false; setScenario(event.target.value as DataScenario); setDismissed([]); setActiveMetric(null); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>
             <button className="date-button"><Icon name="calendar" />Sep 7 – 13<Icon name="chevron" size={15} /></button>
           </div>
         </header>
@@ -166,7 +200,7 @@ export default function Home() {
 
         <section className="metric-grid" aria-label="Weekly metrics">
           {fixture.metrics.map((metric) => (
-            <button className={`metric-card ${metric.state !== "current" ? "metric-partial" : ""}`} key={metric.id} onClick={() => setActiveMetric(metric)}>
+            <button className={`metric-card ${metric.state !== "current" ? "metric-partial" : ""}`} key={metric.id} onClick={(event) => { metricOpenerRef.current = event.currentTarget; setActiveMetric(metric); }}>
               <span className="metric-label">{metric.label}<Icon name="info" size={16} /></span><strong>{metric.value}</strong>
               <span className={`metric-change ${metric.tone}`}>{metric.change}</span><small>{metric.context}</small>
               {metric.state !== "current" && <span className="partial-label"><Icon name="warning" size={13} />{metric.state === "unavailable" ? "Unavailable" : "Stale data"}</span>}
@@ -176,7 +210,7 @@ export default function Home() {
 
         <section className="dashboard-grid">
           <div className="panel capacity-panel">
-            <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={() => setActiveMetric(fixture.capacityMetric)}>View calculation<Icon name="chevron" size={14} /></button></div>
+            <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={(event) => { metricOpenerRef.current = event.currentTarget; setActiveMetric(fixture.capacityMetric); }}>View calculation<Icon name="chevron" size={14} /></button></div>
             {fixture.capacityState === "unavailable" ? (
               <div className="empty-state"><strong>Capacity is unavailable</strong><p>Availability coverage must recover before these totals and weekday bars can be calculated.</p></div>
             ) : <>
@@ -202,7 +236,7 @@ export default function Home() {
               <article className="opportunity-card" key={opportunity.id}>
                 <div className={`opportunity-icon ${opportunity.type}`}><Icon name={opportunity.type === "capacity" ? "calendar" : "users"} size={22} /></div>
                 <div className="opportunity-main"><div className="opportunity-meta"><span>{opportunity.kicker}</span><i className={opportunity.urgency === "High priority" ? "high" : ""}>{opportunity.urgency}</i></div><h3>{opportunity.title}</h3><p>{opportunity.summary}</p><div className="reason"><span>Why this appeared</span><p>{opportunity.reason}</p></div></div>
-                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={() => startAction(opportunity)}>Review action<Icon name="arrow" size={15} /></button></div>
+                <div className="opportunity-value"><span>Estimated value</span><strong>{opportunity.value}</strong><small>{opportunity.valueNote}</small><button onClick={(event) => startAction(opportunity, event.currentTarget)}>Review action<Icon name="arrow" size={15} /></button></div>
               </article>
             ))}
             {opportunities.length === 0 && <div className="empty-state"><strong>You’re all caught up</strong><p>Dismissed recommendations remain available in Activity.</p></div>}
@@ -217,11 +251,11 @@ export default function Home() {
         <footer><span>SessionScape uses synthetic prototype data</span><span>Metric rules v1.0 · America/New_York</span></footer>
       </main>
 
-      {activeMetric && <div className="modal-backdrop" onMouseDown={() => setActiveMetric(null)}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onKeyDown={trapDialogFocus} onMouseDown={(event) => event.stopPropagation()}><button ref={metricCloseRef} className="drawer-close" onClick={() => setActiveMetric(null)} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
+      {activeMetric && <div className="modal-backdrop" onClick={() => closeMetric()}><aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="metric-title" onKeyDown={(event) => handleDialogKeyDown(event, closeMetric)} onClick={(event) => event.stopPropagation()}><button ref={metricCloseRef} className="drawer-close" onClick={() => closeMetric()} aria-label="Close"><Icon name="close" /></button><p className="eyebrow">METRIC DEFINITION</p><h2 id="metric-title">{activeMetric.label}</h2><div className="drawer-value">{activeMetric.value}</div><dl><div><dt>Period</dt><dd>{activeMetric.period}</dd></div><div><dt>Population</dt><dd>{activeMetric.population}</dd></div><div><dt>Formula</dt><dd>{activeMetric.formula}</dd></div><div><dt>Source coverage</dt><dd>{activeMetric.coverage}</dd></div><div><dt>Exclusions & assumptions</dt><dd>{activeMetric.exclusions}</dd></div></dl><div className="definition-note"><Icon name="info" /><p><strong>{activeMetric.classification}</strong>This value is {activeMetric.classification.toLowerCase()} and is not realized revenue.</p></div></aside></div>}
 
-      {activeOpportunity && <div className="modal-backdrop" onMouseDown={() => setActiveOpportunity(null)}>
-        <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onKeyDown={trapDialogFocus} onMouseDown={(event) => event.stopPropagation()}>
-          <button ref={opportunityCloseRef} className="drawer-close" onClick={() => setActiveOpportunity(null)} aria-label="Close"><Icon name="close" /></button>
+      {activeOpportunity && <div className="modal-backdrop" onClick={() => closeOpportunity()}>
+        <aside className="drawer opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-title" onKeyDown={(event) => handleDialogKeyDown(event, closeOpportunity)} onClick={(event) => event.stopPropagation()}>
+          <button ref={opportunityCloseRef} className="drawer-close" onClick={() => closeOpportunity()} aria-label="Close"><Icon name="close" /></button>
           <div className="action-steps" aria-label="Action progress">
             {(["Evidence", "Draft", "Approve", "Handoff"] as const).map((label, index) => <span className={index === ["evidence", "draft", "approval", "handoff"].indexOf(actionStage) ? "active" : ""} key={label}>{index + 1} {label}</span>)}
           </div>
