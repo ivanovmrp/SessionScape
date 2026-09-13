@@ -238,18 +238,20 @@ export default function Home() {
     changePracticeSource("sample-derived");
   };
 
-  const clearSampleDerived = () => {
-    if (!window.confirm("Clear all sample-derived practice data?")) return;
-    const cleared = browserRepository().clear("sample-derived");
+  const clearWorkspace = (slot: WorkspaceSlot) => {
+    const label = slot === "owner" ? "owner" : "sample-derived";
+    if (!window.confirm(`Clear all ${label} practice data?`)) return;
+    const cleared = browserRepository().clear(slot);
     if (!cleared.ok) {
       updateStorageAlert(
-        "sample-derived",
-        "Sample-derived data could not be cleared. The stored copy was left unchanged.",
+        slot,
+        `${label === "owner" ? "Owner" : "Sample-derived"} data could not be cleared. The stored copy was left unchanged.`,
       );
       return;
     }
-    updateStorageAlert("sample-derived");
-    setSampleDerivedWorkspace(emptyWorkspace("sample-derived"));
+    updateStorageAlert(slot);
+    if (slot === "owner") setOwnerWorkspace(emptyWorkspace("owner-entered"));
+    else setSampleDerivedWorkspace(emptyWorkspace("sample-derived"));
   };
 
   const handleDialogKeyDown = (
@@ -355,8 +357,9 @@ export default function Home() {
           <div className="practice-actions">
             {practiceSource === "owner" && <button className="button-primary" onClick={() => changePracticeSource("sample")}>Explore sample data</button>}
             {practiceSource === "owner" && sampleDerivedWorkspace && <button className="button-secondary" onClick={() => changePracticeSource("sample-derived")}>Open editable sample copy</button>}
+            {practiceSource === "owner" && (ownerWorkspace.practitioners.length > 0 || ownerWorkspace.services.length > 0 || ownerWorkspace.availability.length > 0 || ownerWorkspace.appointments.length > 0) && <button className="button-secondary" onClick={() => clearWorkspace("owner")}>Clear owner data</button>}
             {practiceSource === "sample" && <button className="button-primary" onClick={copySample}>Create editable sample copy</button>}
-            {practiceSource === "sample-derived" && <button className="button-secondary" onClick={clearSampleDerived}>Clear sample-derived data</button>}
+            {practiceSource === "sample-derived" && <button className="button-secondary" onClick={() => clearWorkspace("sample-derived")}>Clear sample-derived data</button>}
             {practiceSource !== "owner" && <button className="button-secondary" onClick={() => changePracticeSource("owner")}>Return to owner data</button>}
           </div>
         </section>

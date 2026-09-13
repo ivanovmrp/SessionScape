@@ -767,6 +767,38 @@ test("removes cleared sample-derived data from browser storage", async () => {
   ).toBeNull();
 });
 
+test("confirms before clearing the owner slot and leaves sample-derived storage alone", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm");
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS.owner,
+    JSON.stringify(ownerWorkspace),
+  );
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"],
+    JSON.stringify(RAW_SAMPLE_WORKSPACE),
+  );
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(await screen.findByText("1 appointment record")).toBeDefined();
+  confirm.mockReturnValueOnce(false);
+  await user.click(screen.getByRole("button", { name: "Clear owner data" }));
+  expect(screen.getByText("1 appointment record")).toBeDefined();
+
+  confirm.mockReturnValueOnce(true);
+  await user.click(screen.getByRole("button", { name: "Clear owner data" }));
+  expect(screen.getByText("No owner-entered records yet")).toBeDefined();
+  expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner)).toBeNull();
+  expect(
+    window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"]),
+  ).not.toBeNull();
+});
+
 test("leaves invalid stored data untouched and shows recovery guidance", async () => {
   const raw = '{"version":99,"clientName":"unsafe"}';
   window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, raw);
