@@ -120,15 +120,6 @@ Give practitioners without a supported booking platform a manual data source, an
   1. At supported narrow widths, owners can open Practice Data and move between dashboard and ledger weeks without hidden controls.
   2. Responsive tests cover the navigation and week controls at the smallest supported viewport.
 
-### BL-016 — Cover complete ledger record editing
-- **Status**: ready
-- **Priority · Effort**: P1 · S
-- **Dependencies**: BL-012
-- **Context**: Existing component tests cover appointment status edits and new availability, but not edits to appointment assignments, date, time, duration, value, or existing availability. Source: review (Plan 5).
-- **Acceptance criteria**:
-  1. Component tests edit every appointment field and prove the same stable record is persisted with the new valid values.
-  2. Component tests overwrite an existing availability record and prove validation and persistence use the edited interval.
-
 ### BL-017 — Use one anonymous-client ID generator
 - **Status**: ready
 - **Priority · Effort**: P2 · S

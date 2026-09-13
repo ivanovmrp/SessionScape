@@ -89,5 +89,7 @@ Replace the fixed-only demonstration with a browser-local, owner-operated practi
 - 2026-09-13 (plan): code review requires explicit provider disconnection, visible insufficient-evidence reasons, nullable unknown opportunity value, and source-aligned week selection before ship.
 - 2026-09-13 (plan): deferred non-blocking navigation, responsive reachability, edit-test depth, ID-generator reuse, and tab-semantics findings to BL-014 through BL-018.
 - 2026-09-13 (BL-013): unknown recommendation value makes the aggregate value unavailable rather than coercing it to zero; manual evidence drawers now show period and concrete exclusion counts.
+- 2026-09-13 (BL-013): sample-derived evidence must name its own provenance, and partially outside-hours appointments count only their overlap with regular availability in both capacity metrics and opportunity intervals.
+- 2026-09-13 (BL-012): ledger component coverage now edits every appointment field, exercises no-show, and overwrites existing availability; removed the superseded BL-016 follow-up.
 
 ## Archived Specs
