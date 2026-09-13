@@ -65,7 +65,7 @@ Acceptance criteria:
 Give practitioners without a supported booking platform a manual data source, and make the prototype testable through visible input-to-insight cause and effect. The product remains an intelligence layer rather than a client-facing booking system: the first slice supports weekly availability and appointment records, while public booking, reminders, payments, clinical notes, and client contact data remain out of scope. Prototype data is browser-local and redacted; later CSV import and provider connectors must feed the same provider-neutral model.
 
 ### BL-011 — Establish a local redacted practice workspace
-- **Status**: ready
+- **Status**: planned (Plan 5)
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-002
 - **Sketches**: docs/sketches/manual-practice-data/option-b.html
@@ -77,7 +77,7 @@ Give practitioners without a supported booking platform a manual data source, an
   4. Unit and component tests cover empty, sample, persisted, cleared, and invalid-data states without writing to an external service.
 
 ### BL-012 — Make the weekly appointment ledger operable
-- **Status**: ready
+- **Status**: planned (Plan 5)
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-011
 - **Sketches**: docs/sketches/manual-practice-data/option-b.html
@@ -89,7 +89,7 @@ Give practitioners without a supported booking platform a manual data source, an
   4. Invalid times, durations, values, and overlapping active appointments are blocked before saving; appointments outside recorded availability require an explicit owner override. Component tests cover creation, editing, status changes, deletion, week navigation, blocked validation, and the outside-hours override.
 
 ### BL-013 — Derive dashboard opportunities from manual records
-- **Status**: ready
+- **Status**: planned (Plan 5)
 - **Priority · Effort**: P0 · M
 - **Dependencies**: BL-011, BL-012
 - **Sketches**: docs/sketches/manual-practice-data/option-b.html
