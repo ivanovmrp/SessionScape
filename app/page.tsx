@@ -130,7 +130,16 @@ export default function Home() {
     }
   };
 
+  const openMetric = (metric: Metric, opener: HTMLElement) => {
+    restoreOpportunityFocusRef.current = false;
+    setActiveOpportunity(null);
+    metricOpenerRef.current = opener;
+    setActiveMetric(metric);
+  };
+
   const startAction = (opportunity: Opportunity, opener: HTMLElement) => {
+    restoreMetricFocusRef.current = false;
+    setActiveMetric(null);
     opportunityOpenerRef.current = opener;
     setActiveOpportunity(opportunity);
     setActionStage("evidence");
@@ -200,7 +209,7 @@ export default function Home() {
 
         <section className="metric-grid" aria-label="Weekly metrics">
           {fixture.metrics.map((metric) => (
-            <button className={`metric-card ${metric.state !== "current" ? "metric-partial" : ""}`} key={metric.id} onClick={(event) => { metricOpenerRef.current = event.currentTarget; setActiveMetric(metric); }}>
+            <button className={`metric-card ${metric.state !== "current" ? "metric-partial" : ""}`} key={metric.id} onClick={(event) => openMetric(metric, event.currentTarget)}>
               <span className="metric-label">{metric.label}<Icon name="info" size={16} /></span><strong>{metric.value}</strong>
               <span className={`metric-change ${metric.tone}`}>{metric.change}</span><small>{metric.context}</small>
               {metric.state !== "current" && <span className="partial-label"><Icon name="warning" size={13} />{metric.state === "unavailable" ? "Unavailable" : "Stale data"}</span>}
@@ -210,7 +219,7 @@ export default function Home() {
 
         <section className="dashboard-grid">
           <div className="panel capacity-panel">
-            <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={(event) => { metricOpenerRef.current = event.currentTarget; setActiveMetric(fixture.capacityMetric); }}>View calculation<Icon name="chevron" size={14} /></button></div>
+            <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={(event) => openMetric(fixture.capacityMetric, event.currentTarget)}>View calculation<Icon name="chevron" size={14} /></button></div>
             {fixture.capacityState === "unavailable" ? (
               <div className="empty-state"><strong>Capacity is unavailable</strong><p>Availability coverage must recover before these totals and weekday bars can be calculated.</p></div>
             ) : <>

@@ -378,8 +378,24 @@ test("contains recommendation drawer focus and advances it with each stage", asy
 
   await user.click(continueButton);
   dialog = screen.getByRole("dialog", { name: "Prepare a representative draft" });
+  const draftInput = within(dialog).getByRole("textbox", { name: "Message draft" });
+  expect(document.activeElement).toBe(draftInput);
+  await user.selectOptions(
+    within(dialog).getByRole("combobox", { name: "Audience" }),
+    "none",
+  );
+  within(dialog).getByRole("button", { name: "Close" }).focus();
+  await user.tab({ shift: true });
   expect(document.activeElement).toBe(
-    within(dialog).getByRole("textbox", { name: "Message draft" }),
+    within(dialog).getByRole("button", { name: "Dismiss recommendation" }),
+  );
+  await user.tab();
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Close" }),
+  );
+  await user.selectOptions(
+    within(dialog).getByRole("combobox", { name: "Audience" }),
+    "eligible",
   );
 
   await user.click(within(dialog).getByRole("button", { name: "Review approval" }));
@@ -387,14 +403,44 @@ test("contains recommendation drawer focus and advances it with each stage", asy
   expect(document.activeElement).toBe(
     within(dialog).getByRole("button", { name: "Edit" }),
   );
+  within(dialog).getByRole("button", { name: "Close" }).focus();
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Approve draft" }),
+  );
+  await user.tab();
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Close" }),
+  );
 
   await user.click(within(dialog).getByRole("button", { name: "Approve draft" }));
   dialog = screen.getByRole("dialog", { name: "Continue in Square" });
+  const handoff = within(dialog).getByRole("link", {
+    name: "Open representative Square booking page",
+  });
+  expect(document.activeElement).toBe(handoff);
+  await user.tab();
   expect(document.activeElement).toBe(
-    within(dialog).getByRole("link", {
-      name: "Open representative Square booking page",
-    }),
+    within(dialog).getByRole("button", { name: "Close" }),
   );
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(handoff);
+});
+
+test("opening either drawer replaces the other modal", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(
+    screen.getByRole("dialog", { name: "Thursday afternoon has 3 open hours" }),
+  ).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(screen.getByRole("dialog", { name: "Booked capacity" })).toBeDefined();
 });
 
 test("closes both drawer types with Escape and restores their openers", async () => {
@@ -485,4 +531,31 @@ test("dismissal does not focus an opener removed with its recommendation", async
 
   expect(opener.isConnected).toBe(false);
   expect(document.activeElement).not.toBe(opener);
+});
+
+test("changing scenarios clears dismissed recommendations", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+  expect(
+    within(screen.getByRole("region", { name: "Activity" })).getByText(
+      "Thursday afternoon has 3 open hours",
+    ),
+  ).toBeDefined();
+
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Prototype state" }),
+    "stale",
+  );
+
+  expect(
+    within(screen.getByRole("region", { name: "Activity" })).getByText(
+      "No dismissed recommendations",
+    ),
+  ).toBeDefined();
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
 });

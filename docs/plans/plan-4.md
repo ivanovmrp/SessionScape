@@ -50,5 +50,7 @@ Make recommendation dismissal honestly reversible and make both dashboard drawer
 
 - 2026-09-12 (plan): reuse the existing Activity navigation target and opportunity data for recovery; this completes reserved hierarchy rather than redesigning navigation, so Plan 4 needs no sketch.
 - 2026-09-12 (BL-005): plan review found focus could escape when action-stage controls unmount and closure paths lacked explicit proof; stage transitions, backdrops, dismissal, and scenario changes now have named focus expectations and tests.
+- 2026-09-12 (BL-005): code review found background controls could create two modal drawers and later-stage Tab boundaries were unproved; opening either drawer must close the other without stale focus, and every action stage gets containment coverage.
+- 2026-09-12 (BL-004): code review found dismissal reset across scenario changes was implemented but unprotected; add a combined dismiss-then-change regression test.
 
 ## Archived Specs
