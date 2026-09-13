@@ -149,7 +149,11 @@ export function adaptPracticeWorkspaceToDashboardInput(
   const bookedByDate = new Map(dates.map((localDate) => [
     localDate,
     activeSelected
-      .filter((record) => localParts(record.startAt, workspace.timezone).localDate === localDate && insideAvailability(record))
+      .filter((record) =>
+        activePractitionerIds.has(record.practitionerId) &&
+        localParts(record.startAt, workspace.timezone).localDate === localDate &&
+        insideAvailability(record),
+      )
       .reduce((total, record) => total + record.durationMinutes / 60, 0),
   ]));
   const bookedHours = [...bookedByDate.values()].reduce((total, hours) => total + hours, 0);

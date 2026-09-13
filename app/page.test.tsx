@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -14,6 +14,10 @@ import {
 const currentReturnHistory = DASHBOARD_FIXTURES.current.returnHistory;
 const currentReturnTrendLabel = DASHBOARD_FIXTURES.current.returnTrendLabel;
 const currentDays = DASHBOARD_FIXTURES.current.days;
+
+beforeEach(() => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-07T12:00:00.000Z"));
+});
 
 afterEach(() => {
   cleanup();
@@ -899,6 +903,15 @@ test("moves the practice ledger by whole local weeks and returns to today", asyn
   expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
 });
 
+test("selects the current local week after client hydration", async () => {
+  vi.mocked(Date.now).mockReturnValue(Date.parse("2026-09-15T12:00:00.000Z"));
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(await screen.findByText("Sep 14–20, 2026")).toBeDefined();
+});
+
 test("keeps the dashboard date control connected to the selected ledger week", async () => {
   const user = userEvent.setup();
   render(<Page />);
@@ -1258,6 +1271,34 @@ test("blocks overlapping appointments and requires an outside-hours override", a
   expect(stored.appointments[1].startAt).toBe("2026-09-07T22:00:00.000Z");
 });
 
+test("blocks invalid appointment duration and value before persistence", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "11:00");
+
+  const duration = screen.getByLabelText("Appointment duration in minutes");
+  await user.clear(duration);
+  await user.type(duration, "0");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(1);
+
+  await user.clear(duration);
+  await user.type(duration, "60");
+  const value = screen.getByLabelText("Appointment value in cents");
+  await user.clear(value);
+  await user.type(value, "1.5");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(1);
+});
+
 test("requires an explicit offset choice for a repeated daylight-saving hour", async () => {
   const user = userEvent.setup();
   const ownerWorkspace = {
@@ -1376,11 +1417,84 @@ test("keeps connected insights authoritative until the owner explicitly switches
   expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
 });
 
-test("updates dashboard appointment evidence immediately after an owner adds a record", async () => {
+test("keeps sample-derived insights on the owner-only evidence path", async () => {
   const user = userEvent.setup();
+  const practitionerId = RAW_SAMPLE_WORKSPACE.practitioners[0].id;
+  const sampleDerivedWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "sample-derived" as const,
+    availability: ["07", "08", "09", "10", "11", "12", "13"].map((day) => ({
+      id: `availability_derived${day}`,
+      practitionerId,
+      localDate: `2026-09-${day}`,
+      closed: false as const,
+      startMinute: 540,
+      endMinute: 1020,
+    })),
+    appointments: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.appointments),
+      ...[1, 2, 3].map((day) => ({
+        id: `appointment_derivedhist${day}`,
+        practitionerId,
+        serviceId: RAW_SAMPLE_WORKSPACE.services[0].id,
+        startAt: `2026-08-0${day}T14:00:00.000Z`,
+        durationMinutes: 60,
+        valueCents: 12_000,
+        status: "completed" as const,
+        createdAt: "2026-07-01T12:00:00.000Z",
+        statusChangedAt: `2026-08-0${day}T15:00:00.000Z`,
+      })),
+    ],
+  };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"],
+    JSON.stringify(sampleDerivedWorkspace),
+  );
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(await screen.findByRole("button", { name: "Open editable sample copy" }));
+  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(screen.getByText("Editable sample-derived practice data")).toBeDefined();
+  expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
+  expect(screen.queryByRole("link", { name: /Square booking page/ })).toBeNull();
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Continue to draft/ })).toBeNull();
+  expect(screen.queryByText("Eligible audience")).toBeNull();
+});
+
+test("reconciles appointment, capacity, cancellation, and value evidence through owner mutations", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const practitionerId = RAW_SAMPLE_WORKSPACE.practitioners[0].id;
   const ownerWorkspace = {
     ...structuredClone(RAW_SAMPLE_WORKSPACE),
     provenance: "owner-entered" as const,
+    availability: ["07", "08", "09", "10", "11", "12", "13"].map((day) => ({
+      id: `availability_journey${day}`,
+      practitionerId,
+      localDate: `2026-09-${day}`,
+      closed: false as const,
+      startMinute: 540,
+      endMinute: 1020,
+    })),
+    appointments: [
+      ...structuredClone(RAW_SAMPLE_WORKSPACE.appointments),
+      ...[1, 2, 3].map((day) => ({
+        id: `appointment_journeyhist${day}`,
+        practitionerId,
+        serviceId: RAW_SAMPLE_WORKSPACE.services[0].id,
+        startAt: `2026-08-0${day}T14:00:00.000Z`,
+        durationMinutes: 60,
+        valueCents: 12_000,
+        status: "completed" as const,
+        createdAt: "2026-07-01T12:00:00.000Z",
+        statusChangedAt: `2026-08-0${day}T15:00:00.000Z`,
+      })),
+    ],
   };
   window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
   render(<Page />);
@@ -1388,11 +1502,37 @@ test("updates dashboard appointment evidence immediately after an owner adds a r
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
   await user.click(screen.getByRole("button", { name: "Add appointment" }));
-  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-10");
   await user.type(screen.getByLabelText("Start time"), "11:00");
   await user.click(screen.getByRole("button", { name: "Save appointment" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
 
   expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 2/ })).toBeDefined();
-  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(2);
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Booked capacity 5%/ })).toBeDefined();
+  const valueAfterAdd = screen.getByText("Identified opportunity").parentElement?.textContent;
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getAllByRole("button", { name: /Edit appointment/ })[1]);
+  await user.selectOptions(screen.getByLabelText("Appointment status"), "completed");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 2/ })).toBeDefined();
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getAllByRole("button", { name: /Edit appointment/ })[1]);
+  await user.selectOptions(screen.getByLabelText("Appointment status"), "cancelled");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 1/ })).toBeDefined();
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Booked capacity 3%/ })).toBeDefined();
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Cancellations 1/ })).toBeDefined();
+  expect(screen.getByText("Identified opportunity").parentElement?.textContent).not.toBe(valueAfterAdd);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getAllByRole("button", { name: /Edit appointment/ })[1]);
+  await user.click(screen.getByRole("button", { name: "Delete appointment" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(confirm).toHaveBeenCalled();
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Cancellations 0/ })).toBeDefined();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(4);
 });

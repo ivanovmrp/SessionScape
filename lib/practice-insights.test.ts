@@ -157,11 +157,34 @@ test("excludes inactive practitioners from capacity hours and recommendations", 
     id: `availability_inactive00${index}`,
     practitionerId: "practitioner_inactive0001",
   })));
+  workspace.appointments.push({
+    ...workspace.appointments[1],
+    id: "appointment_inactive001",
+    practitionerId: "practitioner_inactive0001",
+    startAt: "2026-09-10T16:00:00.000Z",
+  });
   const week = getPracticeWeek(workspace.timezone, "2026-09-09");
   const input = adaptPracticeWorkspaceToDashboardInput(workspace, week);
 
   expect(input.capacity).toMatchObject({ bookedHours: 3.5, openHours: 52.5 });
   expect(input.evidence.activePractitioners).toBe(1);
+});
+
+test("does not surface selected-week capacity that is already past the evaluation clock", () => {
+  const workspace = workspaceForWeek();
+  workspace.appointments = [0, 1, 2].map((index) => ({
+    ...workspace.appointments[1],
+    id: `appointment_recentvalue${index}`,
+    startAt: `2026-08-0${index + 1}T14:00:00.000Z`,
+    status: "completed" as const,
+    createdAt: "2026-07-01T12:00:00.000Z",
+    statusChangedAt: `2026-08-0${index + 1}T15:00:00.000Z`,
+  }));
+  const week = getPracticeWeek(workspace.timezone, "2026-09-09");
+
+  expect(adaptPracticeWorkspaceToDashboardInput(workspace, week, {
+    evaluationAt: "2026-09-13T16:00:00.000Z",
+  }).opportunities.some(({ type }) => type === "capacity")).toBe(false);
 });
 
 test.each([

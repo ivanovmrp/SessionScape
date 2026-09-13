@@ -156,9 +156,7 @@ const isNonNegativeInteger = (value: unknown) =>
   Number.isInteger(value) && (value as number) >= 0;
 
 const isLocalDate = (value: unknown) =>
-  typeof value === "string" &&
-  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
-  !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`));
+  typeof value === "string" && parseExactLocalDate(value) !== null;
 
 const isUtcInstant = (value: unknown): value is string =>
   typeof value === "string" &&
@@ -339,7 +337,7 @@ export type PracticeWeek = {
   label: string;
 };
 
-const parseExactLocalDate = (localDate: string) => {
+function parseExactLocalDate(localDate: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
   if (!match) return null;
   const parts = {
@@ -349,7 +347,7 @@ const parseExactLocalDate = (localDate: string) => {
   };
   const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   return date.toISOString().slice(0, 10) === localDate ? parts : null;
-};
+}
 
 const localPartsAt = (instant: number, timezone: string) => {
   const values = Object.fromEntries(
@@ -372,7 +370,7 @@ const localPartsAt = (instant: number, timezone: string) => {
   };
 };
 
-export function getTodayLocalDate(timezone: string, now = new Date()) {
+export function getTodayLocalDate(timezone: string, now = new Date(Date.now())) {
   if (!isTimezone(timezone) || Number.isNaN(now.getTime())) {
     throw new Error("A valid timezone and date are required");
   }
@@ -647,7 +645,10 @@ export function createPracticeWorkspaceRepository(storage: StoragePort | null) {
       if (raw === null) return { ok: true as const, value: null };
       try {
         const parsed = parsePracticeWorkspace(JSON.parse(raw));
-        if (parsed.ok) return parsed;
+        if (
+          parsed.ok &&
+          parsed.value.provenance === (slot === "owner" ? "owner-entered" : "sample-derived")
+        ) return parsed;
       } catch {
         // The raw value remains untouched for visible recovery.
       }
@@ -659,7 +660,10 @@ export function createPracticeWorkspaceRepository(storage: StoragePort | null) {
     },
     save(slot: WorkspaceSlot, workspace: PracticeWorkspace) {
       if (!storage) return unavailable();
-      if (!parsePracticeWorkspace(workspace).ok) {
+      if (
+        !parsePracticeWorkspace(workspace).ok ||
+        workspace.provenance !== (slot === "owner" ? "owner-entered" : "sample-derived")
+      ) {
         return { ok: false as const, error: "invalid-data" as const };
       }
       try {

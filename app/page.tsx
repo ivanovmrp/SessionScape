@@ -91,9 +91,10 @@ export default function Home() {
   const [surface, setSurface] = useState<Surface>("overview");
   const [practiceSource, setPracticeSource] = useState<PracticeSource>("owner");
   const [dashboardSource, setDashboardSource] = useState<DashboardSource>("connected");
-  const [selectedWeekDate, setSelectedWeekDate] = useState(() =>
-    getTodayLocalDate("America/New_York"),
+  const [selectedWeekDate, setSelectedWeekDate] = useState(
+    RAW_SAMPLE_WORKSPACE.availability[0].localDate,
   );
+  const [evaluationAt, setEvaluationAt] = useState<string | null>(null);
   const [ownerWorkspace, setOwnerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
   const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
   const [storageAlerts, setStorageAlerts] = useState<Partial<Record<StorageAlertKey, string>>>({});
@@ -145,7 +146,11 @@ export default function Home() {
   const sampleDashboard = dashboardSource === "connected" || dashboardSource === "sample";
   const dashboardInput = sampleDashboard
     ? DASHBOARD_INPUTS[scenario]
-    : adaptPracticeWorkspaceToDashboardInput(dashboardWorkspace, getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate));
+    : adaptPracticeWorkspaceToDashboardInput(
+        dashboardWorkspace,
+        getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate),
+        { evaluationAt: evaluationAt ?? getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate).endAt },
+      );
   const allOpportunitySummary = deriveDashboard(dashboardInput);
   const opportunitySummary = deriveDashboard(dashboardInput, dismissed);
   const sampleFixture = DASHBOARD_FIXTURES[scenario];
@@ -220,6 +225,9 @@ export default function Home() {
     const hydrate = async () => {
       await Promise.resolve();
       if (!active) return;
+      const hydratedAt = new Date(Date.now());
+      setEvaluationAt(hydratedAt.toISOString());
+      setSelectedWeekDate(getTodayLocalDate(RAW_SAMPLE_WORKSPACE.timezone, hydratedAt));
 
       let storage: Storage;
       try {
@@ -238,7 +246,10 @@ export default function Home() {
       const invalidSlots: Partial<Record<WorkspaceSlot, boolean>> = {};
 
       if (owner.ok) {
-        if (owner.value) setOwnerWorkspace(owner.value);
+        if (owner.value) {
+          setOwnerWorkspace(owner.value);
+          setSelectedWeekDate(getTodayLocalDate(owner.value.timezone, hydratedAt));
+        }
       } else {
         if (owner.error === "invalid-data") invalidSlots.owner = true;
         alerts.owner = owner.error === "invalid-data"
@@ -528,7 +539,7 @@ export default function Home() {
     const previous = appointmentEditor.id
       ? practiceWorkspace.appointments.find(({ id }) => id === appointmentEditor.id)
       : undefined;
-    const now = new Date().toISOString();
+    const now = new Date(Date.now()).toISOString();
     const statusChangedAt = previous?.status === appointmentEditor.status
       ? previous.statusChangedAt
       : now;

@@ -128,6 +128,10 @@ test("rejects invalid money, identifiers, timezones, and lifecycle order", () =>
   reversedLifecycle.appointments[0].statusChangedAt =
     "2026-08-01T00:00:00.000Z";
   expect(parsePracticeWorkspace(reversedLifecycle)).toMatchObject({ ok: false });
+
+  const impossibleDate = clone(validWorkspace());
+  impossibleDate.availability[0].localDate = "2026-02-30";
+  expect(parsePracticeWorkspace(impossibleDate)).toMatchObject({ ok: false });
 });
 
 test("requires cancellation metadata only for cancelled appointments", () => {
@@ -186,6 +190,18 @@ test("keeps owner and sample-derived workspaces in separate storage slots", () =
   expect(repository.clear("sample-derived")).toEqual({ ok: true });
   expect(repository.load("sample-derived")).toEqual({ ok: true, value: null });
   expect(repository.load("owner")).toEqual({ ok: true, value: owner });
+});
+
+test("rejects workspace provenance that does not match its storage slot", () => {
+  const storage = new MemoryStorage();
+  const repository = createPracticeWorkspaceRepository(storage);
+  const owner = validWorkspace();
+  const sampleDerived = { ...validWorkspace(), provenance: "sample-derived" as const };
+
+  expect(repository.save("owner", sampleDerived)).toEqual({ ok: false, error: "invalid-data" });
+  expect(repository.save("sample-derived", owner)).toEqual({ ok: false, error: "invalid-data" });
+  storage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(sampleDerived));
+  expect(repository.load("owner")).toMatchObject({ ok: false, error: "invalid-data" });
 });
 
 test("reports invalid stored data without overwriting the source value", () => {
