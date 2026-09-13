@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, expect, test } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Page from "./page";
@@ -95,6 +95,72 @@ test("reconciles the opportunity total after a recommendation is dismissed", asy
   expect(summary?.textContent).toContain("across 1 actions");
 });
 
+test("records an identifiable dismissed recommendation in Activity", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+
+  const activity = screen.getByRole("region", { name: "Activity" });
+  expect(
+    within(activity).getByText("Thursday afternoon has 3 open hours"),
+  ).toBeDefined();
+  expect(within(activity).getByText("Capacity opportunity")).toBeDefined();
+  expect(within(activity).getByText("$360")).toBeDefined();
+});
+
+test("restores one of several dismissed recommendations without duplicates", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  for (let index = 0; index < 2; index += 1) {
+    await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+    await user.click(
+      screen.getByRole("button", { name: "Dismiss recommendation" }),
+    );
+  }
+
+  const activity = screen.getByRole("region", { name: "Activity" });
+  const capacityRecord = within(activity)
+    .getByText("Thursday afternoon has 3 open hours")
+    .closest("article");
+  expect(capacityRecord).not.toBeNull();
+  await user.click(
+    within(capacityRecord as HTMLElement).getByRole("button", {
+      name: "Restore recommendation",
+    }),
+  );
+
+  const summary = screen.getByText("Identified opportunity").parentElement;
+  expect(summary?.textContent).toContain("$360");
+  expect(summary?.textContent).toContain("across 1 actions");
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(1);
+  expect(
+    within(activity).queryByText("Thursday afternoon has 3 open hours"),
+  ).toBeNull();
+  expect(within(activity).getByText("14 returning clients are overdue")).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Review action" }));
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+  const repeatedRecord = within(activity)
+    .getByText("Thursday afternoon has 3 open hours")
+    .closest("article");
+  await user.click(
+    within(repeatedRecord as HTMLElement).getByRole("button", {
+      name: "Restore recommendation",
+    }),
+  );
+
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(1);
+  expect(summary?.textContent).toContain("$360");
+  expect(summary?.textContent).toContain("across 1 actions");
+});
+
 test("edits a draft and audience before approving a frozen snapshot", async () => {
   const user = userEvent.setup();
   render(<Page />);
@@ -153,7 +219,7 @@ test("dismisses a recommendation during draft review", async () => {
   await user.click(screen.getByRole("button", { name: "Continue to draft" }));
   await user.click(screen.getByRole("button", { name: "Dismiss recommendation" }));
 
-  expect(screen.queryByText("Thursday afternoon has 3 open hours")).toBeNull();
+  expect(screen.getAllByText("Thursday afternoon has 3 open hours")).toHaveLength(1);
   expect(
     screen.getByText("Identified opportunity").parentElement?.textContent,
   ).toContain("across 1 actions");
@@ -274,4 +340,222 @@ test("closes and resets an action when the data scenario changes", async () => {
     (screen.getByRole("textbox", { name: "Message draft" }) as HTMLTextAreaElement)
       .value,
   ).not.toContain("Unsaved scenario-specific edit");
+});
+
+test("moves focus into the metric drawer and wraps its single control", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  const dialog = screen.getByRole("dialog", { name: "Booked capacity" });
+  const close = within(dialog).getByRole("button", { name: "Close" });
+
+  expect(document.activeElement).toBe(close);
+  await user.tab();
+  expect(document.activeElement).toBe(close);
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(close);
+});
+
+test("contains recommendation drawer focus and advances it with each stage", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  let dialog = screen.getByRole("dialog", {
+    name: "Thursday afternoon has 3 open hours",
+  });
+  const close = within(dialog).getByRole("button", { name: "Close" });
+  const continueButton = within(dialog).getByRole("button", {
+    name: "Continue to draft",
+  });
+
+  expect(document.activeElement).toBe(close);
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(continueButton);
+  await user.tab();
+  expect(document.activeElement).toBe(close);
+
+  await user.click(continueButton);
+  dialog = screen.getByRole("dialog", { name: "Prepare a representative draft" });
+  const draftInput = within(dialog).getByRole("textbox", { name: "Message draft" });
+  expect(document.activeElement).toBe(draftInput);
+  await user.selectOptions(
+    within(dialog).getByRole("combobox", { name: "Audience" }),
+    "none",
+  );
+  within(dialog).getByRole("button", { name: "Close" }).focus();
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Dismiss recommendation" }),
+  );
+  await user.tab();
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Close" }),
+  );
+  await user.selectOptions(
+    within(dialog).getByRole("combobox", { name: "Audience" }),
+    "eligible",
+  );
+
+  await user.click(within(dialog).getByRole("button", { name: "Review approval" }));
+  dialog = screen.getByRole("dialog", { name: "Approve this action draft?" });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Edit" }),
+  );
+  within(dialog).getByRole("button", { name: "Close" }).focus();
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Approve draft" }),
+  );
+  await user.tab();
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Close" }),
+  );
+
+  await user.click(within(dialog).getByRole("button", { name: "Approve draft" }));
+  dialog = screen.getByRole("dialog", { name: "Continue in Square" });
+  const handoff = within(dialog).getByRole("link", {
+    name: "Open representative Square booking page",
+  });
+  expect(document.activeElement).toBe(handoff);
+  await user.tab();
+  expect(document.activeElement).toBe(
+    within(dialog).getByRole("button", { name: "Close" }),
+  );
+  await user.tab({ shift: true });
+  expect(document.activeElement).toBe(handoff);
+});
+
+test("opening either drawer replaces the other modal", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(
+    screen.getByRole("dialog", { name: "Thursday afternoon has 3 open hours" }),
+  ).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  expect(screen.getAllByRole("dialog")).toHaveLength(1);
+  expect(screen.getByRole("dialog", { name: "Booked capacity" })).toBeDefined();
+});
+
+test("closes both drawer types with Escape and restores their openers", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  const metricOpener = screen.getByRole("button", { name: /Booked capacity/ });
+  await user.click(metricOpener);
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(metricOpener);
+
+  const opportunityOpener = screen.getAllByRole("button", {
+    name: "Review action",
+  })[0];
+  await user.click(opportunityOpener);
+  await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(opportunityOpener);
+});
+
+test("returns focus from both labeled drawer close controls", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  const metricOpener = screen.getByRole("button", { name: /Booked capacity/ });
+  await user.click(metricOpener);
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+  );
+  expect(document.activeElement).toBe(metricOpener);
+
+  const opportunityOpener = screen.getAllByRole("button", {
+    name: "Review action",
+  })[0];
+  await user.click(opportunityOpener);
+  await user.click(
+    within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+  );
+  expect(document.activeElement).toBe(opportunityOpener);
+});
+
+test("returns focus when either drawer backdrop is clicked", async () => {
+  const user = userEvent.setup();
+  const { container } = render(<Page />);
+
+  const metricOpener = screen.getByRole("button", { name: /Booked capacity/ });
+  await user.click(metricOpener);
+  await user.click(container.querySelector(".modal-backdrop") as HTMLElement);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(metricOpener);
+
+  const opportunityOpener = screen.getAllByRole("button", {
+    name: "Review action",
+  })[0];
+  await user.click(opportunityOpener);
+  await user.click(container.querySelector(".modal-backdrop") as HTMLElement);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(opportunityOpener);
+});
+
+test("scenario changes close either drawer and keep focus on the scenario control", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  const scenario = screen.getByRole("combobox", { name: "Prototype state" });
+
+  await user.click(screen.getByRole("button", { name: /Booked capacity/ }));
+  await user.selectOptions(scenario, "partial");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(scenario);
+
+  await user.selectOptions(scenario, "current");
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.selectOptions(scenario, "stale");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(scenario);
+});
+
+test("dismissal does not focus an opener removed with its recommendation", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  const opener = screen.getAllByRole("button", { name: "Review action" })[0];
+
+  await user.click(opener);
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+
+  expect(opener.isConnected).toBe(false);
+  expect(document.activeElement).not.toBe(opener);
+});
+
+test("changing scenarios clears dismissed recommendations", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(
+    screen.getByRole("button", { name: "Dismiss recommendation" }),
+  );
+  expect(
+    within(screen.getByRole("region", { name: "Activity" })).getByText(
+      "Thursday afternoon has 3 open hours",
+    ),
+  ).toBeDefined();
+
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Prototype state" }),
+    "stale",
+  );
+
+  expect(
+    within(screen.getByRole("region", { name: "Activity" })).getByText(
+      "No dismissed recommendations",
+    ),
+  ).toBeDefined();
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
 });

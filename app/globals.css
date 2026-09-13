@@ -122,6 +122,13 @@ main { min-height: 100vh; margin-left: 244px; padding: 34px clamp(28px, 4vw, 66p
 .chart-labels { display: flex; justify-content: space-between; margin-top: -4px; padding: 0 3px; }
 
 .opportunities { padding-top: 42px; }
+.activity { padding-top: 42px; }
+.activity-list { display: grid; gap: 10px; }
+.activity-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); }
+.activity-card div { display: grid; gap: 4px; }
+.activity-card span { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.activity-actions { justify-items: end; }
+.activity-actions button { border: 0; background: transparent; color: var(--green-2); font-weight: 700; cursor: pointer; }
 .section-title { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 18px; }
 .section-title h2 { font-size: clamp(24px, 2.2vw, 31px); }
 .section-title > button { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--green); font-size: 11px; font-weight: 700; cursor: pointer; }

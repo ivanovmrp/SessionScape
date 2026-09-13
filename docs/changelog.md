@@ -21,3 +21,8 @@ Completed plans and releases are indexed here.
 - Established colocated browser-like component interaction coverage while keeping pure calculation tests in Node; the full suite now covers 34 tests.
 - Added an owner-controlled evidence, draft, audience, approval, and representative Square handoff flow with an explicit estimated-to-realized value ladder and no false send, booking, or payment claims.
 - Defined unavailable visualization behavior: unsupported denominators suppress both numeric precision and chart geometry.
+
+## Plan 4 — Remove the final prototype interaction blockers (2026-09-12)
+
+- Added a real Activity recovery path that derives dismissed records from the same opportunity data and keeps cards, counts, and totals deduplicated through repeated dismissal and restoration.
+- Established a single-active-modal focus lifecycle for both dashboard drawers, including stage-aware initial focus, contained keyboard navigation, and safe focus return across every close and context-change path.
