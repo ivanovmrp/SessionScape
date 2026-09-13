@@ -132,6 +132,13 @@ test("deduplicates stable IDs and suppresses capacity when active coverage is in
   const workspace = workspaceForWeek();
   workspace.appointments.push({ ...workspace.appointments[0] });
   workspace.availability.pop();
+  workspace.appointments.push(...[0, 1, 2].map((index) => ({
+    ...workspace.appointments[1],
+    id: `appointment_ratehistory${index}`,
+    startAt: `2026-08-0${index + 1}T14:00:00.000Z`,
+    createdAt: "2026-07-01T12:00:00.000Z",
+    statusChangedAt: `2026-08-0${index + 1}T15:30:00.000Z`,
+  })));
   const week = getPracticeWeek(workspace.timezone, "2026-09-09");
   const input = adaptPracticeWorkspaceToDashboardInput(workspace, week);
 
@@ -139,6 +146,22 @@ test("deduplicates stable IDs and suppresses capacity when active coverage is in
   expect(input.capacity).toEqual({ state: "unavailable" });
   expect(input.appointments.confirmed).toBe(3);
   expect(input.evidence).toMatchObject({ coveredDays: 6, deduplicatedRecords: 1 });
+  expect(input.opportunities.some(({ type }) => type === "capacity")).toBe(false);
+});
+
+test("excludes inactive practitioners from capacity hours and recommendations", () => {
+  const workspace = workspaceForWeek();
+  workspace.practitioners.push({ id: "practitioner_inactive0001", label: "Inactive", active: false });
+  workspace.availability.push(...workspace.availability.map((record, index) => ({
+    ...record,
+    id: `availability_inactive00${index}`,
+    practitionerId: "practitioner_inactive0001",
+  })));
+  const week = getPracticeWeek(workspace.timezone, "2026-09-09");
+  const input = adaptPracticeWorkspaceToDashboardInput(workspace, week);
+
+  expect(input.capacity).toMatchObject({ bookedHours: 3.5, openHours: 52.5 });
+  expect(input.evidence.activePractitioners).toBe(1);
 });
 
 test.each([
@@ -208,6 +231,22 @@ test("surfaces only evidence-backed overdue anonymous clients without outreach c
   }).opportunities.some(({ type }) => type === "retention")).toBe(false);
 
   workspace.appointments = workspace.appointments.slice(0, 2);
+  expect(adaptPracticeWorkspaceToDashboardInput(workspace, week, {
+    evaluationAt: "2026-09-07T12:00:00.000Z",
+  }).opportunities.some(({ type }) => type === "retention")).toBe(false);
+});
+
+test("ignores anonymous visit history older than the trailing six-month window", () => {
+  const workspace = workspaceForWeek();
+  workspace.appointments = [0, 14, 28].map((day, index) => ({
+    ...workspace.appointments[1],
+    id: `appointment_oldreturn${index}`,
+    anonymousClientId: "anon_abcdef123456",
+    startAt: new Date(Date.UTC(2025, 0, 1 + day, 14)).toISOString(),
+    statusChangedAt: new Date(Date.UTC(2025, 0, 1 + day, 15)).toISOString(),
+  }));
+  const week = getPracticeWeek(workspace.timezone, "2026-09-09");
+
   expect(adaptPracticeWorkspaceToDashboardInput(workspace, week, {
     evaluationAt: "2026-09-07T12:00:00.000Z",
   }).opportunities.some(({ type }) => type === "retention")).toBe(false);

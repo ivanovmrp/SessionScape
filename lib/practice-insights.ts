@@ -118,11 +118,16 @@ export function adaptPracticeWorkspaceToDashboardInput(
   const activeSelected = selected.filter(activeStatus);
   const coverage = getAvailabilityCoverage(workspace, week);
   const dates = localDatesForWeek(week);
+  const activePractitionerIds = new Set(
+    workspace.practitioners.filter(({ active }) => active).map(({ id }) => id),
+  );
 
   const availabilityHoursByDate = new Map(dates.map((localDate) => [
     localDate,
     workspace.availability
-      .filter((record) => record.localDate === localDate)
+      .filter((record) =>
+        record.localDate === localDate && activePractitionerIds.has(record.practitionerId),
+      )
       .reduce((total, record) => record.closed
         ? total
         : total + (record.endMinute - record.startMinute) / 60, 0),
@@ -162,7 +167,7 @@ export function adaptPracticeWorkspaceToDashboardInput(
   }).length;
   const evaluationAt = Date.parse(options.evaluationAt ?? week.startAt);
   const sixMonthsAgo = Date.parse(week.endAt) - 183 * 24 * 60 * 60_000;
-  const capacityOpportunities = workspace.practitioners.flatMap((practitioner) => {
+  const capacityOpportunities = capacityComplete ? workspace.practitioners.flatMap((practitioner) => {
     if (!practitioner.active) return [];
     const rates = appointments
       .filter((record) =>
@@ -209,10 +214,15 @@ export function adaptPracticeWorkspaceToDashboardInput(
         })];
       });
     });
-  });
+  }) : [];
 
   const completedByClient = new Map<string, AppointmentRecord[]>();
-  appointments.filter((record) => record.status === "completed" && record.anonymousClientId).forEach((record) => {
+  appointments.filter((record) =>
+    record.status === "completed" &&
+    record.anonymousClientId &&
+    Date.parse(record.startAt) >= sixMonthsAgo &&
+    Date.parse(record.startAt) < Date.parse(week.endAt),
+  ).forEach((record) => {
     const records = completedByClient.get(record.anonymousClientId as string) ?? [];
     records.push(record);
     completedByClient.set(record.anonymousClientId as string, records);

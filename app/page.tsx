@@ -8,6 +8,7 @@ import {
   createPracticeWorkspaceRepository,
   getAvailabilityCoverage,
   getPracticeWeek,
+  getTodayLocalDate,
   parsePracticeWorkspace,
   RAW_SAMPLE_WORKSPACE,
   resolveLocalDateTime,
@@ -90,10 +91,13 @@ export default function Home() {
   const [surface, setSurface] = useState<Surface>("overview");
   const [practiceSource, setPracticeSource] = useState<PracticeSource>("owner");
   const [dashboardSource, setDashboardSource] = useState<DashboardSource>("connected");
-  const [selectedWeekDate, setSelectedWeekDate] = useState("2026-09-13");
+  const [selectedWeekDate, setSelectedWeekDate] = useState(() =>
+    getTodayLocalDate("America/New_York"),
+  );
   const [ownerWorkspace, setOwnerWorkspace] = useState(() => emptyWorkspace("owner-entered"));
   const [sampleDerivedWorkspace, setSampleDerivedWorkspace] = useState<PracticeWorkspace | null>(null);
   const [storageAlerts, setStorageAlerts] = useState<Partial<Record<StorageAlertKey, string>>>({});
+  const [invalidStorageSlots, setInvalidStorageSlots] = useState<Partial<Record<WorkspaceSlot, boolean>>>({});
   const [catalogEditor, setCatalogEditor] = useState<CatalogEditor | null>(null);
   const [catalogError, setCatalogError] = useState("");
   const [appointmentEditor, setAppointmentEditor] = useState<AppointmentEditor | null>(null);
@@ -199,6 +203,12 @@ export default function Home() {
   const weeklyAppointments = practiceWorkspace.appointments
     .filter(({ startAt }) => startAt >= practiceWeek.startAt && startAt < practiceWeek.endAt)
     .sort((left, right) => left.startAt.localeCompare(right.startAt));
+  const selectableAnonymousClientIds = [...new Set([
+    ...practiceWorkspace.appointments.flatMap(({ anonymousClientId }) =>
+      anonymousClientId ? [anonymousClientId] : [],
+    ),
+    ...(appointmentEditor?.anonymousClientId ? [appointmentEditor.anonymousClientId] : []),
+  ])].sort();
   const weekLocalDates = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(`${practiceWeek.startLocalDate}T00:00:00.000Z`);
     date.setUTCDate(date.getUTCDate() + index);
@@ -225,10 +235,12 @@ export default function Home() {
       const owner = repository.load("owner");
       const sampleDerived = repository.load("sample-derived");
       const alerts: Partial<Record<StorageAlertKey, string>> = {};
+      const invalidSlots: Partial<Record<WorkspaceSlot, boolean>> = {};
 
       if (owner.ok) {
         if (owner.value) setOwnerWorkspace(owner.value);
       } else {
+        if (owner.error === "invalid-data") invalidSlots.owner = true;
         alerts.owner = owner.error === "invalid-data"
           ? "Stored owner data could not be loaded. It was left unchanged so you can recover it."
           : "Browser storage could not read owner data. It was left unchanged and changes will not be saved.";
@@ -237,11 +249,13 @@ export default function Home() {
       if (sampleDerived.ok) {
         if (sampleDerived.value) setSampleDerivedWorkspace(sampleDerived.value);
       } else {
+        if (sampleDerived.error === "invalid-data") invalidSlots["sample-derived"] = true;
         alerts["sample-derived"] = sampleDerived.error === "invalid-data"
           ? "Stored sample-derived data could not be loaded. It was left unchanged so you can recover it."
           : "Browser storage could not read sample-derived data. It was left unchanged and changes will not be saved.";
       }
       setStorageAlerts(alerts);
+      setInvalidStorageSlots(invalidSlots);
     };
     void hydrate();
     return () => {
@@ -312,8 +326,10 @@ export default function Home() {
     setRepeatedHourPending(false);
     setAvailabilityEditor(null);
     setAvailabilityError("");
+    setCatalogEditor(null);
+    setCatalogError("");
     setPracticeSource(nextSource);
-    setDashboardSource(nextSource);
+    if (dashboardSource !== "connected") setDashboardSource(nextSource);
   };
 
   const updateStorageAlert = (key: StorageAlertKey, message?: string) => {
@@ -345,13 +361,20 @@ export default function Home() {
       return false;
     }
     const slot: WorkspaceSlot = practiceSource === "owner" ? "owner" : "sample-derived";
+    if (invalidStorageSlots[slot]) {
+      updateStorageAlert(
+        slot,
+        `Stored ${slot === "owner" ? "owner" : "sample-derived"} data must be cleared before editing. The invalid stored copy was left unchanged.`,
+      );
+      return false;
+    }
     const saved = browserRepository().save(slot, workspace);
     updateStorageAlert(slot, saved.ok
       ? undefined
       : "Your change is open, but it could not be saved. This change was not persisted.");
     if (slot === "owner") setOwnerWorkspace(workspace);
     else setSampleDerivedWorkspace(workspace);
-    setDashboardSource(practiceSource);
+    if (dashboardSource !== "connected") setDashboardSource(practiceSource);
     setCatalogError("");
     return true;
   };
@@ -631,6 +654,13 @@ export default function Home() {
   };
 
   const copySample = () => {
+    if (invalidStorageSlots["sample-derived"]) {
+      updateStorageAlert(
+        "sample-derived",
+        "Stored sample-derived data must be cleared before editing. The invalid stored copy was left unchanged.",
+      );
+      return;
+    }
     if (sampleDerivedWorkspace && !window.confirm(
       "Replace the existing sample-derived data with a fresh sample copy?",
     )) return;
@@ -660,6 +690,7 @@ export default function Home() {
       return;
     }
     updateStorageAlert(slot);
+    setInvalidStorageSlots((current) => ({ ...current, [slot]: false }));
     if (slot === "owner") setOwnerWorkspace(emptyWorkspace("owner-entered"));
     else setSampleDerivedWorkspace(emptyWorkspace("sample-derived"));
   };
@@ -756,7 +787,7 @@ export default function Home() {
           <button aria-label="Previous week" onClick={() => movePracticeWeek(-1)}>←</button>
           <strong>{practiceWeek.label}</strong>
           <button aria-label="Next week" onClick={() => movePracticeWeek(1)}>→</button>
-          <button onClick={() => { changePracticeSource(practiceSource); setSelectedWeekDate("2026-09-13"); }}>Today</button>
+          <button onClick={() => { changePracticeSource(practiceSource); setSelectedWeekDate(getTodayLocalDate(practiceWorkspace.timezone)); }}>Today</button>
         </div>
 
         <section className="practice-workspace panel">
@@ -775,11 +806,13 @@ export default function Home() {
           </div>}
 
           <div className="practice-actions">
+            {practiceSource !== "sample" && dashboardSource === "connected" && <button className="button-secondary" onClick={() => { setDashboardSource(practiceSource); setDismissed([]); }}>Use browser-only data for insights</button>}
+            {dashboardSource !== "connected" && <button className="button-secondary" onClick={() => { setDashboardSource("connected"); setDismissed([]); }}>Use connected data for insights</button>}
             {practiceSource === "owner" && <button className="button-primary" onClick={() => changePracticeSource("sample")}>Explore sample data</button>}
             {practiceSource === "owner" && sampleDerivedWorkspace && <button className="button-secondary" onClick={() => changePracticeSource("sample-derived")}>Open editable sample copy</button>}
-            {practiceSource === "owner" && (ownerWorkspace.practitioners.length > 0 || ownerWorkspace.services.length > 0 || ownerWorkspace.availability.length > 0 || ownerWorkspace.appointments.length > 0) && <button className="button-secondary" onClick={() => clearWorkspace("owner")}>Clear owner data</button>}
+            {practiceSource === "owner" && (invalidStorageSlots.owner || ownerWorkspace.practitioners.length > 0 || ownerWorkspace.services.length > 0 || ownerWorkspace.availability.length > 0 || ownerWorkspace.appointments.length > 0) && <button className="button-secondary" onClick={() => clearWorkspace("owner")}>Clear owner data</button>}
             {practiceSource === "sample" && <button className="button-primary" onClick={copySample}>Create editable sample copy</button>}
-            {practiceSource === "sample-derived" && <button className="button-secondary" onClick={() => clearWorkspace("sample-derived")}>Clear sample-derived data</button>}
+            {(practiceSource === "sample-derived" || invalidStorageSlots["sample-derived"]) && <button className="button-secondary" onClick={() => clearWorkspace("sample-derived")}>Clear sample-derived data</button>}
             {practiceSource !== "owner" && <button className="button-secondary" onClick={() => changePracticeSource("owner")}>Return to owner data</button>}
           </div>
         </section>
@@ -824,7 +857,7 @@ export default function Home() {
               <option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option>
             </select></label>
             <label>Anonymous client ID<select aria-label="Anonymous client ID" value={appointmentEditor.anonymousClientId} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, anonymousClientId: event.target.value })}>
-              <option value="">Not linked</option>{appointmentEditor.anonymousClientId && <option value={appointmentEditor.anonymousClientId}>{appointmentEditor.anonymousClientId}</option>}
+              <option value="">Not linked</option>{selectableAnonymousClientIds.map((clientId) => <option key={clientId} value={clientId}>{clientId}</option>)}
             </select></label>
             <button type="button" onClick={generateAnonymousClientId}>Generate anonymous client ID</button>
             {repeatedHourPending && <label>Repeated hour choice<select aria-label="Repeated hour choice" value={appointmentEditor.repeatedTimeChoice ?? ""} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, repeatedTimeChoice: event.target.value as "earlier" | "later" })}>

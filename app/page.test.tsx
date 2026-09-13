@@ -812,6 +812,40 @@ test("leaves invalid stored data untouched and shows recovery guidance", async (
   expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner)).toBe(raw);
 });
 
+test("blocks edits from overwriting an invalid stored workspace before deliberate recovery", async () => {
+  const user = userEvent.setup();
+  const raw = '{"version":99,"clientName":"unsafe"}';
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, raw);
+  render(<Page />);
+  expect((await screen.findByRole("alert")).textContent).toContain("could not be loaded");
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add practitioner" }));
+  await user.type(screen.getByRole("textbox", { name: "Practitioner label" }), "Maya");
+  await user.click(screen.getByRole("button", { name: "Save practitioner" }));
+
+  expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner)).toBe(raw);
+  expect(screen.getByRole("alert").textContent).toContain("must be cleared before editing");
+});
+
+test("protects an invalid sample-derived workspace until it is deliberately cleared", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  const raw = '{"version":99,"clientName":"unsafe"}';
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"], raw);
+  render(<Page />);
+  expect((await screen.findByRole("alert")).textContent).toContain("Stored sample-derived data could not be loaded");
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(screen.getByRole("button", { name: "Create editable sample copy" }));
+  expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"])).toBe(raw);
+  expect(screen.getByRole("alert").textContent).toContain("must be cleared before editing");
+
+  await user.click(screen.getByRole("button", { name: "Clear sample-derived data" }));
+  expect(confirm).toHaveBeenCalled();
+  expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"])).toBeNull();
+});
+
 test("shows when browser storage is unavailable", async () => {
   vi.spyOn(window, "localStorage", "get").mockImplementation(() => {
     throw new Error("blocked");
@@ -962,6 +996,27 @@ test("keeps catalog editing controls out of read-only sample data", async () => 
 
   expect(screen.queryByRole("button", { name: "Add practitioner" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add service" })).toBeNull();
+});
+
+test("closes an owner catalog editor when switching to read-only sample data", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add practitioner" }));
+  expect(screen.getByRole("textbox", { name: "Practitioner label" })).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  expect(screen.queryByRole("textbox", { name: "Practitioner label" })).toBeNull();
+});
+
+test("offers existing generated anonymous IDs when creating another appointment", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = { ...structuredClone(RAW_SAMPLE_WORKSPACE), provenance: "owner-entered" as const };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(await screen.findByRole("button", { name: "Add appointment" }));
+
+  expect(screen.getByRole("option", { name: RAW_SAMPLE_WORKSPACE.appointments[0].anonymousClientId as string })).toBeDefined();
 });
 
 test("creates a persisted weekly appointment with generated identity and UTC time", async () => {
@@ -1266,11 +1321,20 @@ test("binds the active owner source to evidence-only dashboard actions", async (
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(screen.getByRole("button", { name: "Explore sample data" }));
   await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  expect(screen.getByRole("button", { name: "Use browser-only data for insights" })).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
 
   expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
   expect(screen.getByText(/Owner-entered records in this browser/)).toBeDefined();
-  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 1/ })).toBeDefined();
+  const appointmentsMetric = within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 1/ });
+  expect(appointmentsMetric).toBeDefined();
+  await user.click(appointmentsMetric);
+  const metricDetails = screen.getByRole("dialog", { name: "Appointments" });
+  expect(within(metricDetails).getByText(/Sep 7.*13, 2026/)).toBeDefined();
+  expect(within(metricDetails).getByText("Availability 7 of 7 days")).toBeDefined();
+  expect(within(metricDetails).getByText(/outside-availability/)).toBeDefined();
+  await user.click(within(metricDetails).getByRole("button", { name: "Close" }));
   await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
   expect(screen.getByRole("button", { name: "Mark reviewed" })).toBeDefined();
   expect(screen.queryByRole("button", { name: /Continue to draft/ })).toBeNull();
@@ -1284,4 +1348,51 @@ test("binds the active owner source to evidence-only dashboard actions", async (
   expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
   await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
   expect(screen.getByRole("button", { name: /Continue to draft/ })).toBeDefined();
+});
+
+test("keeps connected insights authoritative until the owner explicitly switches sources", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Return to owner data" }));
+  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(screen.queryByRole("combobox", { name: "Prototype state" })).toBeNull();
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Use connected data for insights" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  expect(screen.getByRole("combobox", { name: "Prototype state" })).toBeDefined();
+});
+
+test("updates dashboard appointment evidence immediately after an owner adds a record", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Use browser-only data for insights" }));
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "11:00");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+
+  expect(within(screen.getByRole("region", { name: "Weekly metrics" })).getByRole("button", { name: /Appointments 2/ })).toBeDefined();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(2);
 });

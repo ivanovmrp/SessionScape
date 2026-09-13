@@ -7,6 +7,7 @@ import {
   anonymousClientIdFromUuid,
   createPracticeWorkspaceRepository,
   getPracticeWeek,
+  getTodayLocalDate,
   isCancellationRefilled,
   parsePracticeWorkspace,
   resolveLocalDateTime,
@@ -294,6 +295,11 @@ test("builds Monday-through-Sunday practice weeks across clock changes", () => {
 test("moves practice weeks without drifting across month boundaries", () => {
   expect(shiftPracticeWeek("2026-09-07", -1)).toBe("2026-08-31");
   expect(shiftPracticeWeek("2026-09-07", 1)).toBe("2026-09-14");
+});
+
+test("derives today from the practice timezone instead of a fixed prototype date", () => {
+  expect(getTodayLocalDate("America/New_York", new Date("2027-01-02T02:00:00.000Z"))).toBe("2027-01-01");
+  expect(getTodayLocalDate("Asia/Tokyo", new Date("2027-01-02T02:00:00.000Z"))).toBe("2027-01-02");
 });
 
 test("counts a cancellation as refilled only by a later-created overlapping active appointment", () => {

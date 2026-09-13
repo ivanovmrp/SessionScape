@@ -372,6 +372,14 @@ const localPartsAt = (instant: number, timezone: string) => {
   };
 };
 
+export function getTodayLocalDate(timezone: string, now = new Date()) {
+  if (!isTimezone(timezone) || Number.isNaN(now.getTime())) {
+    throw new Error("A valid timezone and date are required");
+  }
+  const { year, month, day } = localPartsAt(now.getTime(), timezone);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export function resolveLocalDateTime(
   timezone: string,
   localDate: string,
