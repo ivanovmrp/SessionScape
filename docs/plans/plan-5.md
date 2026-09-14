@@ -95,5 +95,6 @@ Replace the fixed-only demonstration with a browser-local, owner-operated practi
 - 2026-09-13 (BL-012): availability boundaries and outside-hours validation share resolved-instant daylight-saving semantics; fixed connected fixtures retain their source period, and appointment definitions explicitly exclude no-shows.
 - 2026-09-13 (BL-012): repeated workspace validation caches deterministic timezone and local-time resolution results; without reuse, the expanded component suite crossed its per-test runtime gate.
 - 2026-09-13 (BL-013): timezone caching alone did not stabilize the full gate; workspace-to-dashboard derivation is memoized by source, week, and workspace instead of repeating on unrelated editor keystrokes.
+- 2026-09-13 (BL-013): both sample scenario selectors share one context-reset path so dismissed recommendations and open action state cannot leak into a newly selected scenario.
 
 ## Archived Specs
