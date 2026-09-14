@@ -39,5 +39,7 @@ Let a first-time owner save the minimum practitioner, service, availability, and
 
 - 2026-09-14 (plan): the first sketch's end-of-form sticky action could reproduce the invisible-Save defect; require a viewport-fixed action with reserved content space and smoke checks at 1440×900, 768×600, and 360×640.
 - 2026-09-14 (plan): setup completion must label and select the active editable source—owner or sample-derived—rather than hardcoding owner data.
+- 2026-09-14 (BL-019): browser verification found the catalog button selector overrode the primary background, producing white Save text on white; the catalog primary rule now sets the dark background explicitly.
+- 2026-09-14 (BL-019): the existing 360px navigation hid Practice data, blocking an uncoached mobile start; mobile navigation now retains Overview and Practice data.
 
 ## Archived Specs
