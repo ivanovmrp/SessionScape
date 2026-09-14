@@ -92,5 +92,6 @@ Replace the fixed-only demonstration with a browser-local, owner-operated practi
 - 2026-09-13 (BL-013): sample-derived evidence must name its own provenance, and partially outside-hours appointments count only their overlap with regular availability in both capacity metrics and opportunity intervals.
 - 2026-09-13 (BL-012): ledger component coverage now edits every appointment field, exercises no-show, and overwrites existing availability; removed the superseded BL-016 follow-up.
 - 2026-09-13 (BL-013): capacity availability and appointment overlaps use resolved instants rather than wall-clock subtraction so repeated and skipped daylight-saving hours retain real elapsed duration.
+- 2026-09-13 (BL-012): availability boundaries and outside-hours validation share resolved-instant daylight-saving semantics; fixed connected fixtures retain their source period, and appointment definitions explicitly exclude no-shows.
 
 ## Archived Specs
