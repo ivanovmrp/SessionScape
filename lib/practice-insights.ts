@@ -122,6 +122,26 @@ export function adaptPracticeWorkspaceToDashboardInput(
   const activePractitionerIds = new Set(
     workspace.practitioners.filter(({ active }) => active).map(({ id }) => id),
   );
+  const resolvedAvailabilityInterval = (
+    availability: PracticeWorkspace["availability"][number],
+  ) => {
+    if (availability.closed) return null;
+    const startAt = resolveLocalDateTime(
+      workspace.timezone,
+      availability.localDate,
+      availability.startMinute,
+      "earlier",
+    );
+    const endAt = resolveLocalDateTime(
+      workspace.timezone,
+      availability.localDate,
+      availability.endMinute,
+      "later",
+    );
+    if (!startAt.ok || !endAt.ok) return null;
+    const interval = { start: Date.parse(startAt.value), end: Date.parse(endAt.value) };
+    return interval.end > interval.start ? interval : null;
+  };
 
   const availabilityHoursByDate = new Map(dates.map((localDate) => [
     localDate,
@@ -129,9 +149,10 @@ export function adaptPracticeWorkspaceToDashboardInput(
       .filter((record) =>
         record.localDate === localDate && activePractitionerIds.has(record.practitionerId),
       )
-      .reduce((total, record) => record.closed
-        ? total
-        : total + (record.endMinute - record.startMinute) / 60, 0),
+      .reduce((total, record) => {
+        const interval = resolvedAvailabilityInterval(record);
+        return total + (interval ? (interval.end - interval.start) / 3_600_000 : 0);
+      }, 0),
   ]));
   const insideAvailability = (record: AppointmentRecord) => {
     const startLocal = localParts(record.startAt, workspace.timezone);
@@ -148,23 +169,17 @@ export function adaptPracticeWorkspaceToDashboardInput(
     );
   };
   const minutesInsideAvailability = (record: AppointmentRecord) => {
-    const startLocal = localParts(record.startAt, workspace.timezone);
-    const endLocal = localParts(
-      new Date(Date.parse(record.startAt) + record.durationMinutes * 60_000).toISOString(),
-      workspace.timezone,
-    );
-    if (startLocal.localDate !== endLocal.localDate) return 0;
+    const recordStart = Date.parse(record.startAt);
+    const recordEnd = recordStart + record.durationMinutes * 60_000;
     return workspace.availability.reduce((total, availability) => {
       if (
         availability.closed ||
-        availability.practitionerId !== record.practitionerId ||
-        availability.localDate !== startLocal.localDate
+        availability.practitionerId !== record.practitionerId
       ) return total;
-      return total + Math.max(
-        0,
-        Math.min(endLocal.minute, availability.endMinute) -
-          Math.max(startLocal.minute, availability.startMinute),
-      );
+      const interval = resolvedAvailabilityInterval(availability);
+      return total + (interval
+        ? Math.max(0, Math.min(recordEnd, interval.end) - Math.max(recordStart, interval.start)) / 60_000
+        : 0);
     }, 0);
   };
   const bookedByDate = new Map(dates.map((localDate) => [
@@ -206,26 +221,25 @@ export function adaptPracticeWorkspaceToDashboardInput(
     const hourlyValueCents = median(rates);
     return workspace.availability.flatMap((availability) => {
       if (availability.closed || availability.practitionerId !== practitioner.id || !dates.includes(availability.localDate)) return [];
+      const regularInterval = resolvedAvailabilityInterval(availability);
+      if (!regularInterval) return [];
       const booked = activeSelected
         .filter((record) => record.practitionerId === practitioner.id)
-        .flatMap((record) => {
-          const recordStart = localParts(record.startAt, workspace.timezone);
-          const recordEnd = localParts(new Date(Date.parse(record.startAt) + record.durationMinutes * 60_000).toISOString(), workspace.timezone);
-          return recordStart.localDate === availability.localDate && recordEnd.localDate === availability.localDate
-            ? [{ start: recordStart.minute, end: recordEnd.minute }]
-            : [];
-        });
+        .map((record) => ({
+          start: Date.parse(record.startAt),
+          end: Date.parse(record.startAt) + record.durationMinutes * 60_000,
+        }));
       return removeBookedIntervals(
-        { start: availability.startMinute, end: availability.endMinute },
+        regularInterval,
         booked,
       ).flatMap((open) => {
-        const durationMinutes = open.end - open.start;
-        const resolved = resolveLocalDateTime(workspace.timezone, availability.localDate, open.start, "earlier");
+        const durationMinutes = (open.end - open.start) / 60_000;
         const estimatedCents = Math.floor(hourlyValueCents * durationMinutes / 60);
-        if (!resolved.ok || durationMinutes < 120 || Date.parse(resolved.value) < evaluationAt + 48 * 60 * 60_000 || estimatedCents <= 15_000) return [];
+        if (durationMinutes < 120 || open.start < evaluationAt + 48 * 60 * 60_000 || estimatedCents <= 15_000) return [];
         const serviceHours = Number((durationMinutes / 60).toFixed(2));
+        const openStartMinute = localParts(new Date(open.start).toISOString(), workspace.timezone).minute;
         return [ownerReviewOpportunity({
-          id: `capacity-${practitioner.id}-${availability.localDate}-${open.start}`,
+          id: `capacity-${practitioner.id}-${availability.localDate}-${openStartMinute}`,
           estimatedCents,
           type: "capacity",
           kicker: "OPEN CAPACITY",

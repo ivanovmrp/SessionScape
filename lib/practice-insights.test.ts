@@ -221,6 +221,82 @@ test("counts only the in-availability portion of an outside-hours appointment", 
   });
 });
 
+test("uses elapsed time across the repeated hour for capacity and opportunity intervals", () => {
+  const workspace = workspaceForWeek();
+  const practitionerId = workspace.practitioners[0].id;
+  workspace.availability = ["26", "27", "28", "29", "30", "31"].map((day) => ({
+    id: `availability_oct${day}000001`,
+    practitionerId,
+    localDate: `2026-10-${day}`,
+    closed: true as const,
+  }));
+  workspace.availability.push({
+    id: "availability_nov01000001",
+    practitionerId,
+    localDate: "2026-11-01",
+    closed: false,
+    startMinute: 60,
+    endMinute: 180,
+  });
+  workspace.appointments = [
+    ...[1, 2, 3].map((day) => ({
+      ...workspace.appointments[1],
+      id: `appointment_dsthistory${day}`,
+      startAt: `2026-08-0${day}T14:00:00.000Z`,
+      durationMinutes: 60,
+      valueCents: 12_000,
+      createdAt: "2026-07-01T12:00:00.000Z",
+      statusChangedAt: `2026-08-0${day}T15:00:00.000Z`,
+    })),
+    {
+      ...workspace.appointments[0],
+      id: "appointment_repeatedhour1",
+      startAt: "2026-11-01T05:30:00.000Z",
+      durationMinutes: 60,
+      createdAt: "2026-10-20T12:00:00.000Z",
+      statusChangedAt: "2026-10-20T12:00:00.000Z",
+    },
+  ];
+  const week = getPracticeWeek(workspace.timezone, "2026-11-01");
+  const input = adaptPracticeWorkspaceToDashboardInput(workspace, week, {
+    evaluationAt: "2026-10-26T12:00:00.000Z",
+  });
+
+  expect(input.capacity).toMatchObject({ bookedHours: 1, openHours: 2 });
+  expect(input.opportunities.some(({ type }) => type === "capacity")).toBe(false);
+});
+
+test("uses elapsed time across the spring-forward gap for capacity", () => {
+  const workspace = workspaceForWeek();
+  const practitionerId = workspace.practitioners[0].id;
+  workspace.availability = ["02", "03", "04", "05", "06", "07"].map((day) => ({
+    id: `availability_mar${day}000001`,
+    practitionerId,
+    localDate: `2026-03-${day}`,
+    closed: true as const,
+  }));
+  workspace.availability.push({
+    id: "availability_mar08000001",
+    practitionerId,
+    localDate: "2026-03-08",
+    closed: false,
+    startMinute: 60,
+    endMinute: 240,
+  });
+  workspace.appointments = [{
+    ...workspace.appointments[0],
+    id: "appointment_springgap001",
+    startAt: "2026-03-08T06:30:00.000Z",
+    durationMinutes: 60,
+    createdAt: "2026-03-01T12:00:00.000Z",
+    statusChangedAt: "2026-03-01T12:00:00.000Z",
+  }];
+  const week = getPracticeWeek(workspace.timezone, "2026-03-08");
+  const input = adaptPracticeWorkspaceToDashboardInput(workspace, week);
+
+  expect(input.capacity).toMatchObject({ bookedHours: 1, openHours: 1 });
+});
+
 test.each([
   { hourlyValueCents: 7438, endMinute: 901, estimatedCents: 14999, surfaced: false },
   { hourlyValueCents: 7500, endMinute: 900, estimatedCents: 15000, surfaced: false },
