@@ -1062,6 +1062,155 @@ test("creates, renames, and deactivates a practitioner in the owner catalog", as
   expect(screen.getByText("No active practitioners")).toBeDefined();
 });
 
+test("guides an empty owner workspace through the required setup order", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  const guide = screen.getByRole("region", { name: "Practice setup" });
+  expect(within(guide).getByRole("button", { name: "Set up practitioner" }).getAttribute("aria-current")).toBe("step");
+  expect(within(guide).getByRole("button", { name: "Set up service" }).hasAttribute("disabled")).toBe(true);
+  expect(within(guide).getByText("Save a practitioner first.")).toBeDefined();
+
+  await user.click(within(guide).getByRole("button", { name: "Set up practitioner" }));
+  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Practitioner label" }));
+  expect(screen.getByRole("button", { name: "Save practitioner and continue" })).toBeDefined();
+});
+
+test("advances each successful guided save through appointment completion", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  await user.click(within(screen.getByRole("region", { name: "Practice setup" })).getByRole("button", { name: "Set up practitioner" }));
+  await user.click(screen.getByRole("button", { name: "Save practitioner and continue" }));
+  expect(screen.getByRole("textbox", { name: "Practitioner label" })).toBeDefined();
+  expect(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner)).toBeNull();
+  await user.type(screen.getByRole("textbox", { name: "Practitioner label" }), "Maya");
+  await user.click(screen.getByRole("button", { name: "Save practitioner and continue" }));
+
+  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Service label" }));
+  await user.click(screen.getByRole("button", { name: "Save service and continue" }));
+  expect(screen.getByRole("textbox", { name: "Service label" })).toBeDefined();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").services).toHaveLength(0);
+  await user.type(screen.getByRole("textbox", { name: "Service label" }), "Deep tissue");
+  await user.type(screen.getByRole("spinbutton", { name: "Default duration in minutes" }), "60");
+  await user.type(screen.getByRole("spinbutton", { name: "Default value in cents" }), "11000");
+  await user.click(screen.getByRole("button", { name: "Save service and continue" }));
+
+  expect(screen.getByRole("tab", { name: "Availability" }).getAttribute("aria-selected")).toBe("true");
+  expect(document.activeElement).toBe(screen.getByLabelText("Availability start time"));
+  expect(screen.getAllByText("Mon Sep 7").length).toBeGreaterThan(0);
+  await user.type(screen.getByLabelText("Availability start time"), "17:00");
+  await user.type(screen.getByLabelText("Availability end time"), "09:00");
+  await user.click(screen.getByRole("button", { name: "Save availability and continue" }));
+  expect(screen.getByLabelText("Availability start time")).toBeDefined();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").availability).toHaveLength(0);
+  await user.clear(screen.getByLabelText("Availability start time"));
+  await user.clear(screen.getByLabelText("Availability end time"));
+  await user.type(screen.getByLabelText("Availability start time"), "09:00");
+  await user.type(screen.getByLabelText("Availability end time"), "17:00");
+  await user.click(screen.getByRole("button", { name: "Save availability and continue" }));
+
+  expect(screen.getByRole("tab", { name: "Appointments" }).getAttribute("aria-selected")).toBe("true");
+  expect(document.activeElement).toBe(screen.getByLabelText("Appointment date"));
+  await user.click(screen.getByRole("button", { name: "Save appointment and continue" }));
+  expect(screen.getByLabelText("Appointment date")).toBeDefined();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(0);
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "10:00");
+  await user.click(screen.getByRole("button", { name: "Save appointment and continue" }));
+
+  expect(screen.getByRole("region", { name: "Practice setup complete" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Use owner data for insights" })).toBeDefined();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(1);
+
+  const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+  await user.click(screen.getByRole("button", { name: "Use owner data for insights" }));
+  expect(screen.getByRole("region", { name: "Practice setup complete" })).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "Use owner data for insights" }));
+  expect(confirm).toHaveBeenCalledTimes(2);
+  expect(screen.getByText("Owner-entered practice data")).toBeDefined();
+});
+
+test("keeps a guided draft on the current step when persistence fails", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(within(screen.getByRole("region", { name: "Practice setup" })).getByRole("button", { name: "Set up practitioner" }));
+  await user.type(screen.getByRole("textbox", { name: "Practitioner label" }), "Maya");
+  const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota exceeded"); });
+  await user.click(screen.getByRole("button", { name: "Save practitioner and continue" }));
+
+  expect(screen.getByRole("textbox", { name: "Practitioner label" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Save practitioner and continue" })).toBeDefined();
+  expect(screen.queryByRole("textbox", { name: "Service label" })).toBeNull();
+  expect((await screen.findByRole("alert")).textContent).toContain("not persisted");
+
+  setItem.mockRestore();
+  await user.click(screen.getByRole("button", { name: "Save practitioner and continue" }));
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").practitioners).toHaveLength(1);
+});
+
+test("resumes a partial workspace at availability and treats closed days as incomplete", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    availability: Array.from({ length: 7 }, (_, index) => ({
+      id: `availability_closed00${index}`,
+      practitionerId: RAW_SAMPLE_WORKSPACE.practitioners[0].id,
+      localDate: `2026-09-${String(7 + index).padStart(2, "0")}`,
+      closed: true as const,
+    })),
+    appointments: [],
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  const guide = await screen.findByRole("region", { name: "Practice setup" });
+  const availabilityStep = within(guide).getByRole("button", { name: "Set up availability" });
+  expect(availabilityStep.getAttribute("aria-current")).toBe("step");
+  expect(within(guide).getAllByText("Complete")).toHaveLength(2);
+  await user.click(availabilityStep);
+  expect(screen.getAllByText("Mon Sep 7").length).toBeGreaterThan(0);
+  expect(document.activeElement).toBe(screen.getByLabelText("Closed all day"));
+});
+
+test("keeps globally completed setup complete when another week is selected", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = { ...structuredClone(RAW_SAMPLE_WORKSPACE), provenance: "owner-entered" as const };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(await screen.findByRole("heading", { name: "Practice setup complete" })).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Next week" }));
+  expect(screen.getByRole("heading", { name: "Practice setup complete" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Add practitioner" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Add service" })).toBeDefined();
+});
+
+test("labels completion for the active sample-derived source", async () => {
+  const user = userEvent.setup();
+  const sampleDerivedWorkspace = { ...structuredClone(RAW_SAMPLE_WORKSPACE), appointments: [] };
+  window.localStorage.setItem(
+    PRACTICE_WORKSPACE_STORAGE_KEYS["sample-derived"],
+    JSON.stringify(sampleDerivedWorkspace),
+  );
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(await screen.findByRole("button", { name: "Open editable sample copy" }));
+  await user.click(within(screen.getByRole("region", { name: "Practice setup" })).getByRole("button", { name: "Set up appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "11:00");
+  await user.click(screen.getByRole("button", { name: "Save appointment and continue" }));
+
+  expect(screen.getByRole("button", { name: "Use sample-derived data for insights" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Use owner data for insights" })).toBeNull();
+});
+
 test("creates, edits, and deactivates a service with integer-cent defaults", async () => {
   const user = userEvent.setup();
   render(<Page />);
