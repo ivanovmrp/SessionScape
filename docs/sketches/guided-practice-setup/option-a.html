@@ -43,9 +43,11 @@
 <main>
   <section class="frame">
     <p class="label">Frame 1 · entry point: empty Owner-entered Practice Data</p>
-    <h1>Set up your practice data</h1>
-    <p>Complete these four steps to produce your first weekly insight. Your normal workspace stays available below.</p>
-    <div class="setup">
+    <div class="viewport">
+      <div class="viewport-scroll">
+      <h1>Set up your practice data</h1>
+      <p>Complete these four steps to produce your first weekly insight. Your normal workspace stays available below.</p>
+      <div class="setup">
       <ol class="steps">
         <li><button class="step current" aria-current="step"><strong>1. Practitioner</strong><small>Current step</small></button></li>
         <li><button class="step" disabled><strong>2. Service</strong><small>Needs a practitioner</small></button></li>
@@ -54,18 +56,22 @@
       </ol>
       <h2>Add your first practitioner</h2>
       <label>Privacy-safe practitioner label<input value="Alex Test"></label>
-      <div class="actions"><button>Cancel</button><button class="primary">Save practitioner and continue →</button></div>
       <span class="note">Implementation pins this action bar to the browser viewport while the guided form is open.</span>
+      </div>
+      <div class="workspace"><div class="panel"><h3>Appointments</h3><p>No appointments this week.</p></div><div class="panel"><h3>Practice catalogs</h3><p>No practitioners or services yet.</p></div></div>
+      </div>
+      <div class="fixed-actions"><button>Cancel</button><button class="primary">Save practitioner and continue →</button></div>
     </div>
-    <div class="workspace"><div class="panel"><h3>Appointments</h3><p>No appointments this week.</p></div><div class="panel"><h3>Practice catalogs</h3><p>No practitioners or services yet.</p></div></div>
   </section>
 
   <div class="arrow">↓ successful save advances</div>
 
   <section class="frame">
     <p class="label">Frame 2 · practitioner saved; service step opens automatically</p>
-    <div class="success"><strong>Alex Test saved.</strong> Continue with the service Alex provides.</div>
-    <div class="setup">
+    <div class="viewport">
+      <div class="viewport-scroll">
+      <div class="success"><strong>Alex Test saved.</strong> Continue with the service Alex provides.</div>
+      <div class="setup">
       <ol class="steps">
         <li><button class="step done"><strong>✓ Practitioner</strong><small>Alex Test</small></button></li>
         <li><button class="step current" aria-current="step"><strong>2. Service</strong><small>Current step</small></button></li>
@@ -75,7 +81,9 @@
       <h2>Add your first service</h2>
       <label>Service label<input value="Recovery Massage"></label>
       <div class="workspace"><label>Duration in minutes<input value="60"></label><label>Value in cents<input value="12000"></label></div>
-      <div class="actions"><button>Cancel</button><button class="primary">Save service and continue →</button></div>
+      </div>
+      </div>
+      <div class="fixed-actions"><button>Cancel</button><button class="primary">Save service and continue →</button></div>
     </div>
   </section>
 
@@ -111,12 +119,13 @@
   <div class="arrow">↓ persisted appointment completes setup; connected authority is not changed silently</div>
 
   <section class="frame">
-    <p class="label">Frame 4 · completion choice while connected data remains authoritative</p>
+    <p class="label">Frame 4 · source-aware completion choice while connected data remains authoritative</p>
     <div class="success"><strong>Practice setup complete.</strong> Your owner-entered records remain stored separately in this browser.</div>
     <div class="setup">
       <h2>Choose which insights to review</h2>
-      <p>Square insights are still authoritative. Switching requires the existing confirmation and labels the dashboard Owner-entered practice data.</p>
+      <p>Square insights are still authoritative. Switching requires the existing confirmation and uses the active editable source label.</p>
       <div class="actions"><button>Keep connected insights</button><button class="primary">Use owner data for insights →</button></div>
+      <p class="note">Sample-derived variant: “Use sample-derived data for insights.” It selects and labels sample-derived data, never owner data.</p>
       <span class="note">Reload resumes from globally saved progress; a completed owner is not re-coached each week.</span>
     </div>
   </section>
