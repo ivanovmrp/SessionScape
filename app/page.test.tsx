@@ -1062,6 +1062,22 @@ test("creates, renames, and deactivates a practitioner in the owner catalog", as
   expect(screen.getByText("No active practitioners")).toBeDefined();
 });
 
+test("keeps a normal first-record draft when persistence fails", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add practitioner" }));
+  await user.type(screen.getByRole("textbox", { name: "Practitioner label" }), "Maya");
+  const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("quota exceeded"); });
+
+  await user.click(screen.getByRole("button", { name: "Save practitioner" }));
+
+  expect((screen.getByRole("textbox", { name: "Practitioner label" }) as HTMLInputElement).value).toBe("Maya");
+  expect(within(screen.getByRole("region", { name: "Practice setup" })).getByRole("button", { name: "Set up practitioner" }).getAttribute("aria-current")).toBe("step");
+  expect((await screen.findByRole("alert")).textContent).toContain("not persisted");
+  setItem.mockRestore();
+});
+
 test("guides an empty owner workspace through the required setup order", async () => {
   const user = userEvent.setup();
   render(<Page />);
@@ -1072,7 +1088,9 @@ test("guides an empty owner workspace through the required setup order", async (
   expect(within(guide).getByRole("button", { name: "Set up service" }).hasAttribute("disabled")).toBe(true);
   expect(within(guide).getByText("Save a practitioner first.")).toBeDefined();
 
-  await user.click(within(guide).getByRole("button", { name: "Set up practitioner" }));
+  const practitionerStep = within(guide).getByRole("button", { name: "Set up practitioner" });
+  practitionerStep.focus();
+  await user.keyboard("{Enter}");
   expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Practitioner label" }));
   expect(screen.getByRole("button", { name: "Save practitioner and continue" })).toBeDefined();
 });
@@ -1100,7 +1118,7 @@ test("advances each successful guided save through appointment completion", asyn
 
   expect(screen.getByRole("tab", { name: "Availability" }).getAttribute("aria-selected")).toBe("true");
   expect(document.activeElement).toBe(screen.getByLabelText("Availability start time"));
-  expect(screen.getAllByText("Mon Sep 7").length).toBeGreaterThan(0);
+  expect(screen.getByLabelText("Availability start time").closest("form")?.textContent).toContain("Mon Sep 7");
   await user.type(screen.getByLabelText("Availability start time"), "17:00");
   await user.type(screen.getByLabelText("Availability end time"), "09:00");
   await user.click(screen.getByRole("button", { name: "Save availability and continue" }));
@@ -1173,9 +1191,18 @@ test("resumes a partial workspace at availability and treats closed days as inco
   const availabilityStep = within(guide).getByRole("button", { name: "Set up availability" });
   expect(availabilityStep.getAttribute("aria-current")).toBe("step");
   expect(within(guide).getAllByText("Complete")).toHaveLength(2);
-  await user.click(availabilityStep);
-  expect(screen.getAllByText("Mon Sep 7").length).toBeGreaterThan(0);
+  availabilityStep.focus();
+  await user.keyboard(" ");
+  expect(screen.getByLabelText("Closed all day").closest("form")?.textContent).toContain("Mon Sep 7");
   expect(document.activeElement).toBe(screen.getByLabelText("Closed all day"));
+
+  await user.click(screen.getByLabelText("Closed all day"));
+  await user.type(screen.getByLabelText("Availability start time"), "09:00");
+  await user.type(screen.getByLabelText("Availability end time"), "17:00");
+  await user.click(screen.getByRole("button", { name: "Save availability and continue" }));
+
+  expect(screen.getByRole("tab", { name: "Appointments" }).getAttribute("aria-selected")).toBe("true");
+  expect(document.activeElement).toBe(screen.getByLabelText("Appointment date"));
 });
 
 test("keeps globally completed setup complete when another week is selected", async () => {

@@ -119,4 +119,13 @@ Give practitioners without a supported booking platform a manual data source, an
   4. Completed setup offers an explicit source-aware dashboard choice: connected insights remain authoritative unless the owner confirms switching to the currently active, correctly labeled owner-entered or sample-derived insights. Reloading or changing source/week safely resumes at the globally first incomplete saved step; completed/existing workspaces are not re-coached each week or forced through a wizard.
   5. Component tests cover progress derivation, native keyboard activation, focus, successful transitions, validation failure at every step, persistence failure, reload/resume, source authority, and preservation of existing records; a checked-in manual smoke checklist covers the uncoached journey at all three specified viewport sizes using synthetic data only.
 
+### BL-020 — Remove the single-use guided availability helper
+- **Status**: ready
+- **Priority · Effort**: P2 · S
+- **Dependencies**: BL-019
+- **Context**: `guidedAvailabilityTarget` has one caller and no independent test boundary, adding an abstraction before a second use exists. Source: review (Plan 6).
+- **Acceptance criteria**:
+  1. Guided availability target selection remains inline with its only caller unless a second concrete caller exists.
+  2. Existing component tests continue to prove first-missing-date selection and earliest-closed-date fallback behavior.
+
 ## Icebox

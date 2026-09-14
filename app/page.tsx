@@ -529,7 +529,8 @@ export default function Home() {
         ? practiceWorkspace.practitioners.map((item) => item.id === record.id ? nextRecord : item)
         : [...practiceWorkspace.practitioners, nextRecord];
       const nextWorkspace = { ...practiceWorkspace, practitioners };
-      if (saveActiveWorkspace(nextWorkspace, guidedStep === "practitioner")) {
+      const addsFirstActivePractitioner = !record && nextRecord.active && activePractitioners.length === 0;
+      if (saveActiveWorkspace(nextWorkspace, guidedStep === "practitioner" || addsFirstActivePractitioner)) {
         if (!record && guidedStep === "practitioner" && activePractitioners.length === 0) openGuidedService();
         else setCatalogEditor(null);
       }
@@ -550,7 +551,8 @@ export default function Home() {
       ? practiceWorkspace.services.map((item) => item.id === record.id ? nextRecord : item)
       : [...practiceWorkspace.services, nextRecord];
     const nextWorkspace = { ...practiceWorkspace, services };
-    if (saveActiveWorkspace(nextWorkspace, guidedStep === "service")) {
+    const addsFirstActiveService = !record && nextRecord.active && activeServices.length === 0;
+    if (saveActiveWorkspace(nextWorkspace, guidedStep === "service" || addsFirstActiveService)) {
       if (!record && guidedStep === "service" && activeServices.length === 0) beginGuidedAvailability(nextWorkspace);
       else setCatalogEditor(null);
     }
@@ -719,7 +721,11 @@ export default function Home() {
     const appointments = previous
       ? practiceWorkspace.appointments.map((item) => item.id === previous.id ? record : item)
       : [...practiceWorkspace.appointments, record];
-    if (saveActiveWorkspace({ ...practiceWorkspace, appointments }, guidedStep === "appointment")) {
+    const addsFirstAppointment = !previous && practiceWorkspace.appointments.length === 0;
+    if (saveActiveWorkspace(
+      { ...practiceWorkspace, appointments },
+      guidedStep === "appointment" || addsFirstAppointment,
+    )) {
       setAppointmentEditor(null);
       setAppointmentError("");
       setOutsideHoursPending(false);
@@ -804,10 +810,15 @@ export default function Home() {
       return;
     }
     const nextWorkspace = { ...practiceWorkspace, availability };
-    if (saveActiveWorkspace(nextWorkspace, guidedStep === "availability")) {
-      if (!previous && guidedStep === "availability" && !record.closed
-        && !practiceWorkspace.availability.some((item) => !item.closed
-          && activePractitioners.some(({ id }) => id === item.practitionerId))) {
+    const addsFirstOpenAvailability = !record.closed
+      && activePractitioners.some(({ id }) => id === record.practitionerId)
+      && !practiceWorkspace.availability.some((item) => !item.closed
+        && activePractitioners.some(({ id }) => id === item.practitionerId));
+    if (saveActiveWorkspace(
+      nextWorkspace,
+      guidedStep === "availability" || addsFirstOpenAvailability,
+    )) {
+      if (guidedStep === "availability" && addsFirstOpenAvailability) {
         setAvailabilityError("");
         beginGuidedAppointment(nextWorkspace);
       } else if (guidedStep === "availability" && record.closed) {
