@@ -336,6 +336,19 @@ export default function Home() {
     setSurface(nextSurface);
   };
 
+  const changeScenario = (nextScenario: DataScenario) => {
+    restoreMetricFocusRef.current = false;
+    restoreOpportunityFocusRef.current = false;
+    setScenario(nextScenario);
+    setDismissed([]);
+    setActiveMetric(null);
+    setActiveOpportunity(null);
+    setActionStage("evidence");
+    setDraft("");
+    setAudienceId("eligible");
+    setApprovalSnapshot(null);
+  };
+
   const changePracticeSource = (nextSource: PracticeSource) => {
     restoreMetricFocusRef.current = false;
     restoreOpportunityFocusRef.current = false;
@@ -816,7 +829,7 @@ export default function Home() {
         {Object.entries(storageAlerts).map(([key, message]) => <div className="storage-alert" role="alert" key={key}>{message}</div>)}
         <header className="topbar">
           <div><p>Private practice workspace</p><h1>Practice data</h1></div>
-          {practiceSource === "sample" && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => setScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
+          {practiceSource === "sample" && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => changeScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
         </header>
 
         <div className="week-toolbar">
@@ -981,7 +994,7 @@ export default function Home() {
         <header className="topbar">
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
-            {sampleDashboard && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { restoreMetricFocusRef.current = false; restoreOpportunityFocusRef.current = false; setScenario(event.target.value as DataScenario); setDismissed([]); setActiveMetric(null); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
+            {sampleDashboard && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => changeScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
             <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{fixture.capacityMetric.period}<Icon name="chevron" size={15} /></button>
           </div>
         </header>

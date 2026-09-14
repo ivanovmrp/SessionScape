@@ -570,6 +570,31 @@ test("changing scenarios clears dismissed recommendations", async () => {
   expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
 });
 
+test("changing scenarios from Practice Data clears dismissed recommendations", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+  await user.click(screen.getAllByRole("button", { name: "Review action" })[0]);
+  await user.click(screen.getByRole("button", { name: "Dismiss recommendation" }));
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  await user.selectOptions(
+    screen.getByRole("combobox", { name: "Prototype state" }),
+    "stale",
+  );
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+
+  expect(
+    within(screen.getByRole("region", { name: "Activity" })).getByText(
+      "No dismissed recommendations",
+    ),
+  ).toBeDefined();
+  expect(screen.getAllByRole("button", { name: "Review action" })).toHaveLength(2);
+});
+
 test("opens a separate empty owner practice workspace with a truthful source label", async () => {
   const user = userEvent.setup();
   render(<Page />);
