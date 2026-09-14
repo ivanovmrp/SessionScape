@@ -26,3 +26,9 @@ Completed plans and releases are indexed here.
 
 - Added a real Activity recovery path that derives dismissed records from the same opportunity data and keeps cards, counts, and totals deduplicated through repeated dismissal and restoration.
 - Established a single-active-modal focus lifecycle for both dashboard drawers, including stage-aware initial focus, contained keyboard navigation, and safe focus return across every close and context-change path.
+
+## Plan 5 — Make the prototype respond to owner-entered data (2026-09-14)
+
+- Added separate browser-local owner and sample-derived workspaces with strict redacted schemas, recoverable storage, and connected-provider authority without cross-source merging.
+- Established a ledger-first Practice Data flow for privacy-safe catalogs, weekly availability, appointments, lifecycle status, anonymous returning-client IDs, and time-zone-aware validation across daylight-saving boundaries.
+- Adapted raw practice records through the existing dashboard calculation boundary so metrics, evidence, unavailable states, and owner-only recommendations reconcile without weakening provider, outreach, booking, payment, or value-truthfulness boundaries.

@@ -1,5 +1,5 @@
 # Plan 5: Make the prototype respond to owner-entered data
-Status: IN PROGRESS
+Status: COMPLETE
 Advances: Owners without a supported booking integration can enter redacted practice records and see weekly metrics and recommendations respond, making prototype validation meaningful.
 
 ## Goal
@@ -99,3 +99,41 @@ Replace the fixed-only demonstration with a browser-local, owner-operated practi
 - 2026-09-14 (BL-011): ship review found source and week reset tests closed editors without proving the promised confirmation before discarding an in-progress draft.
 
 ## Archived Specs
+
+### BL-011 — Establish a local redacted practice workspace
+- **Status**: planned (Plan 5)
+- **Priority · Effort**: P0 · M
+- **Dependencies**: BL-002
+- **Sketches**: docs/sketches/manual-practice-data/option-b.html
+- **Context**: Replace fixed-only fixtures with an owner-controlled prototype workspace. Start browser-local to validate behavior before paying for account storage; reject identifiable or clinical fields rather than inviting unsafe test data.
+- **Acceptance criteria**:
+  1. The owner can start empty, explore read-only sample data, return to their unchanged owner workspace, or create a separately stored sample-derived workspace; replacing an existing sample-derived copy or clearing either editable workspace requires confirmation, and every active source is labeled.
+  2. The workspace includes minimal editable practitioner and service catalogs plus availability and appointment records with stable generated identifiers and the lifecycle metadata needed for editing and calculation. Deactivated catalog entries remain label-resolvable for historical appointments but cannot be selected for new or reassigned records. Returning-client links use only system-generated, format-constrained opaque identifiers selected from the workspace; no free-form client identifier or fields for client names, contact details, notes, health information, intake content, or payment-card data exist.
+  3. Owner-entered workspace data survives a browser reload on the same device, can be cleared in one deliberate action, and recovers safely from missing or invalid stored data.
+  4. Unit and component tests cover empty, sample, persisted, cleared, and invalid-data states without writing to an external service.
+
+### BL-012 — Make the weekly appointment ledger operable
+- **Status**: planned (Plan 5)
+- **Priority · Effort**: P0 · M
+- **Dependencies**: BL-011
+- **Sketches**: docs/sketches/manual-practice-data/option-b.html
+- **Context**: Make the existing date control lead to a ledger-first practice-data workspace rather than a decorative calendar. Weekly availability has its own tab so appointment editing stays focused. This is an internal appointment ledger, not client booking: owners maintain records and availability, but clients cannot book, reschedule, or pay. A calendar-first layout was rejected because it would imply a broader scheduling product.
+- **Acceptance criteria**:
+  1. The owner can move to the previous or next week and return to the current week, with the visible date range and ledger changing together in the practice time zone.
+  2. The owner can maintain and deactivate privacy-safe practitioner and service labels, then add and edit weekly availability plus appointment records by selecting active catalog entries and supplying date/time, duration, integer-cent value, status, and an optional existing system-generated anonymous returning-client identifier; deactivation preserves existing appointment labels and history.
+  3. The owner can mark an appointment scheduled, completed, cancelled, or no-show and can remove an erroneous record through a deliberate confirmation.
+  4. Invalid times, durations, values, and overlapping active appointments are blocked before saving; appointments outside recorded availability require an explicit owner override. Component tests cover creation, editing, status changes, deletion, week navigation, blocked validation, and the outside-hours override.
+
+### BL-013 — Derive dashboard opportunities from manual records
+- **Status**: planned (Plan 5)
+- **Priority · Effort**: P0 · M
+- **Dependencies**: BL-011, BL-012
+- **Sketches**: docs/sketches/manual-practice-data/option-b.html
+- **Context**: The prototype becomes useful for validation only when owner edits visibly change its metrics and recommendations. Reuse the existing calculation boundary and truthfulness rules; do not introduce a second manual-only dashboard path.
+- **Acceptance criteria**:
+  1. Saving, editing, completing, cancelling, or removing a manual appointment immediately reconciles the selected week's appointment, capacity, cancellation, and value displays from the workspace records.
+  2. Capacity and retention recommendations are derived only when the manual records contain the availability, status, and anonymous history required by their documented rules; otherwise the affected metric or recommendation shows an explicit unavailable reason.
+  3. Metric definitions and recommendation evidence identify the selected period, record coverage, exclusions, and whether the source is sample or owner-entered data without exposing individual records.
+  4. Calculation and component tests prove input-to-insight changes, insufficient-data behavior, repeated edits without duplicates, and continued separation of estimated, attributed, completed, and realized value.
+  5. Sample data retains its clearly representative provider handoff; owner-entered and sample-derived data stop at owner-only evidence review and expose no audience, draft, export, provider link, send, booking, or payment claim.
+  6. Manual and sample-derived records are active calculation sources only when no provider is connected; a future connected provider becomes authoritative without merging or deleting separately stored manual data.
