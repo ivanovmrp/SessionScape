@@ -13,8 +13,8 @@
     .label { margin: 0 0 8px; color: #555; font-size: 12px; font-weight: 700; text-transform: uppercase; }
     h1, h2, h3, p { margin-top: 0; }
     .setup { border: 2px solid #666; padding: 16px; }
-    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
-    .step { min-height: 72px; border: 1px solid #888; padding: 10px; }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; padding: 0; list-style: none; }
+    .step { width: 100%; min-height: 72px; border: 1px solid #888; padding: 10px; text-align: left; }
     .step.current { border: 3px solid #333; background: #f4f4f4; }
     .step.done { border-color: #287a42; }
     .step small { display: block; margin-top: 5px; color: #555; }
@@ -22,7 +22,10 @@
     .panel { min-height: 120px; border: 1px solid #888; padding: 14px; }
     label { display: grid; gap: 5px; margin: 10px 0; font-size: 13px; font-weight: 700; }
     input { width: 100%; border: 1px solid #777; padding: 10px; }
-    .actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #888; background: white; padding: 12px 0 0; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #888; background: white; padding: 12px 0 0; }
+    .viewport { position: relative; height: 430px; overflow: hidden; border: 3px solid #333; }
+    .viewport-scroll { height: 100%; overflow: auto; padding: 16px 16px 92px; }
+    .fixed-actions { position: absolute; z-index: 2; right: 0; bottom: 0; left: 0; display: flex; justify-content: flex-end; gap: 8px; border-top: 2px solid #555; background: white; padding: 14px 16px; box-shadow: 0 -5px 10px #aaa; }
     button { border: 1px solid #555; background: white; padding: 10px 14px; font-weight: 700; }
     button.primary { background: #333; color: white; }
     .arrow { margin: -18px 0 10px; text-align: center; font-size: 24px; }
@@ -31,7 +34,8 @@
     @media (max-width: 620px) {
       .steps, .workspace { grid-template-columns: 1fr; }
       .step { min-height: auto; }
-      .actions { box-shadow: 0 -4px 8px #bbb; }
+      .fixed-actions { justify-content: stretch; }
+      .fixed-actions button { flex: 1; }
     }
   </style>
 </head>
@@ -42,16 +46,16 @@
     <h1>Set up your practice data</h1>
     <p>Complete these four steps to produce your first weekly insight. Your normal workspace stays available below.</p>
     <div class="setup">
-      <div class="steps">
-        <div class="step current"><strong>1. Practitioner</strong><small>Current step</small></div>
-        <div class="step"><strong>2. Service</strong><small>Not started</small></div>
-        <div class="step"><strong>3. Availability</strong><small>Not started</small></div>
-        <div class="step"><strong>4. Appointment</strong><small>Not started</small></div>
-      </div>
+      <ol class="steps">
+        <li><button class="step current" aria-current="step"><strong>1. Practitioner</strong><small>Current step</small></button></li>
+        <li><button class="step" disabled><strong>2. Service</strong><small>Needs a practitioner</small></button></li>
+        <li><button class="step" disabled><strong>3. Availability</strong><small>Needs a service</small></button></li>
+        <li><button class="step" disabled><strong>4. Appointment</strong><small>Needs open availability</small></button></li>
+      </ol>
       <h2>Add your first practitioner</h2>
       <label>Privacy-safe practitioner label<input value="Alex Test"></label>
       <div class="actions"><button>Cancel</button><button class="primary">Save practitioner and continue →</button></div>
-      <span class="note">Primary action remains visible while the form is open.</span>
+      <span class="note">Implementation pins this action bar to the browser viewport while the guided form is open.</span>
     </div>
     <div class="workspace"><div class="panel"><h3>Appointments</h3><p>No appointments this week.</p></div><div class="panel"><h3>Practice catalogs</h3><p>No practitioners or services yet.</p></div></div>
   </section>
@@ -62,12 +66,12 @@
     <p class="label">Frame 2 · practitioner saved; service step opens automatically</p>
     <div class="success"><strong>Alex Test saved.</strong> Continue with the service Alex provides.</div>
     <div class="setup">
-      <div class="steps">
-        <div class="step done"><strong>✓ Practitioner</strong><small>Alex Test</small></div>
-        <div class="step current"><strong>2. Service</strong><small>Current step</small></div>
-        <div class="step"><strong>3. Availability</strong><small>Not started</small></div>
-        <div class="step"><strong>4. Appointment</strong><small>Not started</small></div>
-      </div>
+      <ol class="steps">
+        <li><button class="step done"><strong>✓ Practitioner</strong><small>Alex Test</small></button></li>
+        <li><button class="step current" aria-current="step"><strong>2. Service</strong><small>Current step</small></button></li>
+        <li><button class="step" disabled><strong>3. Availability</strong><small>Needs a service</small></button></li>
+        <li><button class="step" disabled><strong>4. Appointment</strong><small>Needs open availability</small></button></li>
+      </ol>
       <h2>Add your first service</h2>
       <label>Service label<input value="Recovery Massage"></label>
       <div class="workspace"><label>Duration in minutes<input value="60"></label><label>Value in cents<input value="12000"></label></div>
@@ -78,18 +82,42 @@
   <div class="arrow">↓ next: availability tab, then appointment editor</div>
 
   <section class="frame">
-    <p class="label">Frame 3 · resumed or completed setup</p>
-    <div class="setup">
-      <div class="steps">
-        <div class="step done"><strong>✓ Practitioner</strong><small>Complete</small></div>
-        <div class="step done"><strong>✓ Service</strong><small>Complete</small></div>
-        <div class="step done"><strong>✓ Availability</strong><small>Complete</small></div>
-        <div class="step current"><strong>4. Appointment</strong><small>Current step</small></div>
+    <p class="label">Frame 3 · narrow/short viewport simulation; appointment editor scrolls behind a fixed action bar</p>
+    <div class="viewport">
+      <div class="viewport-scroll">
+        <h1>Practice data</h1>
+        <div class="setup">
+          <ol class="steps">
+            <li><button class="step done"><strong>✓ Practitioner</strong><small>Complete</small></button></li>
+            <li><button class="step done"><strong>✓ Service</strong><small>Complete</small></button></li>
+            <li><button class="step done"><strong>✓ Availability</strong><small>Complete</small></button></li>
+            <li><button class="step current" aria-current="step"><strong>4. Appointment</strong><small>Current step</small></button></li>
+          </ol>
+          <h2>Add the first appointment</h2>
+          <label>Date<input value="2026-09-14"></label>
+          <label>Start time<input value="10:00"></label>
+          <label>Practitioner<input value="Alex Test"></label>
+          <label>Service<input value="Recovery Massage"></label>
+          <label>Duration in minutes<input value="60"></label>
+          <label>Value in cents<input value="12000"></label>
+          <label>Status<input value="Scheduled"></label>
+          <p class="note">Validation appears above the fixed bar and the scroll area reserves space beneath it.</p>
+        </div>
       </div>
-      <h2>Add the first appointment</h2>
-      <p>The existing appointment editor opens with Alex Test and Recovery Massage available. Saving completes setup and updates the dashboard.</p>
-      <button class="primary">Save appointment and view insights →</button>
-      <span class="note">Reload resumes at the first incomplete step. Existing records are never replaced.</span>
+      <div class="fixed-actions"><button>Cancel</button><button class="primary">Save appointment and continue →</button></div>
+    </div>
+  </section>
+
+  <div class="arrow">↓ persisted appointment completes setup; connected authority is not changed silently</div>
+
+  <section class="frame">
+    <p class="label">Frame 4 · completion choice while connected data remains authoritative</p>
+    <div class="success"><strong>Practice setup complete.</strong> Your owner-entered records remain stored separately in this browser.</div>
+    <div class="setup">
+      <h2>Choose which insights to review</h2>
+      <p>Square insights are still authoritative. Switching requires the existing confirmation and labels the dashboard Owner-entered practice data.</p>
+      <div class="actions"><button>Keep connected insights</button><button class="primary">Use owner data for insights →</button></div>
+      <span class="note">Reload resumes from globally saved progress; a completed owner is not re-coached each week.</span>
     </div>
   </section>
 </main>
