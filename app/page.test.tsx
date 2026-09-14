@@ -949,6 +949,25 @@ test("moves the practice ledger by whole local weeks and returns to today", asyn
   expect(screen.queryByRole("button", { name: /Edit appointment Mon Sep 14/ })).toBeNull();
 });
 
+test("confirms before discarding an appointment draft on a week change", async () => {
+  const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+  const ownerWorkspace = { ...structuredClone(RAW_SAMPLE_WORKSPACE), provenance: "owner-entered" as const };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(await screen.findByRole("button", { name: "Add appointment" }));
+  await user.click(screen.getByRole("button", { name: "Next week" }));
+  expect(screen.getByText("Sep 7–13, 2026")).toBeDefined();
+  expect(screen.getByRole("button", { name: "Save appointment" })).toBeDefined();
+
+  await user.click(screen.getByRole("button", { name: "Next week" }));
+  expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Save appointment" })).toBeNull();
+  expect(confirm).toHaveBeenCalledTimes(2);
+});
+
 test("selects the current local week after client hydration", async () => {
   vi.mocked(Date.now).mockReturnValue(Date.parse("2026-09-15T12:00:00.000Z"));
   const user = userEvent.setup();
@@ -1105,14 +1124,22 @@ test("keeps catalog editing controls out of read-only sample data", async () => 
   expect(screen.queryByRole("button", { name: "Add service" })).toBeNull();
 });
 
-test("closes an owner catalog editor when switching to read-only sample data", async () => {
+test("confirms before discarding an owner catalog draft on a source change", async () => {
   const user = userEvent.setup();
+  const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
   render(<Page />);
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   await user.click(screen.getByRole("button", { name: "Add practitioner" }));
-  expect(screen.getByRole("textbox", { name: "Practitioner label" })).toBeDefined();
+  await user.type(screen.getByRole("textbox", { name: "Practitioner label" }), "Unsaved practitioner");
+
+  await user.click(screen.getByRole("button", { name: "Explore sample data" }));
+  expect((screen.getByRole("textbox", { name: "Practitioner label" }) as HTMLInputElement).value).toBe("Unsaved practitioner");
+  expect(screen.getByRole("heading", { name: "Owner-entered data" })).toBeDefined();
+
   await user.click(screen.getByRole("button", { name: "Explore sample data" }));
   expect(screen.queryByRole("textbox", { name: "Practitioner label" })).toBeNull();
+  expect(screen.getByText("Sample data · read only")).toBeDefined();
+  expect(confirm).toHaveBeenCalledTimes(2);
 });
 
 test("offers existing generated anonymous IDs when creating another appointment", async () => {

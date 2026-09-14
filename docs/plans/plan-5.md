@@ -96,5 +96,6 @@ Replace the fixed-only demonstration with a browser-local, owner-operated practi
 - 2026-09-13 (BL-012): repeated workspace validation caches deterministic timezone and local-time resolution results; without reuse, the expanded component suite crossed its per-test runtime gate.
 - 2026-09-13 (BL-013): timezone caching alone did not stabilize the full gate; workspace-to-dashboard derivation is memoized by source, week, and workspace instead of repeating on unrelated editor keystrokes.
 - 2026-09-13 (BL-013): both sample scenario selectors share one context-reset path so dismissed recommendations and open action state cannot leak into a newly selected scenario.
+- 2026-09-14 (BL-011): ship review found source and week reset tests closed editors without proving the promised confirmation before discarding an in-progress draft.
 
 ## Archived Specs

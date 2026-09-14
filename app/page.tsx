@@ -349,7 +349,13 @@ export default function Home() {
     setApprovalSnapshot(null);
   };
 
+  const confirmDiscardPracticeDraft = () => (
+    (!catalogEditor && !appointmentEditor && !availabilityEditor)
+    || window.confirm("Discard unsaved practice-data changes?")
+  );
+
   const changePracticeSource = (nextSource: PracticeSource) => {
+    if (!confirmDiscardPracticeDraft()) return false;
     restoreMetricFocusRef.current = false;
     restoreOpportunityFocusRef.current = false;
     setActiveMetric(null);
@@ -373,6 +379,7 @@ export default function Home() {
       setSelectedWeekDate(RAW_SAMPLE_WORKSPACE.availability[0].localDate);
     }
     if (dashboardSource !== "connected") setDashboardSource(nextSource);
+    return true;
   };
 
   const disconnectConnectedInsights = () => {
@@ -723,8 +730,9 @@ export default function Home() {
   };
 
   const movePracticeWeek = (weeks: number) => {
-    changePracticeSource(practiceSource);
-    setSelectedWeekDate(shiftPracticeWeek(practiceWeek.startLocalDate, weeks));
+    if (changePracticeSource(practiceSource)) {
+      setSelectedWeekDate(shiftPracticeWeek(practiceWeek.startLocalDate, weeks));
+    }
   };
 
   const clearWorkspace = (slot: WorkspaceSlot) => {
@@ -836,7 +844,7 @@ export default function Home() {
           <button aria-label="Previous week" onClick={() => movePracticeWeek(-1)}>←</button>
           <strong>{practiceWeek.label}</strong>
           <button aria-label="Next week" onClick={() => movePracticeWeek(1)}>→</button>
-          <button onClick={() => { changePracticeSource(practiceSource); setSelectedWeekDate(getTodayLocalDate(practiceWorkspace.timezone)); }}>Today</button>
+          <button onClick={() => { if (changePracticeSource(practiceSource)) setSelectedWeekDate(getTodayLocalDate(practiceWorkspace.timezone)); }}>Today</button>
         </div>
 
         <section className="practice-workspace panel">
