@@ -214,7 +214,7 @@ export function deriveDashboard(
         change: `+${appointmentTotal - input.appointments.previousTotal}`,
         context: `${input.appointments.confirmed} confirmed · ${input.appointments.completed} completed${stale ? " · stale" : ""}`,
         formula:
-          "Count of non-cancelled appointments whose start time falls in the selected week.",
+          "Count of scheduled and completed appointments whose start time falls in the selected week; cancelled and no-show records are excluded.",
         state: supportedState,
       },
       {

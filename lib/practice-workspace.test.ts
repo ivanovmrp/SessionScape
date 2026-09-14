@@ -132,6 +132,16 @@ test("rejects invalid money, identifiers, timezones, and lifecycle order", () =>
   const impossibleDate = clone(validWorkspace());
   impossibleDate.availability[0].localDate = "2026-02-30";
   expect(parsePracticeWorkspace(impossibleDate)).toMatchObject({ ok: false });
+
+  const daylightSavingGap = clone(validWorkspace());
+  daylightSavingGap.availability[0] = {
+    ...daylightSavingGap.availability[0],
+    localDate: "2026-03-08",
+    closed: false,
+    startMinute: 150,
+    endMinute: 240,
+  };
+  expect(parsePracticeWorkspace(daylightSavingGap)).toMatchObject({ ok: false });
 });
 
 test("requires cancellation metadata only for cancelled appointments", () => {
@@ -406,4 +416,32 @@ test("validates appointment week, overlap, active assignment, and regular hours"
   inactive.practitioners[0].active = false;
   expect(validateAppointmentSave(inactive, candidate, week)).toEqual({ ok: false, error: "inactive-assignment" });
   expect(validateAppointmentSave(inactive, inactive.appointments[0], week)).toEqual({ ok: true });
+});
+
+test("validates repeated-hour availability by resolved instants", () => {
+  const workspace = validWorkspace();
+  workspace.availability = [{
+    id: "availability_nov01000001",
+    practitionerId: workspace.practitioners[0].id,
+    localDate: "2026-11-01",
+    closed: false,
+    startMinute: 105,
+    endMinute: 120,
+  }];
+  workspace.appointments = [];
+  const candidate = {
+    ...validWorkspace().appointments[0],
+    id: "appointment_laterrepeat01",
+    status: "scheduled" as const,
+    startAt: "2026-11-01T06:30:00.000Z",
+    durationMinutes: 15,
+    createdAt: "2026-10-20T12:00:00.000Z",
+    statusChangedAt: "2026-10-20T12:00:00.000Z",
+  };
+
+  expect(validateAppointmentSave(
+    workspace,
+    candidate,
+    getPracticeWeek(workspace.timezone, "2026-11-01"),
+  )).toEqual({ ok: true });
 });

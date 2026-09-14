@@ -306,6 +306,9 @@ export function parsePracticeWorkspace(value: unknown): ParseResult {
     !hasUniqueIds(services) ||
     !hasUniqueIds(availability) ||
     !hasUniqueIds(appointments) ||
+    availability.some((record) =>
+      !record.closed && resolveAvailabilityInterval(value.timezone as string, record) === null
+    ) ||
     availability.some(({ practitionerId }) => !practitionerIds.has(practitionerId)) ||
     appointments.some(
       ({ practitionerId, serviceId }) =>
@@ -349,9 +352,12 @@ function parseExactLocalDate(localDate: string) {
   return date.toISOString().slice(0, 10) === localDate ? parts : null;
 }
 
+const localPartsFormatters = new Map<string, Intl.DateTimeFormat>();
+
 const localPartsAt = (instant: number, timezone: string) => {
-  const values = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
+  let formatter = localPartsFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", {
       timeZone: timezone,
       year: "numeric",
       month: "2-digit",
@@ -359,7 +365,11 @@ const localPartsAt = (instant: number, timezone: string) => {
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
-    }).formatToParts(instant).map(({ type, value }) => [type, value]),
+    });
+    localPartsFormatters.set(timezone, formatter);
+  }
+  const values = Object.fromEntries(
+    formatter.formatToParts(instant).map(({ type, value }) => [type, value]),
   );
   return {
     year: Number(values.year),
@@ -445,6 +455,28 @@ export function resolveLocalDateTime(
       ? repeatedCandidates[0]
       : repeatedCandidates[1],
   };
+}
+
+export function resolveAvailabilityInterval(
+  timezone: string,
+  availability: AvailabilityRecord,
+) {
+  if (availability.closed) return null;
+  const startAt = resolveLocalDateTime(
+    timezone,
+    availability.localDate,
+    availability.startMinute,
+    "earlier",
+  );
+  const endAt = resolveLocalDateTime(
+    timezone,
+    availability.localDate,
+    availability.endMinute,
+    "later",
+  );
+  if (!startAt.ok || !endAt.ok) return null;
+  const interval = { start: Date.parse(startAt.value), end: Date.parse(endAt.value) };
+  return interval.end > interval.start ? interval : null;
 }
 
 const shiftLocalDate = (localDate: string, days: number) => {
@@ -602,15 +634,15 @@ export function validateAppointmentSave(
 
   if (!options.outsideHoursOverride) {
     const localDate = `${startParts.year}-${String(startParts.month).padStart(2, "0")}-${String(startParts.day).padStart(2, "0")}`;
-    const startMinute = startParts.hour * 60 + startParts.minute;
-    const endMinute = endParts.hour * 60 + endParts.minute;
-    const covered = workspace.availability.some((record) =>
-      record.practitionerId === candidate.practitionerId &&
-      record.localDate === localDate &&
-      !record.closed &&
-      record.startMinute <= startMinute &&
-      record.endMinute >= endMinute,
-    );
+    const covered = workspace.availability.some((record) => {
+      if (
+        record.practitionerId !== candidate.practitionerId ||
+        record.localDate !== localDate ||
+        record.closed
+      ) return false;
+      const interval = resolveAvailabilityInterval(workspace.timezone, record);
+      return interval !== null && interval.start <= start && interval.end >= end;
+    });
     if (!covered) return { ok: false, error: "outside-availability" };
   }
   return { ok: true };

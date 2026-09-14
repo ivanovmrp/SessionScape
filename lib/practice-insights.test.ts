@@ -263,6 +263,7 @@ test("uses elapsed time across the repeated hour for capacity and opportunity in
   });
 
   expect(input.capacity).toMatchObject({ bookedHours: 1, openHours: 2 });
+  expect(input.evidence.excluded.outsideAvailability).toBe(0);
   expect(input.opportunities.some(({ type }) => type === "capacity")).toBe(false);
 });
 

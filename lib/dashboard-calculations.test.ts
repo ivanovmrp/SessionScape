@@ -85,7 +85,7 @@ test("derives every current dashboard number from numeric source inputs", () => 
       change: "+4",
       context: "24 confirmed · 4 completed",
       formula:
-        "Count of non-cancelled appointments whose start time falls in the selected week.",
+        "Count of scheduled and completed appointments whose start time falls in the selected week; cancelled and no-show records are excluded.",
       state: "current",
     },
     {

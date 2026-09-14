@@ -667,7 +667,7 @@ export default function Home() {
       ? practiceWorkspace.availability.map((item) => item.id === previous.id ? record : item)
       : [...practiceWorkspace.availability, record];
     if (!parsePracticeWorkspace({ ...practiceWorkspace, availability }).ok) {
-      setAvailabilityError("Choose a start time before the end time, or mark the day closed.");
+      setAvailabilityError("Choose valid local times with the start before the end, or mark the day closed.");
       return;
     }
     if (saveActiveWorkspace({ ...practiceWorkspace, availability })) {
@@ -969,7 +969,7 @@ export default function Home() {
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
             {sampleDashboard && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => { restoreMetricFocusRef.current = false; restoreOpportunityFocusRef.current = false; setScenario(event.target.value as DataScenario); setDismissed([]); setActiveMetric(null); setActiveOpportunity(null); setActionStage("evidence"); setDraft(""); setAudienceId("eligible"); setApprovalSnapshot(null); }}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
-            <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{practiceWeek.label}<Icon name="chevron" size={15} /></button>
+            <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{fixture.capacityMetric.period}<Icon name="chevron" size={15} /></button>
           </div>
         </header>
 

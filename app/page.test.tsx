@@ -946,9 +946,11 @@ test("returns the fixed sample ledger to the sample fixture week", async () => {
 
 test("keeps the dashboard date control connected to the selected ledger week", async () => {
   const user = userEvent.setup();
+  vi.spyOn(window, "confirm").mockReturnValue(true);
   render(<Page />);
 
   await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Disconnect connected data and use browser-only insights" }));
   await user.click(screen.getByRole("button", { name: "Next week" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
 
@@ -957,6 +959,41 @@ test("keeps the dashboard date control connected to the selected ledger week", a
   await user.click(selectedWeek);
   expect(screen.getByRole("heading", { name: "Practice data" })).toBeDefined();
   expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
+});
+
+test("keeps fixed connected metrics labeled with their fixture week", async () => {
+  const user = userEvent.setup();
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Next week" }));
+  await user.click(screen.getByRole("link", { name: "Overview" }));
+
+  expect(screen.getByRole("button", { name: /Sep 7–13/ })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Sep 14–20/ })).toBeNull();
+});
+
+test("blocks availability boundaries inside a daylight-saving gap", async () => {
+  vi.mocked(Date.now).mockReturnValue(Date.parse("2026-03-02T12:00:00.000Z"));
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    availability: [],
+    appointments: [],
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("tab", { name: "Availability" }));
+  await user.click(screen.getByRole("button", { name: "Edit availability Sun Mar 8 for Maya" }));
+  await user.type(screen.getByLabelText("Availability start time"), "02:30");
+  await user.type(screen.getByLabelText("Availability end time"), "04:00");
+  await user.click(screen.getByRole("button", { name: "Save availability" }));
+
+  expect(screen.getByRole("alert").textContent).toMatch(/valid local times/i);
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").availability).toEqual([]);
 });
 
 test("creates, renames, and deactivates a practitioner in the owner catalog", async () => {

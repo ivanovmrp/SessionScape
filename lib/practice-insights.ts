@@ -3,7 +3,7 @@ import {
   getAvailabilityCoverage,
   getPracticeWeek,
   isCancellationRefilled,
-  resolveLocalDateTime,
+  resolveAvailabilityInterval,
   shiftPracticeWeek,
   type AppointmentRecord,
   type PracticeWeek,
@@ -122,27 +122,6 @@ export function adaptPracticeWorkspaceToDashboardInput(
   const activePractitionerIds = new Set(
     workspace.practitioners.filter(({ active }) => active).map(({ id }) => id),
   );
-  const resolvedAvailabilityInterval = (
-    availability: PracticeWorkspace["availability"][number],
-  ) => {
-    if (availability.closed) return null;
-    const startAt = resolveLocalDateTime(
-      workspace.timezone,
-      availability.localDate,
-      availability.startMinute,
-      "earlier",
-    );
-    const endAt = resolveLocalDateTime(
-      workspace.timezone,
-      availability.localDate,
-      availability.endMinute,
-      "later",
-    );
-    if (!startAt.ok || !endAt.ok) return null;
-    const interval = { start: Date.parse(startAt.value), end: Date.parse(endAt.value) };
-    return interval.end > interval.start ? interval : null;
-  };
-
   const availabilityHoursByDate = new Map(dates.map((localDate) => [
     localDate,
     workspace.availability
@@ -150,24 +129,10 @@ export function adaptPracticeWorkspaceToDashboardInput(
         record.localDate === localDate && activePractitionerIds.has(record.practitionerId),
       )
       .reduce((total, record) => {
-        const interval = resolvedAvailabilityInterval(record);
+        const interval = resolveAvailabilityInterval(workspace.timezone, record);
         return total + (interval ? (interval.end - interval.start) / 3_600_000 : 0);
       }, 0),
   ]));
-  const insideAvailability = (record: AppointmentRecord) => {
-    const startLocal = localParts(record.startAt, workspace.timezone);
-    const endLocal = localParts(
-      new Date(Date.parse(record.startAt) + record.durationMinutes * 60_000).toISOString(),
-      workspace.timezone,
-    );
-    return startLocal.localDate === endLocal.localDate && workspace.availability.some((availability) =>
-      !availability.closed &&
-      availability.practitionerId === record.practitionerId &&
-      availability.localDate === startLocal.localDate &&
-      availability.startMinute <= startLocal.minute &&
-      availability.endMinute >= endLocal.minute,
-    );
-  };
   const minutesInsideAvailability = (record: AppointmentRecord) => {
     const recordStart = Date.parse(record.startAt);
     const recordEnd = recordStart + record.durationMinutes * 60_000;
@@ -176,11 +141,23 @@ export function adaptPracticeWorkspaceToDashboardInput(
         availability.closed ||
         availability.practitionerId !== record.practitionerId
       ) return total;
-      const interval = resolvedAvailabilityInterval(availability);
+      const interval = resolveAvailabilityInterval(workspace.timezone, availability);
       return total + (interval
         ? Math.max(0, Math.min(recordEnd, interval.end) - Math.max(recordStart, interval.start)) / 60_000
         : 0);
     }, 0);
+  };
+  const insideAvailability = (record: AppointmentRecord) => {
+    const recordStart = Date.parse(record.startAt);
+    const recordEnd = recordStart + record.durationMinutes * 60_000;
+    return workspace.availability.some((availability) => {
+      if (
+        availability.closed ||
+        availability.practitionerId !== record.practitionerId
+      ) return false;
+      const interval = resolveAvailabilityInterval(workspace.timezone, availability);
+      return interval !== null && interval.start <= recordStart && interval.end >= recordEnd;
+    });
   };
   const bookedByDate = new Map(dates.map((localDate) => [
     localDate,
@@ -221,7 +198,7 @@ export function adaptPracticeWorkspaceToDashboardInput(
     const hourlyValueCents = median(rates);
     return workspace.availability.flatMap((availability) => {
       if (availability.closed || availability.practitionerId !== practitioner.id || !dates.includes(availability.localDate)) return [];
-      const regularInterval = resolvedAvailabilityInterval(availability);
+      const regularInterval = resolveAvailabilityInterval(workspace.timezone, availability);
       if (!regularInterval) return [];
       const booked = activeSelected
         .filter((record) => record.practitionerId === practitioner.id)
