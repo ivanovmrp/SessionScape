@@ -164,12 +164,18 @@ const isUtcInstant = (value: unknown): value is string =>
   !Number.isNaN(Date.parse(value)) &&
   new Date(value).toISOString() === value;
 
+const timezoneValidity = new Map<string, boolean>();
+
 const isTimezone = (value: unknown) => {
   if (typeof value !== "string") return false;
+  const cached = timezoneValidity.get(value);
+  if (cached !== undefined) return cached;
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    timezoneValidity.set(value, true);
     return true;
   } catch {
+    timezoneValidity.set(value, false);
     return false;
   }
 };
@@ -353,6 +359,7 @@ function parseExactLocalDate(localDate: string) {
 }
 
 const localPartsFormatters = new Map<string, Intl.DateTimeFormat>();
+const localTimeCandidates = new Map<string, string[]>();
 
 const localPartsAt = (instant: number, timezone: string) => {
   let formatter = localPartsFormatters.get(timezone);
@@ -408,32 +415,37 @@ export function resolveLocalDateTime(
   const hour = Math.floor(minuteOfDay / 60);
   const minute = minuteOfDay % 60;
   const localAsUtc = Date.UTC(date.year, date.month - 1, date.day, hour, minute);
-  const offsets = new Set<number>();
-  for (let deltaHours = -36; deltaHours <= 36; deltaHours += 6) {
-    const sample = localAsUtc + deltaHours * 3_600_000;
-    const parts = localPartsAt(sample, timezone);
-    const formattedAsUtc = Date.UTC(
-      parts.year,
-      parts.month - 1,
-      parts.day,
-      parts.hour,
-      parts.minute,
-    );
-    offsets.add(formattedAsUtc - sample);
-  }
+  const cacheKey = `${timezone}|${localDate}|${minuteOfDay}`;
+  let candidates = localTimeCandidates.get(cacheKey);
+  if (!candidates) {
+    const offsets = new Set<number>();
+    for (let deltaHours = -36; deltaHours <= 36; deltaHours += 6) {
+      const sample = localAsUtc + deltaHours * 3_600_000;
+      const parts = localPartsAt(sample, timezone);
+      const formattedAsUtc = Date.UTC(
+        parts.year,
+        parts.month - 1,
+        parts.day,
+        parts.hour,
+        parts.minute,
+      );
+      offsets.add(formattedAsUtc - sample);
+    }
 
-  const candidates = [...offsets]
-    .map((offset) => localAsUtc - offset)
-    .filter((instant) => {
-      const parts = localPartsAt(instant, timezone);
-      return parts.year === date.year &&
-        parts.month === date.month &&
-        parts.day === date.day &&
-        parts.hour === hour &&
-        parts.minute === minute;
-    })
-    .sort((left, right) => left - right)
-    .map((instant) => new Date(instant).toISOString());
+    candidates = [...offsets]
+      .map((offset) => localAsUtc - offset)
+      .filter((instant) => {
+        const parts = localPartsAt(instant, timezone);
+        return parts.year === date.year &&
+          parts.month === date.month &&
+          parts.day === date.day &&
+          parts.hour === hour &&
+          parts.minute === minute;
+      })
+      .sort((left, right) => left - right)
+      .map((instant) => new Date(instant).toISOString());
+    localTimeCandidates.set(cacheKey, candidates);
+  }
 
   if (candidates.length === 0) {
     return { ok: false, error: "nonexistent-local-time" };
