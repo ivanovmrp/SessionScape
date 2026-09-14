@@ -87,10 +87,36 @@
     </div>
   </section>
 
-  <div class="arrow">↓ next: availability tab, then appointment editor</div>
+  <div class="arrow">↓ persisted service advances to deterministic availability target</div>
 
   <section class="frame">
-    <p class="label">Frame 3 · narrow/short viewport simulation; appointment editor scrolls behind a fixed action bar</p>
+    <p class="label">Frame 3 · availability editor uses the same viewport-fixed action treatment</p>
+    <div class="viewport">
+      <div class="viewport-scroll">
+        <div class="success"><strong>Recovery Massage saved.</strong> Add open availability for Alex Test.</div>
+        <div class="setup">
+          <ol class="steps">
+            <li><button class="step done"><strong>✓ Practitioner</strong><small>Complete</small></button></li>
+            <li><button class="step done"><strong>✓ Service</strong><small>Complete</small></button></li>
+            <li><button class="step current" aria-current="step"><strong>3. Availability</strong><small>Current step</small></button></li>
+            <li><button class="step" disabled><strong>4. Appointment</strong><small>Needs open availability</small></button></li>
+          </ol>
+          <h2>Add open availability</h2>
+          <p>Alex Test · Monday, September 14</p>
+          <label>Start time<input value="09:00"></label>
+          <label>End time<input value="17:00"></label>
+          <label><input type="checkbox"> Closed all day</label>
+          <p class="note">A closed day saves normally but does not complete the setup availability step.</p>
+        </div>
+      </div>
+      <div class="fixed-actions"><button>Cancel</button><button class="primary">Save availability and continue →</button></div>
+    </div>
+  </section>
+
+  <div class="arrow">↓ persisted open availability advances to appointment</div>
+
+  <section class="frame">
+    <p class="label">Frame 4 · narrow/short viewport simulation; appointment editor scrolls behind a fixed action bar</p>
     <div class="viewport">
       <div class="viewport-scroll">
         <h1>Practice data</h1>
@@ -119,7 +145,7 @@
   <div class="arrow">↓ persisted appointment completes setup; connected authority is not changed silently</div>
 
   <section class="frame">
-    <p class="label">Frame 4 · source-aware completion choice while connected data remains authoritative</p>
+    <p class="label">Frame 5 · source-aware completion choice while connected data remains authoritative</p>
     <div class="success"><strong>Practice setup complete.</strong> Your owner-entered records remain stored separately in this browser.</div>
     <div class="setup">
       <h2>Choose which insights to review</h2>
