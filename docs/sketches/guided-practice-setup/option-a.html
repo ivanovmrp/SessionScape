@@ -1,0 +1,97 @@
+<!-- Core idea: a persistent four-step setup checklist advances inside the existing Practice Data workspace. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guided practice setup wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eee; color: #222; font-family: system-ui, sans-serif; }
+    main { width: min(920px, calc(100% - 24px)); margin: 24px auto; }
+    .frame { margin: 0 0 28px; border: 2px solid #444; background: white; padding: 18px; }
+    .label { margin: 0 0 8px; color: #555; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    .setup { border: 2px solid #666; padding: 16px; }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+    .step { min-height: 72px; border: 1px solid #888; padding: 10px; }
+    .step.current { border: 3px solid #333; background: #f4f4f4; }
+    .step.done { border-color: #287a42; }
+    .step small { display: block; margin-top: 5px; color: #555; }
+    .workspace { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .panel { min-height: 120px; border: 1px solid #888; padding: 14px; }
+    label { display: grid; gap: 5px; margin: 10px 0; font-size: 13px; font-weight: 700; }
+    input { width: 100%; border: 1px solid #777; padding: 10px; }
+    .actions { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #888; background: white; padding: 12px 0 0; }
+    button { border: 1px solid #555; background: white; padding: 10px 14px; font-weight: 700; }
+    button.primary { background: #333; color: white; }
+    .arrow { margin: -18px 0 10px; text-align: center; font-size: 24px; }
+    .note { display: inline-block; margin-top: 8px; border: 1px dashed #555; background: #fff7c7; padding: 7px; font-size: 12px; }
+    .success { border-left: 5px solid #287a42; background: #f3faf5; padding: 10px; }
+    @media (max-width: 620px) {
+      .steps, .workspace { grid-template-columns: 1fr; }
+      .step { min-height: auto; }
+      .actions { box-shadow: 0 -4px 8px #bbb; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <section class="frame">
+    <p class="label">Frame 1 · entry point: empty Owner-entered Practice Data</p>
+    <h1>Set up your practice data</h1>
+    <p>Complete these four steps to produce your first weekly insight. Your normal workspace stays available below.</p>
+    <div class="setup">
+      <div class="steps">
+        <div class="step current"><strong>1. Practitioner</strong><small>Current step</small></div>
+        <div class="step"><strong>2. Service</strong><small>Not started</small></div>
+        <div class="step"><strong>3. Availability</strong><small>Not started</small></div>
+        <div class="step"><strong>4. Appointment</strong><small>Not started</small></div>
+      </div>
+      <h2>Add your first practitioner</h2>
+      <label>Privacy-safe practitioner label<input value="Alex Test"></label>
+      <div class="actions"><button>Cancel</button><button class="primary">Save practitioner and continue →</button></div>
+      <span class="note">Primary action remains visible while the form is open.</span>
+    </div>
+    <div class="workspace"><div class="panel"><h3>Appointments</h3><p>No appointments this week.</p></div><div class="panel"><h3>Practice catalogs</h3><p>No practitioners or services yet.</p></div></div>
+  </section>
+
+  <div class="arrow">↓ successful save advances</div>
+
+  <section class="frame">
+    <p class="label">Frame 2 · practitioner saved; service step opens automatically</p>
+    <div class="success"><strong>Alex Test saved.</strong> Continue with the service Alex provides.</div>
+    <div class="setup">
+      <div class="steps">
+        <div class="step done"><strong>✓ Practitioner</strong><small>Alex Test</small></div>
+        <div class="step current"><strong>2. Service</strong><small>Current step</small></div>
+        <div class="step"><strong>3. Availability</strong><small>Not started</small></div>
+        <div class="step"><strong>4. Appointment</strong><small>Not started</small></div>
+      </div>
+      <h2>Add your first service</h2>
+      <label>Service label<input value="Recovery Massage"></label>
+      <div class="workspace"><label>Duration in minutes<input value="60"></label><label>Value in cents<input value="12000"></label></div>
+      <div class="actions"><button>Cancel</button><button class="primary">Save service and continue →</button></div>
+    </div>
+  </section>
+
+  <div class="arrow">↓ next: availability tab, then appointment editor</div>
+
+  <section class="frame">
+    <p class="label">Frame 3 · resumed or completed setup</p>
+    <div class="setup">
+      <div class="steps">
+        <div class="step done"><strong>✓ Practitioner</strong><small>Complete</small></div>
+        <div class="step done"><strong>✓ Service</strong><small>Complete</small></div>
+        <div class="step done"><strong>✓ Availability</strong><small>Complete</small></div>
+        <div class="step current"><strong>4. Appointment</strong><small>Current step</small></div>
+      </div>
+      <h2>Add the first appointment</h2>
+      <p>The existing appointment editor opens with Alex Test and Recovery Massage available. Saving completes setup and updates the dashboard.</p>
+      <button class="primary">Save appointment and view insights →</button>
+      <span class="note">Reload resumes at the first incomplete step. Existing records are never replaced.</span>
+    </div>
+  </section>
+</main>
+</body>
+</html>

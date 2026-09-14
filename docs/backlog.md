@@ -106,4 +106,17 @@ Give practitioners without a supported booking platform a manual data source, an
   1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
   2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.
 
+### BL-019 — Guide owners through initial practice-data setup
+- **Status**: planned (Plan 6)
+- **Priority · Effort**: P0 · M
+- **Dependencies**: BL-011, BL-012, BL-013
+- **Sketches**: docs/sketches/guided-practice-setup/option-a.html
+- **Context**: Post-ship owner testing found the catalog Save control was not visible or discoverable and the separate panels gave no clear path from practitioner to service, availability, and appointment. Use a persistent four-step checklist inside the existing Practice Data workspace; reject a separate full-screen wizard because owners must retain access to the normal ledger and catalogs. This story blocks BL-006 owner research until the uncoached manual smoke path passes.
+- **Acceptance criteria**:
+  1. An empty or incomplete editable workspace shows Practitioner → Service → Availability → Appointment progress derived from saved records, identifies the current step, and leaves the normal Practice Data workspace available.
+  2. Starting a checklist step opens or focuses the existing editor for that record type, and its primary Save action remains visible at supported desktop and narrow widths without hiding validation or Cancel.
+  3. A successful first practitioner save advances to service; service advances to availability; availability advances to appointment; and the first appointment save completes the checklist and offers the owner dashboard. Failed validation does not advance, duplicate, or lose draft data.
+  4. Reloading or changing source/week safely resumes at the first incomplete saved step; owners with completed setup or existing records can use the normal editors without being forced through a wizard.
+  5. Component tests cover progress derivation, keyboard focus, every successful and failed transition, reload/resume, and preservation of existing records; a checked-in manual smoke checklist covers the uncoached desktop and narrow-width journey using synthetic data only.
+
 ## Icebox
