@@ -85,7 +85,7 @@ test("derives every current dashboard number from numeric source inputs", () => 
       change: "+4",
       context: "24 confirmed · 4 completed",
       formula:
-        "Count of non-cancelled appointments whose start time falls in the selected week.",
+        "Count of scheduled and completed appointments whose start time falls in the selected week; cancelled and no-show records are excluded.",
       state: "current",
     },
     {
@@ -450,6 +450,21 @@ test("preserves the representative action contract through derivation", () => {
   expect(DASHBOARD_FIXTURES.current.opportunities[0]).toMatchObject(
     capacityAction ?? {},
   );
+});
+
+test("keeps an unavailable opportunity value distinct from zero", () => {
+  const dashboard = deriveDashboard({
+    ...currentInput,
+    opportunities: [{
+      ...currentInput.opportunities[1],
+      estimatedCents: null,
+      valueNote: "No outreach value estimated",
+    }],
+  });
+
+  expect(dashboard.opportunities[0].value).toBe("Unavailable");
+  expect(dashboard.totalOpportunityCents).toBeNull();
+  expect(dashboard.totalOpportunity).toBe("Unavailable");
 });
 
 test.each([

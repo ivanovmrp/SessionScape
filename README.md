@@ -15,9 +15,9 @@ The connected booking platform remains the system of record. SessionScape does n
 
 ## Current prototype
 
-The Next.js, React, and TypeScript application is a synthetic owner-validation prototype. It derives dashboard metrics from inspectable scenario inputs, makes partial and stale data explicit, lets owners recover dismissed recommendations from Activity, and guides an owner from recommendation evidence through an editable draft and approval to a representative Square handoff. Both dashboard drawer types support contained keyboard navigation and reliable focus return. The prototype never sends outreach, books an appointment, or collects payment.
+The Next.js, React, and TypeScript application is a synthetic owner-validation prototype. It derives dashboard metrics from inspectable scenario inputs, makes partial and stale data explicit, lets owners recover dismissed recommendations from Activity, and guides an owner from recommendation evidence through an editable draft and approval to a representative Square handoff. Owners can also use a browser-local, redacted Practice Data workspace to maintain privacy-safe practitioner and service labels, weekly availability, and an internal appointment ledger; those records drive the same metrics and evidence when connected data is not authoritative. Both dashboard drawer types support contained keyboard navigation and reliable focus return. The prototype never sends outreach, books an appointment, or collects payment.
 
-Use the **Prototype state** control to exercise current, partial, and stale data behavior. Recommendation approval keeps estimated, attributed, completed, and realized value visibly separate.
+Use the **Prototype state** control to exercise current, partial, and stale sample behavior. Use **Practice data** to explore read-only sample records or enter owner records stored only in the current browser. Recommendation approval keeps estimated, attributed, completed, and realized value visibly separate.
 
 ## Start locally
 

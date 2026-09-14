@@ -36,8 +36,8 @@ Acceptance criteria:
 ### BL-006 — Run owner discovery and prototype validation
 - **Status**: ready
 - **Priority · Effort**: P0 · L
-- **Dependencies**: BL-002, BL-003, BL-004, BL-005
-- **Context**: Validate problem frequency, dashboard trust, actionability, provider concentration, and payment evidence before connected-MVP implementation. Source: former BI-001/BI-002 and `docs/business/validation-plan.md`.
+- **Dependencies**: BL-002, BL-003, BL-004, BL-005, BL-011, BL-012, BL-013
+- **Context**: Validate problem frequency, dashboard trust, actionability, provider concentration, manual-entry demand, and payment evidence before connected-MVP implementation. Participants should manipulate a redacted practice workspace so the study observes whether their own input produces trusted decisions, not only reactions to fixed fixtures. Source: former BI-001/BI-002 and `docs/business/validation-plan.md`.
 - **Acceptance criteria**:
   1. Research includes 8–12 representative owners or operators using synthetic or owner-redacted data and records the validation plan's evidence scorecard for each participant.
   2. Participants attempt the defined dashboard, recommendation, action, provider-handoff, data-state, and value-classification tasks; task outcomes and interpretation errors are recorded.
@@ -59,5 +59,51 @@ Acceptance criteria:
 - BL-009 Run quality gates in GitHub CI — done (Plan 2)
 
 - BL-010 Establish browser component interaction testing — done (Plan 3)
+
+## Initiative: Owner-entered practice data
+
+Give practitioners without a supported booking platform a manual data source, and make the prototype testable through visible input-to-insight cause and effect. The product remains an intelligence layer rather than a client-facing booking system: the first slice supports weekly availability and appointment records, while public booking, reminders, payments, clinical notes, and client contact data remain out of scope. Prototype data is browser-local and redacted; later CSV import and provider connectors must feed the same provider-neutral model.
+
+- BL-011 Establish a local redacted practice workspace — done (Plan 5)
+
+- BL-012 Make the weekly appointment ledger operable — done (Plan 5)
+
+- BL-013 Derive dashboard opportunities from manual records — done (Plan 5)
+
+### BL-014 — Restore dashboard destinations from Practice Data
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: The Opportunities, Clients, and Activity links target dashboard sections that are not mounted while Practice Data is open, so they appear broken. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Choosing Opportunities, Clients, or Activity from Practice Data restores the dashboard before navigating to the requested section.
+  2. Component tests prove every primary-navigation destination remains reachable from both surfaces.
+
+### BL-015 — Keep Practice Data reachable on small screens
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012, BL-013
+- **Context**: The current narrow-screen rules hide both the Practice Data navigation item and the dashboard week control, preventing mobile-width access to Plan 5 flows. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. At supported narrow widths, owners can open Practice Data and move between dashboard and ledger weeks without hidden controls.
+  2. Responsive tests cover the navigation and week controls at the smallest supported viewport.
+
+### BL-017 — Use one anonymous-client ID generator
+- **Status**: ready
+- **Priority · Effort**: P2 · S
+- **Dependencies**: BL-011
+- **Context**: The tested `anonymousClientIdFromUuid` helper is unused by production while the UI carries a separate generator, so its unit test cannot protect the actual path. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Production UI generation uses the single tested anonymous-client ID helper with no duplicate implementation.
+  2. Unit and component tests prove generated IDs match the persisted `anon_[a-z0-9]{12}` contract.
+
+### BL-018 — Complete keyboard semantics for Practice Data tabs
+- **Status**: ready
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: The Practice Data controls declare tab roles without associated tabpanels, relationships, roving focus, or arrow-key behavior. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
+  2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.
 
 ## Icebox
