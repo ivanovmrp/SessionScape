@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { deriveDashboard } from "../lib/dashboard-calculations";
 import { DASHBOARD_FIXTURES, DASHBOARD_INPUTS, type DataScenario, type Metric, type Opportunity } from "../lib/dashboard-fixtures";
 import { adaptPracticeWorkspaceToDashboardInput } from "../lib/practice-insights";
@@ -126,45 +126,52 @@ export default function Home() {
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const approvalInitialRef = useRef<HTMLButtonElement>(null);
   const handoffRef = useRef<HTMLAnchorElement>(null);
-  const practiceWorkspace = practiceSource === "sample"
+  const practiceWorkspace = useMemo(() => practiceSource === "sample"
     ? RAW_SAMPLE_WORKSPACE
     : practiceSource === "sample-derived"
       ? sampleDerivedWorkspace ?? RAW_SAMPLE_WORKSPACE
-      : ownerWorkspace;
+      : ownerWorkspace, [ownerWorkspace, practiceSource, sampleDerivedWorkspace]);
   const practiceSourceLabel = practiceSource === "sample"
     ? "Sample data · read only"
     : practiceSource === "sample-derived"
       ? "Sample-derived data"
       : "Owner-entered data";
-  const practiceWeek = getPracticeWeek(
+  const practiceWeek = useMemo(() => getPracticeWeek(
     practiceWorkspace.timezone,
     selectedWeekDate,
-  );
-  const dashboardWorkspace = dashboardSource === "sample-derived"
+  ), [practiceWorkspace.timezone, selectedWeekDate]);
+  const dashboardWorkspace = useMemo(() => dashboardSource === "sample-derived"
     ? sampleDerivedWorkspace ?? RAW_SAMPLE_WORKSPACE
-    : ownerWorkspace;
+    : ownerWorkspace, [dashboardSource, ownerWorkspace, sampleDerivedWorkspace]);
   const sampleDashboard = dashboardSource === "connected" || dashboardSource === "sample";
-  const dashboardInput = sampleDashboard
+  const dashboardWeek = useMemo(() => getPracticeWeek(
+    dashboardWorkspace.timezone,
+    selectedWeekDate,
+  ), [dashboardWorkspace.timezone, selectedWeekDate]);
+  const dashboardInput = useMemo(() => sampleDashboard
     ? DASHBOARD_INPUTS[scenario]
     : adaptPracticeWorkspaceToDashboardInput(
         dashboardWorkspace,
-        getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate),
-        { evaluationAt: evaluationAt ?? getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate).endAt },
-      );
-  const allOpportunitySummary = deriveDashboard(dashboardInput);
-  const opportunitySummary = deriveDashboard(dashboardInput, dismissed);
+        dashboardWeek,
+        { evaluationAt: evaluationAt ?? dashboardWeek.endAt },
+      ), [dashboardWeek, dashboardWorkspace, evaluationAt, sampleDashboard, scenario]);
+  const allOpportunitySummary = useMemo(() => deriveDashboard(dashboardInput), [dashboardInput]);
+  const opportunitySummary = useMemo(
+    () => deriveDashboard(dashboardInput, dismissed),
+    [dashboardInput, dismissed],
+  );
   const sampleFixture = DASHBOARD_FIXTURES[scenario];
-  const manualMetrics: Metric[] = sampleFixture.metrics.map((template, index) => ({
+  const manualMetrics: Metric[] = useMemo(() => sampleFixture.metrics.map((template, index) => ({
     ...template,
     ...opportunitySummary.metrics[index],
     tone: opportunitySummary.metrics[index].id === "cancellations" || opportunitySummary.metrics[index].state === "unavailable" ? "caution" : "neutral",
-    period: getPracticeWeek(dashboardWorkspace.timezone, selectedWeekDate).label,
+    period: dashboardWeek.label,
     population: `${dashboardSource === "owner" ? "Owner-entered" : "Sample-derived"} records · active practitioners`,
     coverage: dashboardInput.actionContext.coverage,
     exclusions: "Cancelled, no-show, outside-availability, duplicate-ID, and inactive-catalog records are excluded where applicable.",
     classification: opportunitySummary.metrics[index].id === "capacity" ? "Estimated" : "Observed",
-  }));
-  const fixture = sampleDashboard ? sampleFixture : {
+  })), [dashboardInput.actionContext.coverage, dashboardSource, dashboardWeek.label, opportunitySummary.metrics, sampleFixture.metrics]);
+  const fixture = useMemo(() => sampleDashboard ? sampleFixture : {
     ...sampleFixture,
     status: dashboardInput.status,
     bannerTitle: dashboardSource === "owner" ? "Owner-entered practice data" : "Editable sample-derived practice data",
@@ -186,7 +193,7 @@ export default function Home() {
     returnTrendLabel: opportunitySummary.returnTrendLabel,
     days: opportunitySummary.days,
     opportunities: opportunitySummary.opportunities,
-  };
+  }, [dashboardInput, dashboardSource, manualMetrics, opportunitySummary, sampleDashboard, sampleFixture]);
   const opportunities = opportunitySummary.opportunities;
   const unavailableRecommendations = "evidence" in dashboardInput
     ? dashboardInput.evidence.unavailableRecommendations
@@ -202,26 +209,32 @@ export default function Home() {
     }],
   ) : [];
   const lastReturnPoint = returnChartPoints.at(-1);
-  const availabilityCoverage = getAvailabilityCoverage(
+  const availabilityCoverage = useMemo(() => getAvailabilityCoverage(
     practiceWorkspace,
     practiceWeek,
+  ), [practiceWeek, practiceWorkspace]);
+  const activePractitioners = useMemo(
+    () => practiceWorkspace.practitioners.filter(({ active }) => active),
+    [practiceWorkspace.practitioners],
   );
-  const activePractitioners = practiceWorkspace.practitioners.filter(({ active }) => active);
-  const activeServices = practiceWorkspace.services.filter(({ active }) => active);
-  const weeklyAppointments = practiceWorkspace.appointments
+  const activeServices = useMemo(
+    () => practiceWorkspace.services.filter(({ active }) => active),
+    [practiceWorkspace.services],
+  );
+  const weeklyAppointments = useMemo(() => practiceWorkspace.appointments
     .filter(({ startAt }) => startAt >= practiceWeek.startAt && startAt < practiceWeek.endAt)
-    .sort((left, right) => left.startAt.localeCompare(right.startAt));
+    .sort((left, right) => left.startAt.localeCompare(right.startAt)), [practiceWeek, practiceWorkspace.appointments]);
   const selectableAnonymousClientIds = [...new Set([
     ...practiceWorkspace.appointments.flatMap(({ anonymousClientId }) =>
       anonymousClientId ? [anonymousClientId] : [],
     ),
     ...(appointmentEditor?.anonymousClientId ? [appointmentEditor.anonymousClientId] : []),
   ])].sort();
-  const weekLocalDates = Array.from({ length: 7 }, (_, index) => {
+  const weekLocalDates = useMemo(() => Array.from({ length: 7 }, (_, index) => {
     const date = new Date(`${practiceWeek.startLocalDate}T00:00:00.000Z`);
     date.setUTCDate(date.getUTCDate() + index);
     return date.toISOString().slice(0, 10);
-  });
+  }), [practiceWeek.startLocalDate]);
 
   useEffect(() => {
     let active = true;
