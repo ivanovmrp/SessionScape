@@ -1117,6 +1117,7 @@ test("advances each successful guided save through appointment completion", asyn
   await user.click(screen.getByRole("button", { name: "Save service and continue" }));
 
   expect(screen.getByRole("tab", { name: "Availability" }).getAttribute("aria-selected")).toBe("true");
+  expect(screen.queryByRole("textbox", { name: "Service label" })).toBeNull();
   expect(document.activeElement).toBe(screen.getByLabelText("Availability start time"));
   expect(screen.getByLabelText("Availability start time").closest("form")?.textContent).toContain("Mon Sep 7");
   await user.type(screen.getByLabelText("Availability start time"), "17:00");
@@ -1131,6 +1132,7 @@ test("advances each successful guided save through appointment completion", asyn
   await user.click(screen.getByRole("button", { name: "Save availability and continue" }));
 
   expect(screen.getByRole("tab", { name: "Appointments" }).getAttribute("aria-selected")).toBe("true");
+  expect(within(screen.getByRole("region", { name: "Practice setup" })).getByText("Add the first appointment.")).toBeDefined();
   expect(document.activeElement).toBe(screen.getByLabelText("Appointment date"));
   await user.click(screen.getByRole("button", { name: "Save appointment and continue" }));
   expect(screen.getByLabelText("Appointment date")).toBeDefined();
@@ -1236,6 +1238,27 @@ test("labels completion for the active sample-derived source", async () => {
 
   expect(screen.getByRole("button", { name: "Use sample-derived data for insights" })).toBeDefined();
   expect(screen.queryByRole("button", { name: "Use owner data for insights" })).toBeNull();
+});
+
+test("offers the source choice when normal workspace entry completes setup", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    appointments: [],
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "10:00");
+
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+
+  expect(screen.getByRole("region", { name: "Practice setup complete" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Use owner data for insights" })).toBeDefined();
+  expect(screen.getByRole("button", { name: "Keep connected insights" })).toBeDefined();
 });
 
 test("creates, edits, and deactivates a service with integer-cent defaults", async () => {

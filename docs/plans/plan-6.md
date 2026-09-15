@@ -37,10 +37,12 @@ Let a first-time owner save the minimum practitioner, service, availability, and
 
 ## Observations
 
+- 2026-09-14 (plan): pre-build review tightened broad setup progression into global saved-record predicates, native keyboard controls, deterministic availability targeting, and persistence-failure guarantees so the criteria test the uncoached journey rather than implementation presence.
 - 2026-09-14 (plan): the first sketch's end-of-form sticky action could reproduce the invisible-Save defect; require a viewport-fixed action with reserved content space and smoke checks at 1440×900, 768×600, and 360×640.
 - 2026-09-14 (plan): setup completion must label and select the active editable source—owner or sample-derived—rather than hardcoding owner data.
 - 2026-09-14 (BL-019): browser verification found the catalog button selector overrode the primary background, producing white Save text on white; the catalog primary rule now sets the dark background explicitly.
 - 2026-09-14 (BL-019): the existing 360px navigation hid Practice data, blocking an uncoached mobile start; mobile navigation now retains Overview and Practice data.
 - 2026-09-14 (BL-019): setup transitions must follow newly persisted qualifying records regardless of whether the owner entered through the guide or normal workspace; converting a closed record into the first open interval is a progression event, not a routine edit.
+- 2026-09-14 (BL-019): live ship verification found normal-workspace completion bypassed the source choice and guided transitions left a duplicate-capable prior editor open; completion behavior must be entry-path independent, transitions must close the prior editor, and the enabled Appointment step must describe the next action rather than a satisfied prerequisite.
 
 ## Archived Specs

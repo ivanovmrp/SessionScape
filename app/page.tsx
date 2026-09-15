@@ -491,6 +491,7 @@ export default function Home() {
     const target = guidedAvailabilityTarget(workspace);
     if (!target) return;
     setPracticeDataTab("availability");
+    setCatalogEditor(null);
     setAppointmentEditor(null);
     openAvailabilityForWorkspace(workspace, target.practitionerId, target.localDate);
     setGuidedStep("availability");
@@ -730,7 +731,7 @@ export default function Home() {
       setAppointmentError("");
       setOutsideHoursPending(false);
       setRepeatedHourPending(false);
-      if (!previous && guidedStep === "appointment" && practiceWorkspace.appointments.length === 0) {
+      if (addsFirstAppointment) {
         setGuidedStep(null);
         setSetupCompletedNotice(true);
       }
@@ -984,7 +985,7 @@ export default function Home() {
             <li className={activePractitioners.length > 0 ? "complete" : "current"}><button aria-current={currentSetupStep === "practitioner" ? "step" : undefined} onClick={() => activateSetupStep("practitioner")}>Set up practitioner</button><span>{activePractitioners.length > 0 ? "Complete" : "Add the person who provides services."}</span></li>
             <li className={activeServices.length > 0 ? "complete" : currentSetupStep === "service" ? "current" : "locked"}><button aria-current={currentSetupStep === "service" ? "step" : undefined} disabled={activePractitioners.length === 0} onClick={() => activateSetupStep("service")}>Set up service</button><span>{activeServices.length > 0 ? "Complete" : activePractitioners.length === 0 ? "Save a practitioner first." : "Add a service, duration, and value."}</span></li>
             <li className={practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId)) ? "complete" : currentSetupStep === "availability" ? "current" : "locked"}><button aria-current={currentSetupStep === "availability" ? "step" : undefined} disabled={activePractitioners.length === 0 || activeServices.length === 0} onClick={() => activateSetupStep("availability")}>Set up availability</button><span>{practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId)) ? "Complete" : activeServices.length === 0 ? "Save a service first." : "Add at least one open period."}</span></li>
-            <li className={practiceWorkspace.appointments.length > 0 ? "complete" : currentSetupStep === "appointment" ? "current" : "locked"}><button aria-current={currentSetupStep === "appointment" ? "step" : undefined} disabled={!practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId))} onClick={() => activateSetupStep("appointment")}>Set up appointment</button><span>{practiceWorkspace.appointments.length > 0 ? "Complete" : "Save open availability first."}</span></li>
+            <li className={practiceWorkspace.appointments.length > 0 ? "complete" : currentSetupStep === "appointment" ? "current" : "locked"}><button aria-current={currentSetupStep === "appointment" ? "step" : undefined} disabled={!practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId))} onClick={() => activateSetupStep("appointment")}>Set up appointment</button><span>{practiceWorkspace.appointments.length > 0 ? "Complete" : currentSetupStep === "appointment" ? "Add the first appointment." : "Save open availability first."}</span></li>
           </ol>}
         </section>}
 
