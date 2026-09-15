@@ -106,4 +106,15 @@ Give practitioners without a supported booking platform a manual data source, an
   1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
   2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.
 
+- BL-019 Guide owners through initial practice-data setup — done (Plan 6)
+
+### BL-020 — Remove the single-use guided availability helper
+- **Status**: ready
+- **Priority · Effort**: P2 · S
+- **Dependencies**: BL-019
+- **Context**: `guidedAvailabilityTarget` has one caller and no independent test boundary, adding an abstraction before a second use exists. Source: review (Plan 6).
+- **Acceptance criteria**:
+  1. Guided availability target selection remains inline with its only caller unless a second concrete caller exists.
+  2. Existing component tests continue to prove first-missing-date selection and earliest-closed-date fallback behavior.
+
 ## Icebox

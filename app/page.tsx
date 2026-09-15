@@ -46,6 +46,7 @@ type Surface = "overview" | "practice-data";
 type PracticeSource = "owner" | "sample" | "sample-derived";
 type DashboardSource = "connected" | PracticeSource;
 type StorageAlertKey = WorkspaceSlot | "general";
+type SetupStep = "practitioner" | "service" | "availability" | "appointment";
 type CatalogEditor =
   | { kind: "practitioner"; id?: string; label: string }
   | {
@@ -108,6 +109,8 @@ export default function Home() {
   const [practiceDataTab, setPracticeDataTab] = useState<"appointments" | "availability">("appointments");
   const [availabilityEditor, setAvailabilityEditor] = useState<AvailabilityEditor | null>(null);
   const [availabilityError, setAvailabilityError] = useState("");
+  const [guidedStep, setGuidedStep] = useState<SetupStep | null>(null);
+  const [setupCompletedNotice, setSetupCompletedNotice] = useState(false);
   const [scenario, setScenario] = useState<DataScenario>("current");
   const [activeMetric, setActiveMetric] = useState<Metric | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<Opportunity | null>(null);
@@ -126,6 +129,11 @@ export default function Home() {
   const draftRef = useRef<HTMLTextAreaElement>(null);
   const approvalInitialRef = useRef<HTMLButtonElement>(null);
   const handoffRef = useRef<HTMLAnchorElement>(null);
+  const practitionerLabelRef = useRef<HTMLInputElement>(null);
+  const serviceLabelRef = useRef<HTMLInputElement>(null);
+  const availabilityStartRef = useRef<HTMLInputElement>(null);
+  const availabilityClosedRef = useRef<HTMLInputElement>(null);
+  const appointmentDateRef = useRef<HTMLInputElement>(null);
   const practiceWorkspace = useMemo(() => practiceSource === "sample"
     ? RAW_SAMPLE_WORKSPACE
     : practiceSource === "sample-derived"
@@ -235,6 +243,21 @@ export default function Home() {
     date.setUTCDate(date.getUTCDate() + index);
     return date.toISOString().slice(0, 10);
   }), [practiceWeek.startLocalDate]);
+  const setupComplete = activePractitioners.length > 0
+    && activeServices.length > 0
+    && practiceWorkspace.availability.some((record) => !record.closed
+      && activePractitioners.some(({ id }) => id === record.practitionerId))
+    && practiceWorkspace.appointments.length > 0;
+  const currentSetupStep: SetupStep | null = activePractitioners.length === 0
+    ? "practitioner"
+    : activeServices.length === 0
+      ? "service"
+      : !practiceWorkspace.availability.some((record) => !record.closed
+          && activePractitioners.some(({ id }) => id === record.practitionerId))
+        ? "availability"
+        : practiceWorkspace.appointments.length === 0
+          ? "appointment"
+          : null;
 
   useEffect(() => {
     let active = true;
@@ -317,6 +340,13 @@ export default function Home() {
     target?.focus();
   }, [activeOpportunity, actionStage]);
 
+  useEffect(() => {
+    if (guidedStep === "practitioner") practitionerLabelRef.current?.focus();
+    if (guidedStep === "service") serviceLabelRef.current?.focus();
+    if (guidedStep === "availability") (availabilityStartRef.current ?? availabilityClosedRef.current)?.focus();
+    if (guidedStep === "appointment") appointmentDateRef.current?.focus();
+  }, [guidedStep]);
+
   const closeMetric = (restoreFocus = true) => {
     restoreMetricFocusRef.current = restoreFocus;
     setActiveMetric(null);
@@ -374,6 +404,8 @@ export default function Home() {
     setAvailabilityError("");
     setCatalogEditor(null);
     setCatalogError("");
+    setGuidedStep(null);
+    setSetupCompletedNotice(false);
     setPracticeSource(nextSource);
     if (nextSource === "sample") {
       setSelectedWeekDate(RAW_SAMPLE_WORKSPACE.availability[0].localDate);
@@ -383,9 +415,10 @@ export default function Home() {
   };
 
   const disconnectConnectedInsights = () => {
-    if (!window.confirm("Disconnect connected data before using browser-only insights?")) return;
+    if (!window.confirm("Disconnect connected data before using browser-only insights?")) return false;
     setDashboardSource(practiceSource);
     setDismissed([]);
+    return true;
   };
 
   const updateStorageAlert = (key: StorageAlertKey, message?: string) => {
@@ -411,7 +444,7 @@ export default function Home() {
     return `${prefix}_${[...values].map((value) => value.toString(16).padStart(8, "0")).join("")}`;
   };
 
-  const saveActiveWorkspace = (workspace: PracticeWorkspace) => {
+  const saveActiveWorkspace = (workspace: PracticeWorkspace, requirePersistence = false) => {
     if (practiceSource === "sample" || !parsePracticeWorkspace(workspace).ok) {
       setCatalogError("Enter a privacy-safe label and positive whole-number defaults.");
       return false;
@@ -428,11 +461,58 @@ export default function Home() {
     updateStorageAlert(slot, saved.ok
       ? undefined
       : "Your change is open, but it could not be saved. This change was not persisted.");
+    if (!saved.ok && requirePersistence) return false;
     if (slot === "owner") setOwnerWorkspace(workspace);
     else setSampleDerivedWorkspace(workspace);
     if (dashboardSource !== "connected") setDashboardSource(practiceSource);
     setCatalogError("");
     return true;
+  };
+
+  const openGuidedService = () => {
+    setCatalogError("");
+    setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueCents: "" });
+    setGuidedStep("service");
+  };
+
+  const guidedAvailabilityTarget = (workspace: PracticeWorkspace) => {
+    const practitioner = workspace.practitioners.find(({ active }) => active);
+    if (!practitioner) return null;
+    const missingDate = weekLocalDates.find((localDate) => !workspace.availability.some((record) =>
+      record.practitionerId === practitioner.id && record.localDate === localDate,
+    ));
+    const closedDate = weekLocalDates.find((localDate) => workspace.availability.some((record) =>
+      record.practitionerId === practitioner.id && record.localDate === localDate && record.closed,
+    ));
+    return { practitionerId: practitioner.id, localDate: missingDate ?? closedDate ?? weekLocalDates[0] };
+  };
+
+  const beginGuidedAvailability = (workspace = practiceWorkspace) => {
+    const target = guidedAvailabilityTarget(workspace);
+    if (!target) return;
+    setPracticeDataTab("availability");
+    setCatalogEditor(null);
+    setAppointmentEditor(null);
+    openAvailabilityForWorkspace(workspace, target.practitionerId, target.localDate);
+    setGuidedStep("availability");
+  };
+
+  const beginGuidedAppointment = (workspace = practiceWorkspace) => {
+    setPracticeDataTab("appointments");
+    setAvailabilityEditor(null);
+    openNewAppointmentForWorkspace(workspace);
+    setGuidedStep("appointment");
+  };
+
+  const activateSetupStep = (step: SetupStep) => {
+    setSetupCompletedNotice(false);
+    if (step === "practitioner") {
+      setCatalogError("");
+      setCatalogEditor({ kind: "practitioner", label: "" });
+      setGuidedStep(step);
+    } else if (step === "service") openGuidedService();
+    else if (step === "availability") beginGuidedAvailability();
+    else beginGuidedAppointment();
   };
 
   const saveCatalogRecord = () => {
@@ -449,7 +529,12 @@ export default function Home() {
       const practitioners = record
         ? practiceWorkspace.practitioners.map((item) => item.id === record.id ? nextRecord : item)
         : [...practiceWorkspace.practitioners, nextRecord];
-      if (saveActiveWorkspace({ ...practiceWorkspace, practitioners })) setCatalogEditor(null);
+      const nextWorkspace = { ...practiceWorkspace, practitioners };
+      const addsFirstActivePractitioner = !record && nextRecord.active && activePractitioners.length === 0;
+      if (saveActiveWorkspace(nextWorkspace, guidedStep === "practitioner" || addsFirstActivePractitioner)) {
+        if (!record && guidedStep === "practitioner" && activePractitioners.length === 0) openGuidedService();
+        else setCatalogEditor(null);
+      }
       return;
     }
 
@@ -466,7 +551,12 @@ export default function Home() {
     const services = record
       ? practiceWorkspace.services.map((item) => item.id === record.id ? nextRecord : item)
       : [...practiceWorkspace.services, nextRecord];
-    if (saveActiveWorkspace({ ...practiceWorkspace, services })) setCatalogEditor(null);
+    const nextWorkspace = { ...practiceWorkspace, services };
+    const addsFirstActiveService = !record && nextRecord.active && activeServices.length === 0;
+    if (saveActiveWorkspace(nextWorkspace, guidedStep === "service" || addsFirstActiveService)) {
+      if (!record && guidedStep === "service" && activeServices.length === 0) beginGuidedAvailability(nextWorkspace);
+      else setCatalogEditor(null);
+    }
   };
 
   const deactivateCatalogRecord = (
@@ -517,9 +607,9 @@ export default function Home() {
     return `${parts.weekday} ${parts.month} ${parts.day} · ${parts.hour}:${parts.minute} ${parts.dayPeriod}`;
   };
 
-  const openNewAppointment = () => {
-    const practitioner = activePractitioners[0];
-    const service = activeServices[0];
+  const openNewAppointmentForWorkspace = (workspace: PracticeWorkspace) => {
+    const practitioner = workspace.practitioners.find(({ active }) => active);
+    const service = workspace.services.find(({ active }) => active);
     if (!practitioner || !service) return;
     setAppointmentError("");
     setOutsideHoursPending(false);
@@ -535,8 +625,13 @@ export default function Home() {
       anonymousClientId: "",
     });
   };
+  const openNewAppointment = () => {
+    setGuidedStep(null);
+    openNewAppointmentForWorkspace(practiceWorkspace);
+  };
 
   const openExistingAppointment = (record: AppointmentRecord) => {
+    setGuidedStep(null);
     setAppointmentError("");
     setOutsideHoursPending(false);
     setRepeatedHourPending(false);
@@ -627,11 +722,19 @@ export default function Home() {
     const appointments = previous
       ? practiceWorkspace.appointments.map((item) => item.id === previous.id ? record : item)
       : [...practiceWorkspace.appointments, record];
-    if (saveActiveWorkspace({ ...practiceWorkspace, appointments })) {
+    const addsFirstAppointment = !previous && practiceWorkspace.appointments.length === 0;
+    if (saveActiveWorkspace(
+      { ...practiceWorkspace, appointments },
+      guidedStep === "appointment" || addsFirstAppointment,
+    )) {
       setAppointmentEditor(null);
       setAppointmentError("");
       setOutsideHoursPending(false);
       setRepeatedHourPending(false);
+      if (addsFirstAppointment && currentSetupStep === "appointment") {
+        setGuidedStep(null);
+        setSetupCompletedNotice(true);
+      }
     }
   };
 
@@ -662,8 +765,8 @@ export default function Home() {
     timeZone: "UTC",
   }).format(new Date(Date.UTC(2026, 0, 1, Math.floor(minute / 60), minute % 60)));
 
-  const openAvailability = (practitionerId: string, localDate: string) => {
-    const existing = practiceWorkspace.availability.find((record) =>
+  const openAvailabilityForWorkspace = (workspace: PracticeWorkspace, practitionerId: string, localDate: string) => {
+    const existing = workspace.availability.find((record) =>
       record.practitionerId === practitionerId && record.localDate === localDate,
     );
     setAvailabilityError("");
@@ -674,6 +777,10 @@ export default function Home() {
       startTime: existing && !existing.closed ? minuteToTime(existing.startMinute) : "",
       endTime: existing && !existing.closed ? minuteToTime(existing.endMinute) : "",
     });
+  };
+  const openAvailability = (practitionerId: string, localDate: string) => {
+    setGuidedStep(null);
+    openAvailabilityForWorkspace(practiceWorkspace, practitionerId, localDate);
   };
 
   const saveAvailability = () => {
@@ -703,9 +810,24 @@ export default function Home() {
       setAvailabilityError("Choose valid local times with the start before the end, or mark the day closed.");
       return;
     }
-    if (saveActiveWorkspace({ ...practiceWorkspace, availability })) {
-      setAvailabilityEditor(null);
-      setAvailabilityError("");
+    const nextWorkspace = { ...practiceWorkspace, availability };
+    const addsFirstOpenAvailability = !record.closed
+      && activePractitioners.some(({ id }) => id === record.practitionerId)
+      && !practiceWorkspace.availability.some((item) => !item.closed
+        && activePractitioners.some(({ id }) => id === item.practitionerId));
+    if (saveActiveWorkspace(
+      nextWorkspace,
+      guidedStep === "availability" || addsFirstOpenAvailability,
+    )) {
+      if (guidedStep === "availability" && addsFirstOpenAvailability) {
+        setAvailabilityError("");
+        beginGuidedAppointment(nextWorkspace);
+      } else if (guidedStep === "availability" && record.closed) {
+        beginGuidedAvailability(nextWorkspace);
+      } else {
+        setAvailabilityEditor(null);
+        setAvailabilityError("");
+      }
     }
   };
 
@@ -806,6 +928,16 @@ export default function Home() {
     setNotice("Recommendation restored to Opportunities.");
   };
 
+  const usePracticeDataForInsights = () => {
+    if (dashboardSource === "connected" && !disconnectConnectedInsights()) return;
+    if (dashboardSource !== "connected") {
+      setDashboardSource(practiceSource);
+      setDismissed([]);
+    }
+    setSetupCompletedNotice(false);
+    showSurface("overview");
+  };
+
   const reviewApproval = () => {
     if (!selectedAudience || selectedAudience.count === 0) return;
     setApprovalSnapshot({
@@ -833,7 +965,7 @@ export default function Home() {
         </div>
       </aside>
 
-      {surface === "practice-data" ? <main id="practice-data">
+      {surface === "practice-data" ? <main id="practice-data" className={guidedStep ? "guided-editor-open" : undefined}>
         {Object.entries(storageAlerts).map(([key, message]) => <div className="storage-alert" role="alert" key={key}>{message}</div>)}
         <header className="topbar">
           <div><p>Private practice workspace</p><h1>Practice data</h1></div>
@@ -846,6 +978,21 @@ export default function Home() {
           <button aria-label="Next week" onClick={() => movePracticeWeek(1)}>→</button>
           <button onClick={() => { if (changePracticeSource(practiceSource)) setSelectedWeekDate(getTodayLocalDate(practiceWorkspace.timezone)); }}>Today</button>
         </div>
+
+        {practiceSource !== "sample" && <section className={`setup-guide panel${setupComplete ? " setup-guide-complete" : ""}`} aria-label="Practice setup">
+          <div className="panel-heading"><div><p className="eyebrow">GUIDED SETUP</p><h2>{setupComplete ? "Practice setup complete" : "Build your practice workspace"}</h2></div><strong>{setupComplete ? "4 of 4" : `${[activePractitioners.length > 0, activeServices.length > 0, practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId)), practiceWorkspace.appointments.length > 0].filter(Boolean).length} of 4`}</strong></div>
+          {!setupComplete && <ol className="setup-steps">
+            <li className={activePractitioners.length > 0 ? "complete" : "current"}><button aria-current={currentSetupStep === "practitioner" ? "step" : undefined} onClick={() => activateSetupStep("practitioner")}>Set up practitioner</button><span>{activePractitioners.length > 0 ? "Complete" : "Add the person who provides services."}</span></li>
+            <li className={activeServices.length > 0 ? "complete" : currentSetupStep === "service" ? "current" : "locked"}><button aria-current={currentSetupStep === "service" ? "step" : undefined} disabled={activePractitioners.length === 0} onClick={() => activateSetupStep("service")}>Set up service</button><span>{activeServices.length > 0 ? "Complete" : activePractitioners.length === 0 ? "Save a practitioner first." : "Add a service, duration, and value."}</span></li>
+            <li className={practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId)) ? "complete" : currentSetupStep === "availability" ? "current" : "locked"}><button aria-current={currentSetupStep === "availability" ? "step" : undefined} disabled={activePractitioners.length === 0 || activeServices.length === 0} onClick={() => activateSetupStep("availability")}>Set up availability</button><span>{practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId)) ? "Complete" : activeServices.length === 0 ? "Save a service first." : "Add at least one open period."}</span></li>
+            <li className={practiceWorkspace.appointments.length > 0 ? "complete" : currentSetupStep === "appointment" ? "current" : "locked"}><button aria-current={currentSetupStep === "appointment" ? "step" : undefined} disabled={!practiceWorkspace.availability.some((record) => !record.closed && activePractitioners.some(({ id }) => id === record.practitionerId))} onClick={() => activateSetupStep("appointment")}>Set up appointment</button><span>{practiceWorkspace.appointments.length > 0 ? "Complete" : currentSetupStep === "appointment" ? "Add the first appointment." : "Save open availability first."}</span></li>
+          </ol>}
+        </section>}
+
+        {setupCompletedNotice && <section className="setup-complete panel" aria-label="Practice setup complete">
+          <div><p className="eyebrow">SETUP COMPLETE</p><h2>Your practice workspace is ready.</h2><p>Choose which data should power the Overview.</p></div>
+          <div className="practice-actions"><button className="button-primary" onClick={usePracticeDataForInsights}>{dashboardSource === "connected" ? `Use ${practiceSource === "owner" ? "owner" : "sample-derived"} data for insights` : `View ${practiceSource === "owner" ? "owner" : "sample-derived"} insights`}</button>{dashboardSource === "connected" && <button className="button-secondary" onClick={() => setSetupCompletedNotice(false)}>Keep connected insights</button>}</div>
+        </section>}
 
         <section className="practice-workspace panel">
           <div className="panel-heading">
@@ -875,8 +1022,8 @@ export default function Home() {
         </section>
 
         <div className="practice-tabs" role="tablist" aria-label="Practice data views">
-          <button role="tab" aria-selected={practiceDataTab === "appointments"} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); }}>Appointments</button>
-          <button role="tab" aria-selected={practiceDataTab === "availability"} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); }}>Availability</button>
+          <button role="tab" aria-selected={practiceDataTab === "appointments"} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); setGuidedStep(null); }}>Appointments</button>
+          <button role="tab" aria-selected={practiceDataTab === "availability"} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); setGuidedStep(null); }}>Availability</button>
         </div>
 
         {practiceDataTab === "appointments" && <section className="panel appointment-ledger">
@@ -896,8 +1043,8 @@ export default function Home() {
             })}
           </ul>}
 
-          {appointmentEditor && <form className="appointment-editor" onSubmit={(event) => { event.preventDefault(); saveAppointment(); }}>
-            <label>Appointment date<input aria-label="Appointment date" type="date" value={appointmentEditor.date} onChange={(event) => { setRepeatedHourPending(false); setAppointmentEditor({ ...appointmentEditor, date: event.target.value, repeatedTimeChoice: undefined }); }} /></label>
+          {appointmentEditor && <form className={`appointment-editor${guidedStep === "appointment" ? " guided-editor" : ""}`} onSubmit={(event) => { event.preventDefault(); saveAppointment(); }}>
+            <label>Appointment date<input ref={appointmentDateRef} aria-label="Appointment date" type="date" value={appointmentEditor.date} onChange={(event) => { setRepeatedHourPending(false); setAppointmentEditor({ ...appointmentEditor, date: event.target.value, repeatedTimeChoice: undefined }); }} /></label>
             <label>Start time<input aria-label="Start time" type="time" value={appointmentEditor.time} onChange={(event) => { setRepeatedHourPending(false); setAppointmentEditor({ ...appointmentEditor, time: event.target.value, repeatedTimeChoice: undefined }); }} /></label>
             <label>Practitioner<select aria-label="Appointment practitioner" value={appointmentEditor.practitionerId} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, practitionerId: event.target.value })}>
               {practiceWorkspace.practitioners.filter((record) => record.active || (appointmentEditor.id && record.id === appointmentEditor.practitionerId)).map((record) => <option key={record.id} value={record.id} disabled={!record.active}>{record.label}{!record.active ? " · inactive historical assignment" : ""}</option>)}
@@ -921,11 +1068,11 @@ export default function Home() {
               <option value="" disabled>Choose an occurrence</option><option value="earlier">Earlier occurrence</option><option value="later">Later occurrence</option>
             </select></label>}
             {appointmentError && <p className="warning" role="alert">{appointmentError}</p>}
-            <div className="appointment-editor-actions">
+            <div className={`appointment-editor-actions${guidedStep === "appointment" ? " guided-action-bar" : ""}`}>
               {appointmentEditor.id && <button type="button" onClick={deleteAppointment}>Delete appointment</button>}
-              <button type="button" onClick={() => { setAppointmentEditor(null); setAppointmentError(""); }}>Cancel appointment editing</button>
+              <button type="button" onClick={() => { setAppointmentEditor(null); setAppointmentError(""); setGuidedStep(null); }}>Cancel appointment editing</button>
               {outsideHoursPending && <button type="button" onClick={() => saveAppointment(true)}>Save outside hours</button>}
-              <button className="button-primary" type="submit">Save appointment</button>
+              <button className="button-primary" type="submit">{guidedStep === "appointment" ? "Save appointment and continue" : "Save appointment"}</button>
             </div>
           </form>}
         </section>}
@@ -947,48 +1094,48 @@ export default function Home() {
               })}
             </ul>
           </div>)}
-          {availabilityEditor && <form className="availability-editor" onSubmit={(event) => { event.preventDefault(); saveAvailability(); }}>
+          {availabilityEditor && <form className={`availability-editor${guidedStep === "availability" ? " guided-editor" : ""}`} onSubmit={(event) => { event.preventDefault(); saveAvailability(); }}>
             <strong>{formatAvailabilityDate(availabilityEditor.localDate)}</strong>
-            <label className="closed-control"><input aria-label="Closed all day" type="checkbox" checked={availabilityEditor.closed} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, closed: event.target.checked })} />Closed all day</label>
+            <label className="closed-control"><input ref={availabilityClosedRef} aria-label="Closed all day" type="checkbox" checked={availabilityEditor.closed} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, closed: event.target.checked })} />Closed all day</label>
             {!availabilityEditor.closed && <>
-              <label>Start time<input aria-label="Availability start time" type="time" value={availabilityEditor.startTime} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, startTime: event.target.value })} /></label>
+              <label>Start time<input ref={availabilityStartRef} aria-label="Availability start time" type="time" value={availabilityEditor.startTime} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, startTime: event.target.value })} /></label>
               <label>End time<input aria-label="Availability end time" type="time" value={availabilityEditor.endTime} onChange={(event) => setAvailabilityEditor({ ...availabilityEditor, endTime: event.target.value })} /></label>
             </>}
             {availabilityError && <p className="warning" role="alert">{availabilityError}</p>}
-            <div><button type="button" onClick={() => { setAvailabilityEditor(null); setAvailabilityError(""); }}>Cancel availability editing</button><button className="button-primary" type="submit">Save availability</button></div>
+            <div className={guidedStep === "availability" ? "guided-action-bar" : undefined}><button type="button" onClick={() => { setAvailabilityEditor(null); setAvailabilityError(""); setGuidedStep(null); }}>Cancel availability editing</button><button className="button-primary" type="submit">{guidedStep === "availability" ? "Save availability and continue" : "Save availability"}</button></div>
           </form>}
         </section>}
 
         <section className="catalog-grid" aria-label="Practice catalogs">
           <div className="panel catalog-panel">
-            <div className="panel-heading"><h2>Practitioners</h2>{practiceSource !== "sample" && <button onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "practitioner", label: "" }); }}>Add practitioner</button>}</div>
+            <div className="panel-heading"><h2>Practitioners</h2>{practiceSource !== "sample" && <button onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "practitioner", label: "" }); }}>Add practitioner</button>}</div>
             {practiceWorkspace.practitioners.length === 0 ? <p className="muted">No practitioners yet.</p> : <ul className="catalog-list">
               {practiceWorkspace.practitioners.map((record) => <li key={record.id}>
                 <span><strong>{record.label}</strong>{!record.active && <small>Inactive practitioner</small>}</span>
-                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit practitioner ${record.label}`} onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "practitioner", id: record.id, label: record.label }); }}>Edit</button>{record.active && <button aria-label={`Deactivate practitioner ${record.label}`} onClick={() => deactivateCatalogRecord("practitioner", record.id)}>Deactivate</button>}</span>}
+                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit practitioner ${record.label}`} onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "practitioner", id: record.id, label: record.label }); }}>Edit</button>{record.active && <button aria-label={`Deactivate practitioner ${record.label}`} onClick={() => deactivateCatalogRecord("practitioner", record.id)}>Deactivate</button>}</span>}
               </li>)}
             </ul>}
-            {catalogEditor?.kind === "practitioner" && <form className="catalog-editor" onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
-              <label>Practitioner label<input aria-label="Practitioner label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
+            {catalogEditor?.kind === "practitioner" && <form className={`catalog-editor${guidedStep === "practitioner" ? " guided-editor" : ""}`} onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
+              <label>Practitioner label<input ref={practitionerLabelRef} aria-label="Practitioner label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
               {catalogError && <p className="warning" role="alert">{catalogError}</p>}
-              <div><button type="button" onClick={() => setCatalogEditor(null)}>Cancel</button><button className="button-primary" type="submit">Save practitioner</button></div>
+              <div className={guidedStep === "practitioner" ? "guided-action-bar" : undefined}><button type="button" onClick={() => { setCatalogEditor(null); setGuidedStep(null); }}>Cancel</button><button className="button-primary" type="submit">{guidedStep === "practitioner" ? "Save practitioner and continue" : "Save practitioner"}</button></div>
             </form>}
           </div>
 
           <div className="panel catalog-panel">
-            <div className="panel-heading"><h2>Services</h2>{practiceSource !== "sample" && <button onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueCents: "" }); }}>Add service</button>}</div>
+            <div className="panel-heading"><h2>Services</h2>{practiceSource !== "sample" && <button onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueCents: "" }); }}>Add service</button>}</div>
             {practiceWorkspace.services.length === 0 ? <p className="muted">No services yet.</p> : <ul className="catalog-list">
               {practiceWorkspace.services.map((record) => <li key={record.id}>
                 <span><strong>{record.label}</strong><small>{record.defaultDurationMinutes} minutes · ${(record.defaultValueCents / 100).toFixed(2)}</small>{!record.active && <small>Inactive service</small>}</span>
-                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit service ${record.label}`} onClick={() => { setCatalogError(""); setCatalogEditor({ kind: "service", id: record.id, label: record.label, durationMinutes: String(record.defaultDurationMinutes), valueCents: String(record.defaultValueCents) }); }}>Edit</button>{record.active && <button aria-label={`Deactivate service ${record.label}`} onClick={() => deactivateCatalogRecord("service", record.id)}>Deactivate</button>}</span>}
+                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit service ${record.label}`} onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "service", id: record.id, label: record.label, durationMinutes: String(record.defaultDurationMinutes), valueCents: String(record.defaultValueCents) }); }}>Edit</button>{record.active && <button aria-label={`Deactivate service ${record.label}`} onClick={() => deactivateCatalogRecord("service", record.id)}>Deactivate</button>}</span>}
               </li>)}
             </ul>}
-            {catalogEditor?.kind === "service" && <form className="catalog-editor" onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
-              <label>Service label<input aria-label="Service label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
+            {catalogEditor?.kind === "service" && <form className={`catalog-editor${guidedStep === "service" ? " guided-editor" : ""}`} onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
+              <label>Service label<input ref={serviceLabelRef} aria-label="Service label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
               <label>Default duration in minutes<input aria-label="Default duration in minutes" type="number" min="1" step="1" value={catalogEditor.durationMinutes} onChange={(event) => setCatalogEditor({ ...catalogEditor, durationMinutes: event.target.value })} /></label>
               <label>Default value in cents<input aria-label="Default value in cents" type="number" min="0" step="1" value={catalogEditor.valueCents} onChange={(event) => setCatalogEditor({ ...catalogEditor, valueCents: event.target.value })} /></label>
               {catalogError && <p className="warning" role="alert">{catalogError}</p>}
-              <div><button type="button" onClick={() => setCatalogEditor(null)}>Cancel</button><button className="button-primary" type="submit">Save service</button></div>
+              <div className={guidedStep === "service" ? "guided-action-bar" : undefined}><button type="button" onClick={() => { setCatalogEditor(null); setGuidedStep(null); }}>Cancel</button><button className="button-primary" type="submit">{guidedStep === "service" ? "Save service and continue" : "Save service"}</button></div>
             </form>}
           </div>
         </section>

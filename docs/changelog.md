@@ -32,3 +32,9 @@ Completed plans and releases are indexed here.
 - Added separate browser-local owner and sample-derived workspaces with strict redacted schemas, recoverable storage, and connected-provider authority without cross-source merging.
 - Established a ledger-first Practice Data flow for privacy-safe catalogs, weekly availability, appointments, lifecycle status, anonymous returning-client IDs, and time-zone-aware validation across daylight-saving boundaries.
 - Adapted raw practice records through the existing dashboard calculation boundary so metrics, evidence, unavailable states, and owner-only recommendations reconcile without weakening provider, outreach, booking, payment, or value-truthfulness boundaries.
+
+## Plan 6 — Make first practice setup self-guiding (2026-09-14)
+
+- Added a four-step, keyboard-operable Practice Data guide whose progress and completion derive from persisted global workspace records while preserving the normal editors.
+- Established viewport-fixed guided actions with reserved content space and a synthetic smoke path at 1440×900, 768×600, and 360×640.
+- Kept connected insights authoritative until an explicit, source-aware owner choice, with identical completion behavior across guided and normal entry paths.
