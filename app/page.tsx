@@ -731,7 +731,7 @@ export default function Home() {
       setAppointmentError("");
       setOutsideHoursPending(false);
       setRepeatedHourPending(false);
-      if (addsFirstAppointment) {
+      if (addsFirstAppointment && currentSetupStep === "appointment") {
         setGuidedStep(null);
         setSetupCompletedNotice(true);
       }

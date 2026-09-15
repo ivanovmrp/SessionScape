@@ -44,5 +44,6 @@ Let a first-time owner save the minimum practitioner, service, availability, and
 - 2026-09-14 (BL-019): the existing 360px navigation hid Practice data, blocking an uncoached mobile start; mobile navigation now retains Overview and Practice data.
 - 2026-09-14 (BL-019): setup transitions must follow newly persisted qualifying records regardless of whether the owner entered through the guide or normal workspace; converting a closed record into the first open interval is a progression event, not a routine edit.
 - 2026-09-14 (BL-019): live ship verification found normal-workspace completion bypassed the source choice and guided transitions left a duplicate-capable prior editor open; completion behavior must be entry-path independent, transitions must close the prior editor, and the enabled Appointment step must describe the next action rather than a satisfied prerequisite.
+- 2026-09-14 (BL-019): supporting normal-workspace completion exposed an out-of-order outside-hours path that can create the first appointment before open availability; show the completion choice only when the newly saved workspace satisfies every derived setup prerequisite.
 
 ## Archived Specs

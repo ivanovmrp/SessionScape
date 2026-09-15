@@ -1261,6 +1261,29 @@ test("offers the source choice when normal workspace entry completes setup", asy
   expect(screen.getByRole("button", { name: "Keep connected insights" })).toBeDefined();
 });
 
+test("does not announce completion when a normal first appointment precedes availability", async () => {
+  const user = userEvent.setup();
+  const ownerWorkspace = {
+    ...structuredClone(RAW_SAMPLE_WORKSPACE),
+    provenance: "owner-entered" as const,
+    availability: [],
+    appointments: [],
+  };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  await user.click(screen.getByRole("button", { name: "Add appointment" }));
+  await user.type(screen.getByLabelText("Appointment date"), "2026-09-07");
+  await user.type(screen.getByLabelText("Start time"), "10:00");
+  await user.click(screen.getByRole("button", { name: "Save appointment" }));
+  await user.click(screen.getByRole("button", { name: "Save outside hours" }));
+
+  const guide = screen.getByRole("region", { name: "Practice setup" });
+  expect(within(guide).getByRole("button", { name: "Set up availability" }).getAttribute("aria-current")).toBe("step");
+  expect(screen.queryByRole("region", { name: "Practice setup complete" })).toBeNull();
+  expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(1);
+});
+
 test("creates, edits, and deactivates a service with integer-cent defaults", async () => {
   const user = userEvent.setup();
   render(<Page />);
