@@ -106,18 +106,7 @@ Give practitioners without a supported booking platform a manual data source, an
   1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
   2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.
 
-### BL-019 — Guide owners through initial practice-data setup
-- **Status**: planned (Plan 6)
-- **Priority · Effort**: P0 · M
-- **Dependencies**: BL-011, BL-012, BL-013
-- **Sketches**: docs/sketches/guided-practice-setup/option-a.html
-- **Context**: Post-ship owner testing found the catalog Save control was not visible or discoverable and the separate panels gave no clear path from practitioner to service, availability, and appointment. Use a persistent four-step checklist inside the existing Practice Data workspace; reject a separate full-screen wizard because owners must retain access to the normal ledger and catalogs. This story blocks BL-006 owner research until the uncoached manual smoke path passes.
-- **Acceptance criteria**:
-  1. An empty or incomplete editable workspace shows an ordered Practitioner → Service → Availability → Appointment checklist whose completed/current state is derived globally from saved records, identifies the current step with accessible semantics, and leaves the normal Practice Data workspace available.
-  2. Each available checklist step is a native keyboard-operable control that opens and focuses the existing editor; while any guided editor is open, a viewport-fixed Save-and-continue action and Cancel remain visible without covering fields or validation at 1440×900, 768×600, and 360×640.
-  3. A successfully persisted first practitioner advances to service; service advances to the first missing date for the first active practitioner in the selected week; the first saved open availability advances to appointment; and the first appointment completes the checklist. A closed day alone does not complete availability. Failed validation or persistence does not advance, duplicate, close the editor, or lose draft data.
-  4. Completed setup offers an explicit source-aware dashboard choice: connected insights remain authoritative unless the owner confirms switching to the currently active, correctly labeled owner-entered or sample-derived insights. Reloading or changing source/week safely resumes at the globally first incomplete saved step; completed/existing workspaces are not re-coached each week or forced through a wizard.
-  5. Component tests cover progress derivation, native keyboard activation, focus, successful transitions, validation failure at every step, persistence failure, reload/resume, source authority, and preservation of existing records; a checked-in manual smoke checklist covers the uncoached journey at all three specified viewport sizes using synthetic data only.
+- BL-019 Guide owners through initial practice-data setup — done (Plan 6)
 
 ### BL-020 — Remove the single-use guided availability helper
 - **Status**: ready
