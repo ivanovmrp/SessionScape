@@ -1182,7 +1182,7 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="dashboard-grid">
+        <section className="dashboard-grid" id="clients">
           <div className="panel capacity-panel">
             <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={(event) => openMetric(fixture.capacityMetric, event.currentTarget)}>View calculation<Icon name="chevron" size={14} /></button></div>
             {fixture.capacityState === "unavailable" ? (

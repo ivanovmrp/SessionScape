@@ -1069,10 +1069,12 @@ test("restores the dashboard when a primary destination is chosen from Practice 
   await user.click(screen.getByRole("link", { name: "Practice data" }));
   expect(screen.getByRole("heading", { name: "Practice data" })).toBeDefined();
 
-  await user.click(screen.getByRole("link", { name: /^Opportunities/ }));
-
-  expect(screen.getByRole("heading", { name: "Good morning, Isla" })).toBeDefined();
-  expect(document.getElementById("opportunities")).toBeDefined();
+  for (const destination of ["Opportunities", "Clients", "Activity"]) {
+    await user.click(screen.getByRole("link", { name: new RegExp(`^${destination}`) }));
+    expect(screen.getByRole("heading", { name: "Good morning, Isla" })).toBeDefined();
+    expect(document.getElementById(destination.toLowerCase())).toBeDefined();
+    await user.click(screen.getByRole("link", { name: "Practice data" }));
+  }
 });
 
 test("keeps a normal first-record draft when persistence fails", async () => {
