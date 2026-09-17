@@ -1077,6 +1077,13 @@ test("restores the dashboard when a primary destination is chosen from Practice 
   }
 });
 
+test("keeps Practice Data navigation and week controls rendered for narrow screens", async () => {
+  render(<Page />);
+
+  expect(screen.getByRole("link", { name: "Practice data" })).toBeDefined();
+  expect(screen.getByRole("button", { name: /Sep 7–13, 2026/ })).toBeDefined();
+});
+
 test("keeps a normal first-record draft when persistence fails", async () => {
   const user = userEvent.setup();
   render(<Page />);

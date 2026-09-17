@@ -285,7 +285,7 @@ footer { display: flex; justify-content: space-between; padding: 28px 2px 0; col
 }
 
 @media (max-width: 520px) {
-  .topbar h1 { font-size: 23px; }.topbar p { font-size: 10px; }.date-button { display: none; }.scenario-control select { width: 130px; }
+  .topbar h1 { font-size: 23px; }.topbar p { font-size: 10px; }.date-button { display: flex; }.scenario-control select { width: 130px; }
   .summary-heading { display: grid; padding-top: 30px; }.opportunity-total { border-left: 0; border-top: 1px solid var(--line); padding: 14px 0 0; }
   .metric-grid { grid-template-columns: 1fr 1fr; }.metric-card { padding: 17px 15px; }.metric-card > strong { font-size: 25px; }.metric-change { position: static; width: max-content; margin-top: 4px; }
   .panel { padding: 20px 17px; }.setup-steps { grid-template-columns: 1fr; }.guided-action-bar { flex-wrap: wrap; }.capacity-visual { gap: 18px; }.donut { width: 114px; height: 114px; }.donut::before { width: 80px; height: 80px; }
