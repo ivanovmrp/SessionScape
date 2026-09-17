@@ -9,7 +9,7 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 ## Stories
 
 ### BL-014 — Restore dashboard destinations from Practice Data
-- **Status**: in progress
+- **Status**: done
 - **Dependencies**: BL-012
 - **Likely touched files**: `app/page.tsx`, `app/page.test.tsx`
 - **Design**: Keep one shared navigation state and restore the dashboard before applying the requested section target. Dashboard and Practice Data must remain independently reachable without duplicating destination definitions.
