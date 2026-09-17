@@ -20,7 +20,7 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 - **Test plan**: Component tests prove each destination restores the dashboard and lands on the requested section from Practice Data and remains reachable from the dashboard.
 
 ### BL-015 — Keep Practice Data reachable on small screens
-- **Status**: in progress
+- **Status**: done
 - **Dependencies**: BL-012, BL-013
 - **Likely touched files**: `app/page.tsx`, `app/globals.css`, `app/page.test.tsx`, `docs/testing/manual-prototype-smoke.md`, browser-test configuration if the existing harness cannot set viewport dimensions
 - **Design**: Preserve the desktop navigation model and change only narrow-screen visibility/overflow rules. The responsive acceptance must be verified in a real browser at 360×640 because jsdom component tests do not evaluate CSS media queries; extend the existing browser smoke path rather than adding a second UI harness. No data or navigation-state migration is needed, and rollback is limited to the responsive rules and their tests.
@@ -52,5 +52,7 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 - Tab semantics must remain compatible with existing focus containment and editor transitions.
 
 ## Observations
+
+- 2026-09-17 (BL-015): user manually confirmed the required 360×640 breakpoint behavior, closing the previously pending browser check.
 
 - 2026-09-17 (BL-015): live browser verification confirmed Practice Data and week controls render at 1536×791; the connected browser surface exposed no viewport override, so the required 360×640 breakpoint check remains pending.
