@@ -366,6 +366,11 @@ export default function Home() {
     setSurface(nextSurface);
   };
 
+  const showDashboardSection = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    showSurface("overview");
+  };
+
   const changeScenario = (nextScenario: DataScenario) => {
     restoreMetricFocusRef.current = false;
     restoreOpportunityFocusRef.current = false;
@@ -954,9 +959,9 @@ export default function Home() {
         <a className="wordmark" href="#top" aria-label="SessionScape home"><span className="mark">S</span><strong>SessionScape</strong></a>
         <nav aria-label="Primary navigation">
           <a className={surface === "overview" ? "active" : ""} href="#top" onClick={() => showSurface("overview")}><Icon name="grid" />Overview</a>
-          <a href="#opportunities"><Icon name="spark" />Opportunities<span className="nav-count">{opportunities.length}</span></a>
-          <a href="#clients"><Icon name="users" />Clients</a>
-          <a href="#activity"><Icon name="action" />Activity</a>
+          <a href="#opportunities" onClick={showDashboardSection}><Icon name="spark" />Opportunities<span className="nav-count">{opportunities.length}</span></a>
+          <a href="#clients" onClick={showDashboardSection}><Icon name="users" />Clients</a>
+          <a href="#activity" onClick={showDashboardSection}><Icon name="action" />Activity</a>
           <a className={surface === "practice-data" ? "active" : ""} href="#practice-data" onClick={(event) => { event.preventDefault(); showSurface("practice-data"); }}><Icon name="calendar" />Practice data</a>
         </nav>
         <div className="sidebar-bottom">

@@ -1062,6 +1062,19 @@ test("creates, renames, and deactivates a practitioner in the owner catalog", as
   expect(screen.getByText("No active practitioners")).toBeDefined();
 });
 
+test("restores the dashboard when a primary destination is chosen from Practice Data", async () => {
+  const user = userEvent.setup();
+
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+  expect(screen.getByRole("heading", { name: "Practice data" })).toBeDefined();
+
+  await user.click(screen.getByRole("link", { name: /^Opportunities/ }));
+
+  expect(screen.getByRole("heading", { name: "Good morning, Isla" })).toBeDefined();
+  expect(document.getElementById("opportunities")).toBeDefined();
+});
+
 test("keeps a normal first-record draft when persistence fails", async () => {
   const user = userEvent.setup();
   render(<Page />);
