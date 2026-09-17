@@ -71,7 +71,7 @@ Give practitioners without a supported booking platform a manual data source, an
 - BL-013 Derive dashboard opportunities from manual records — done (Plan 5)
 
 ### BL-014 — Restore dashboard destinations from Practice Data
-- **Status**: ready
+- **Status**: planned (Plan 7)
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-012
 - **Context**: The Opportunities, Clients, and Activity links target dashboard sections that are not mounted while Practice Data is open, so they appear broken. Source: review (Plan 5).
@@ -80,7 +80,7 @@ Give practitioners without a supported booking platform a manual data source, an
   2. Component tests prove every primary-navigation destination remains reachable from both surfaces.
 
 ### BL-015 — Keep Practice Data reachable on small screens
-- **Status**: ready
+- **Status**: planned (Plan 7)
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-012, BL-013
 - **Context**: The current narrow-screen rules hide both the Practice Data navigation item and the dashboard week control, preventing mobile-width access to Plan 5 flows. Source: review (Plan 5).
@@ -98,7 +98,7 @@ Give practitioners without a supported booking platform a manual data source, an
   2. Unit and component tests prove generated IDs match the persisted `anon_[a-z0-9]{12}` contract.
 
 ### BL-018 — Complete keyboard semantics for Practice Data tabs
-- **Status**: ready
+- **Status**: planned (Plan 7)
 - **Priority · Effort**: P1 · S
 - **Dependencies**: BL-012
 - **Context**: The Practice Data controls declare tab roles without associated tabpanels, relationships, roving focus, or arrow-key behavior. Source: review (Plan 5).
