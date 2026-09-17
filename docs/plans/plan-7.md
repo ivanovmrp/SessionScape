@@ -52,3 +52,5 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 - Tab semantics must remain compatible with existing focus containment and editor transitions.
 
 ## Observations
+
+- 2026-09-17 (BL-015): live browser verification confirmed Practice Data and week controls render at 1536×791; the connected browser surface exposed no viewport override, so the required 360×640 breakpoint check remains pending.
