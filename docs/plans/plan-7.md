@@ -31,7 +31,7 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 - **Test plan**: Component tests cover rendered control wiring; a real-browser smoke test at 360×640 proves the Practice Data navigation item and dashboard week controls are visible and actionable, while existing desktop component tests remain green.
 
 ### BL-018 — Complete keyboard semantics for Practice Data tabs
-- **Status**: not started
+- **Status**: done
 - **Dependencies**: BL-012
 - **Likely touched files**: `app/page.tsx`, `app/page.test.tsx`
 - **Design**: Implement a two-tab WAI-ARIA tabs contract with linked tabpanels, one selected/focusable tab, and Left/Right arrow movement with wraparound. Keep the existing panel content and editor state unchanged.

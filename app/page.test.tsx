@@ -1084,6 +1084,28 @@ test("keeps Practice Data navigation and week controls rendered for narrow scree
   expect(screen.getByRole("button", { name: /Sep 7–13, 2026/ })).toBeDefined();
 });
 
+test("provides keyboard-operable Appointment and Availability tabs", async () => {
+  const user = userEvent.setup();
+
+  render(<Page />);
+  await user.click(screen.getByRole("link", { name: "Practice data" }));
+
+  const tabs = screen.getAllByRole("tab");
+  expect(tabs).toHaveLength(2);
+  expect(tabs[0].getAttribute("aria-controls")).toBe("practice-panel-appointments");
+  expect(tabs[1].getAttribute("aria-controls")).toBe("practice-panel-availability");
+  expect(tabs[0].getAttribute("tabindex")).toBe("0");
+  expect(tabs[1].getAttribute("tabindex")).toBe("-1");
+  expect(screen.getByRole("tabpanel", { name: "Appointments" })).toBeDefined();
+
+  tabs[0].focus();
+  await user.keyboard("{ArrowRight}");
+
+  expect(document.activeElement).toBe(tabs[1]);
+  expect(tabs[1].getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByRole("tabpanel", { name: "Availability" })).toBeDefined();
+});
+
 test("keeps a normal first-record draft when persistence fails", async () => {
   const user = userEvent.setup();
   render(<Page />);

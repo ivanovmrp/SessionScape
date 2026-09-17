@@ -371,6 +371,16 @@ export default function Home() {
     showSurface("overview");
   };
 
+  const movePracticeDataTab = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const target = event.key === "ArrowRight"
+      ? event.currentTarget.nextElementSibling ?? event.currentTarget.parentElement?.firstElementChild
+      : event.currentTarget.previousElementSibling ?? event.currentTarget.parentElement?.lastElementChild;
+    setPracticeDataTab((current) => current === "appointments" ? "availability" : "appointments");
+    (target as HTMLButtonElement | null)?.focus();
+  };
+
   const changeScenario = (nextScenario: DataScenario) => {
     restoreMetricFocusRef.current = false;
     restoreOpportunityFocusRef.current = false;
@@ -1027,11 +1037,11 @@ export default function Home() {
         </section>
 
         <div className="practice-tabs" role="tablist" aria-label="Practice data views">
-          <button role="tab" aria-selected={practiceDataTab === "appointments"} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); setGuidedStep(null); }}>Appointments</button>
-          <button role="tab" aria-selected={practiceDataTab === "availability"} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); setGuidedStep(null); }}>Availability</button>
+          <button id="practice-tab-appointments" role="tab" aria-selected={practiceDataTab === "appointments"} aria-controls="practice-panel-appointments" tabIndex={practiceDataTab === "appointments" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); setGuidedStep(null); }}>Appointments</button>
+          <button id="practice-tab-availability" role="tab" aria-selected={practiceDataTab === "availability"} aria-controls="practice-panel-availability" tabIndex={practiceDataTab === "availability" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); setGuidedStep(null); }}>Availability</button>
         </div>
 
-        {practiceDataTab === "appointments" && <section className="panel appointment-ledger">
+        {practiceDataTab === "appointments" && <section id="practice-panel-appointments" className="panel appointment-ledger" role="tabpanel" aria-labelledby="practice-tab-appointments">
           <div className="panel-heading">
             <div><h2>Appointments</h2><p className="muted">{practiceWeek.label} · {practiceWorkspace.timezone}</p></div>
             {practiceSource !== "sample" && activePractitioners.length > 0 && activeServices.length > 0 && <button onClick={openNewAppointment}>Add appointment</button>}
@@ -1082,7 +1092,7 @@ export default function Home() {
           </form>}
         </section>}
 
-        {practiceDataTab === "availability" && <section className="panel availability-panel">
+        {practiceDataTab === "availability" && <section id="practice-panel-availability" className="panel availability-panel" role="tabpanel" aria-labelledby="practice-tab-availability">
           <div className="panel-heading">
             <div><h2>Weekly availability</h2><p className="muted">Closed days count as complete coverage.</p></div>
           </div>
