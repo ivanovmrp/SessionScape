@@ -22,13 +22,13 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 ### BL-015 — Keep Practice Data reachable on small screens
 - **Status**: done
 - **Dependencies**: BL-012, BL-013
-- **Likely touched files**: `app/page.tsx`, `app/globals.css`, `app/page.test.tsx`, `docs/testing/manual-prototype-smoke.md`, browser-test configuration if the existing harness cannot set viewport dimensions
-- **Design**: Preserve the desktop navigation model and change only narrow-screen visibility/overflow rules. The responsive acceptance must be verified in a real browser at 360×640 because jsdom component tests do not evaluate CSS media queries; extend the existing browser smoke path rather than adding a second UI harness. No data or navigation-state migration is needed, and rollback is limited to the responsive rules and their tests.
+- **Likely touched files**: `app/page.tsx`, `app/globals.css`, `app/page.test.tsx`, `docs/testing/manual-prototype-smoke.md`
+- **Design**: Preserve the desktop navigation model and change only narrow-screen visibility/overflow rules. Component tests prove control wiring; the user manually verifies actual CSS behavior at 360×640 because jsdom does not evaluate media queries and this plan does not add a browser harness. No data or navigation-state migration is needed, and rollback is limited to the responsive rules and their tests.
 - **Tasks**:
-  1. Add failing responsive interaction tests at the smallest supported viewport for Practice Data navigation and dashboard week controls.
+  1. Add failing component tests proving Practice Data navigation and dashboard week controls remain rendered and wired.
   2. Adjust narrow-screen layout/visibility rules so both controls remain discoverable and usable without breaking desktop behavior.
-  3. Run responsive tests and manually verify the narrow-screen path.
-- **Test plan**: Component tests cover rendered control wiring; a real-browser smoke test at 360×640 proves the Practice Data navigation item and dashboard week controls are visible and actionable, while existing desktop component tests remain green.
+  3. Run component tests and manually verify the narrow-screen path at 360×640.
+- **Test plan**: Component tests cover rendered control wiring; user-recorded manual verification at 360×640 proves the Practice Data navigation item and dashboard week controls are visible and actionable, while existing desktop component tests remain green.
 
 ### BL-018 — Complete keyboard semantics for Practice Data tabs
 - **Status**: done
@@ -53,6 +53,7 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 
 ## Observations
 
+- 2026-09-17 (plan): BL-015 criterion 2 changed from automated responsive tests to component wiring tests plus user-confirmed 360×640 manual verification because the current jsdom harness cannot evaluate CSS media queries; a browser harness remains outside this plan.
 - 2026-09-17 (BL-015): user manually confirmed the required 360×640 breakpoint behavior, closing the previously pending browser check.
 
 - 2026-09-17 (BL-015): live browser verification confirmed Practice Data and week controls render at 1536×791; the connected browser surface exposed no viewport override, so the required 360×640 breakpoint check remains pending.

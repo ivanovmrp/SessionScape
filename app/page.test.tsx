@@ -1064,6 +1064,8 @@ test("creates, renames, and deactivates a practitioner in the owner catalog", as
 
 test("restores the dashboard when a primary destination is chosen from Practice Data", async () => {
   const user = userEvent.setup();
+  const scrollIntoView = vi.fn();
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
 
   render(<Page />);
   await user.click(screen.getByRole("link", { name: "Practice data" }));
@@ -1073,6 +1075,8 @@ test("restores the dashboard when a primary destination is chosen from Practice 
     await user.click(screen.getByRole("link", { name: new RegExp(`^${destination}`) }));
     expect(screen.getByRole("heading", { name: "Good morning, Isla" })).toBeDefined();
     expect(document.getElementById(destination.toLowerCase())).toBeDefined();
+    await waitFor(() => expect(window.location.hash).toBe(`#${destination.toLowerCase()}`));
+    expect(scrollIntoView).toHaveBeenCalled();
     await user.click(screen.getByRole("link", { name: "Practice data" }));
   }
 });
@@ -1086,6 +1090,8 @@ test("keeps Practice Data navigation and week controls rendered for narrow scree
 
 test("provides keyboard-operable Appointment and Availability tabs", async () => {
   const user = userEvent.setup();
+  const ownerWorkspace = { ...structuredClone(RAW_SAMPLE_WORKSPACE), provenance: "owner-entered" as const };
+  window.localStorage.setItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner, JSON.stringify(ownerWorkspace));
 
   render(<Page />);
   await user.click(screen.getByRole("link", { name: "Practice data" }));
@@ -1098,12 +1104,27 @@ test("provides keyboard-operable Appointment and Availability tabs", async () =>
   expect(tabs[1].getAttribute("tabindex")).toBe("-1");
   expect(screen.getByRole("tabpanel", { name: "Appointments" })).toBeDefined();
 
+  await user.click(await screen.findByRole("button", { name: "Add appointment" }));
+  expect(screen.getByRole("button", { name: "Save appointment" })).toBeDefined();
   tabs[0].focus();
   await user.keyboard("{ArrowRight}");
 
   expect(document.activeElement).toBe(tabs[1]);
   expect(tabs[1].getAttribute("aria-selected")).toBe("true");
   expect(screen.getByRole("tabpanel", { name: "Availability" })).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Save appointment" })).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Edit availability Mon Sep 7 for Maya" }));
+  expect(screen.getByRole("button", { name: "Save availability" })).toBeDefined();
+  tabs[1].focus();
+  await user.keyboard("{ArrowRight}");
+  expect(document.activeElement).toBe(tabs[0]);
+  expect(tabs[0].getAttribute("aria-selected")).toBe("true");
+  expect(screen.queryByRole("button", { name: "Save availability" })).toBeNull();
+
+  await user.keyboard("{ArrowLeft}");
+  expect(document.activeElement).toBe(tabs[1]);
+  expect(tabs[1].getAttribute("aria-selected")).toBe("true");
 });
 
 test("keeps a normal first-record draft when persistence fails", async () => {

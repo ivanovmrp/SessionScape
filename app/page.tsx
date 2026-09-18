@@ -368,7 +368,21 @@ export default function Home() {
 
   const showDashboardSection = (event: React.MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
+    const targetId = event.currentTarget.hash.slice(1);
     showSurface("overview");
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      window.history.replaceState(null, "", `#${targetId}`);
+      target.scrollIntoView();
+    });
+  };
+
+  const selectPracticeDataTab = (nextTab: "appointments" | "availability") => {
+    setPracticeDataTab(nextTab);
+    if (nextTab === "appointments") setAvailabilityEditor(null);
+    if (nextTab === "availability") setAppointmentEditor(null);
+    setGuidedStep(null);
   };
 
   const movePracticeDataTab = (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -377,7 +391,7 @@ export default function Home() {
     const target = event.key === "ArrowRight"
       ? event.currentTarget.nextElementSibling ?? event.currentTarget.parentElement?.firstElementChild
       : event.currentTarget.previousElementSibling ?? event.currentTarget.parentElement?.lastElementChild;
-    setPracticeDataTab((current) => current === "appointments" ? "availability" : "appointments");
+    selectPracticeDataTab(practiceDataTab === "appointments" ? "availability" : "appointments");
     (target as HTMLButtonElement | null)?.focus();
   };
 
@@ -1037,8 +1051,8 @@ export default function Home() {
         </section>
 
         <div className="practice-tabs" role="tablist" aria-label="Practice data views">
-          <button id="practice-tab-appointments" role="tab" aria-selected={practiceDataTab === "appointments"} aria-controls="practice-panel-appointments" tabIndex={practiceDataTab === "appointments" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); setGuidedStep(null); }}>Appointments</button>
-          <button id="practice-tab-availability" role="tab" aria-selected={practiceDataTab === "availability"} aria-controls="practice-panel-availability" tabIndex={practiceDataTab === "availability" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); setGuidedStep(null); }}>Availability</button>
+          <button id="practice-tab-appointments" role="tab" aria-selected={practiceDataTab === "appointments"} aria-controls="practice-panel-appointments" tabIndex={practiceDataTab === "appointments" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => selectPracticeDataTab("appointments")}>Appointments</button>
+          <button id="practice-tab-availability" role="tab" aria-selected={practiceDataTab === "availability"} aria-controls="practice-panel-availability" tabIndex={practiceDataTab === "availability" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => selectPracticeDataTab("availability")}>Availability</button>
         </div>
 
         {practiceDataTab === "appointments" && <section id="practice-panel-appointments" className="panel appointment-ledger" role="tabpanel" aria-labelledby="practice-tab-appointments">
@@ -1192,7 +1206,7 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="dashboard-grid" id="clients">
+        <section className="dashboard-grid">
           <div className="panel capacity-panel">
             <div className="panel-heading"><div><p className="eyebrow">CAPACITY</p><h3>Where the week stands</h3></div><button onClick={(event) => openMetric(fixture.capacityMetric, event.currentTarget)}>View calculation<Icon name="chevron" size={14} /></button></div>
             {fixture.capacityState === "unavailable" ? (

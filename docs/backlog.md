@@ -86,7 +86,7 @@ Give practitioners without a supported booking platform a manual data source, an
 - **Context**: The current narrow-screen rules hide both the Practice Data navigation item and the dashboard week control, preventing mobile-width access to Plan 5 flows. Source: review (Plan 5).
 - **Acceptance criteria**:
   1. At supported narrow widths, owners can open Practice Data and move between dashboard and ledger weeks without hidden controls.
-  2. Responsive tests cover the navigation and week controls at the smallest supported viewport.
+  2. Component tests prove the navigation and week controls remain wired and rendered; manual browser verification confirms both are visible and actionable at 360×640.
 
 ### BL-017 — Use one anonymous-client ID generator
 - **Status**: ready
