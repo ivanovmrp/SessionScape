@@ -1,5 +1,5 @@
 # Plan 7: Remove Practice Data usability barriers
-Status: IN PROGRESS
+Status: COMPLETE
 Advances: direct — owners can move between dashboard and Practice Data on every supported viewport with reachable, keyboard-correct navigation.
 
 ## Goal
@@ -55,3 +55,32 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 
 - 2026-09-17 (plan): BL-015 criterion 2 changed from automated responsive tests to component wiring tests plus user-confirmed 360×640 manual verification because the current jsdom harness cannot evaluate CSS media queries; a browser harness remains outside this plan.
 - 2026-09-17 (BL-015): user manually confirmed the required 360×640 breakpoint behavior, closing the previously pending browser check.
+
+## Archived Specs
+
+### BL-014 — Restore dashboard destinations from Practice Data
+- **Status**: planned (Plan 7)
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: The Opportunities, Clients, and Activity links target dashboard sections that are not mounted while Practice Data is open, so they appear broken. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Choosing Opportunities, Clients, or Activity from Practice Data restores the dashboard before navigating to the requested section.
+  2. Component tests prove every primary-navigation destination remains reachable from both surfaces.
+
+### BL-015 — Keep Practice Data reachable on small screens
+- **Status**: planned (Plan 7)
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012, BL-013
+- **Context**: The current narrow-screen rules hide both the Practice Data navigation item and the dashboard week control, preventing mobile-width access to Plan 5 flows. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. At supported narrow widths, owners can open Practice Data and move between dashboard and ledger weeks without hidden controls.
+  2. Component tests prove the navigation and week controls remain wired and rendered; manual browser verification confirms both are visible and actionable at 360×640.
+
+### BL-018 — Complete keyboard semantics for Practice Data tabs
+- **Status**: planned (Plan 7)
+- **Priority · Effort**: P1 · S
+- **Dependencies**: BL-012
+- **Context**: The Practice Data controls declare tab roles without associated tabpanels, relationships, roving focus, or arrow-key behavior. Source: review (Plan 5).
+- **Acceptance criteria**:
+  1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
+  2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.

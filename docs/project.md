@@ -15,6 +15,7 @@
 - **Learnings**: Vitest 4 config must use `.mts` in this non-ESM package; `.ts` loads as CommonJS and fails on Vitest's ESM-only dependency (confirmed Plan 6)
 - **Learnings**: Next 16 resolves a Node 20.19-only TypeScript-ESLint subtree and ESLint 10 also requires Node 20.19; pin `typescript-eslint@8.46.0` on Node 20.18 until BL-008 (confirmed Plan 6)
 - **Learnings**: Vitest discovers test copies in nested git worktrees unless `**/.worktrees/**` extends its default exclusions (confirmed Plan 6)
+- **Learnings**: jsdom proves responsive control wiring but not CSS media-query visibility; verify breakpoints in a real browser until a viewport-capable harness exists (Plan 7)
 
 ## Amendments
 <!-- project-local workflow rule changes, one line each, user-approved; extend or override AGENTS.md -->
