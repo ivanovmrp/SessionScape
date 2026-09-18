@@ -55,5 +55,3 @@ Restore reliable navigation from the Practice Data surface, preserve access on n
 
 - 2026-09-17 (plan): BL-015 criterion 2 changed from automated responsive tests to component wiring tests plus user-confirmed 360×640 manual verification because the current jsdom harness cannot evaluate CSS media queries; a browser harness remains outside this plan.
 - 2026-09-17 (BL-015): user manually confirmed the required 360×640 breakpoint behavior, closing the previously pending browser check.
-
-- 2026-09-17 (BL-015): live browser verification confirmed Practice Data and week controls render at 1536×791; the connected browser surface exposed no viewport override, so the required 360×640 breakpoint check remains pending.
