@@ -38,3 +38,9 @@ Completed plans and releases are indexed here.
 - Added a four-step, keyboard-operable Practice Data guide whose progress and completion derive from persisted global workspace records while preserving the normal editors.
 - Established viewport-fixed guided actions with reserved content space and a synthetic smoke path at 1440×900, 768×600, and 360×640.
 - Kept connected insights authoritative until an explicit, source-aware owner choice, with identical completion behavior across guided and normal entry paths.
+
+## Plan 7 — Remove Practice Data usability barriers (2026-09-17)
+
+- Restored dashboard destination navigation from Practice Data with unique, scrollable Opportunities, Clients, and Activity targets.
+- Kept Practice Data and dashboard week controls available at narrow widths, verified manually at 360×640.
+- Established linked tab/tabpanel semantics with roving focus, bidirectional arrow-key wraparound, and consistent editor cleanup.

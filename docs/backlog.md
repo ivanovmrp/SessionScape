@@ -70,23 +70,9 @@ Give practitioners without a supported booking platform a manual data source, an
 
 - BL-013 Derive dashboard opportunities from manual records — done (Plan 5)
 
-### BL-014 — Restore dashboard destinations from Practice Data
-- **Status**: ready
-- **Priority · Effort**: P1 · S
-- **Dependencies**: BL-012
-- **Context**: The Opportunities, Clients, and Activity links target dashboard sections that are not mounted while Practice Data is open, so they appear broken. Source: review (Plan 5).
-- **Acceptance criteria**:
-  1. Choosing Opportunities, Clients, or Activity from Practice Data restores the dashboard before navigating to the requested section.
-  2. Component tests prove every primary-navigation destination remains reachable from both surfaces.
+- BL-014 Restore dashboard destinations from Practice Data — done (Plan 7)
 
-### BL-015 — Keep Practice Data reachable on small screens
-- **Status**: ready
-- **Priority · Effort**: P1 · S
-- **Dependencies**: BL-012, BL-013
-- **Context**: The current narrow-screen rules hide both the Practice Data navigation item and the dashboard week control, preventing mobile-width access to Plan 5 flows. Source: review (Plan 5).
-- **Acceptance criteria**:
-  1. At supported narrow widths, owners can open Practice Data and move between dashboard and ledger weeks without hidden controls.
-  2. Responsive tests cover the navigation and week controls at the smallest supported viewport.
+- BL-015 Keep Practice Data reachable on small screens — done (Plan 7)
 
 ### BL-017 — Use one anonymous-client ID generator
 - **Status**: ready
@@ -97,14 +83,7 @@ Give practitioners without a supported booking platform a manual data source, an
   1. Production UI generation uses the single tested anonymous-client ID helper with no duplicate implementation.
   2. Unit and component tests prove generated IDs match the persisted `anon_[a-z0-9]{12}` contract.
 
-### BL-018 — Complete keyboard semantics for Practice Data tabs
-- **Status**: ready
-- **Priority · Effort**: P1 · S
-- **Dependencies**: BL-012
-- **Context**: The Practice Data controls declare tab roles without associated tabpanels, relationships, roving focus, or arrow-key behavior. Source: review (Plan 5).
-- **Acceptance criteria**:
-  1. Appointment and Availability tabs expose linked tab/tabpanel semantics with exactly one selected and focusable tab.
-  2. Left/right arrow keys move focus and selection between tabs, with component tests covering keyboard and accessible relationships.
+- BL-018 Complete keyboard semantics for Practice Data tabs — done (Plan 7)
 
 - BL-019 Guide owners through initial practice-data setup — done (Plan 6)
 

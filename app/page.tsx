@@ -366,6 +366,35 @@ export default function Home() {
     setSurface(nextSurface);
   };
 
+  const showDashboardSection = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    const targetId = event.currentTarget.hash.slice(1);
+    showSurface("overview");
+    window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      window.history.replaceState(null, "", `#${targetId}`);
+      target.scrollIntoView();
+    });
+  };
+
+  const selectPracticeDataTab = (nextTab: "appointments" | "availability") => {
+    setPracticeDataTab(nextTab);
+    if (nextTab === "appointments") setAvailabilityEditor(null);
+    if (nextTab === "availability") setAppointmentEditor(null);
+    setGuidedStep(null);
+  };
+
+  const movePracticeDataTab = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const target = event.key === "ArrowRight"
+      ? event.currentTarget.nextElementSibling ?? event.currentTarget.parentElement?.firstElementChild
+      : event.currentTarget.previousElementSibling ?? event.currentTarget.parentElement?.lastElementChild;
+    selectPracticeDataTab(practiceDataTab === "appointments" ? "availability" : "appointments");
+    (target as HTMLButtonElement | null)?.focus();
+  };
+
   const changeScenario = (nextScenario: DataScenario) => {
     restoreMetricFocusRef.current = false;
     restoreOpportunityFocusRef.current = false;
@@ -954,9 +983,9 @@ export default function Home() {
         <a className="wordmark" href="#top" aria-label="SessionScape home"><span className="mark">S</span><strong>SessionScape</strong></a>
         <nav aria-label="Primary navigation">
           <a className={surface === "overview" ? "active" : ""} href="#top" onClick={() => showSurface("overview")}><Icon name="grid" />Overview</a>
-          <a href="#opportunities"><Icon name="spark" />Opportunities<span className="nav-count">{opportunities.length}</span></a>
-          <a href="#clients"><Icon name="users" />Clients</a>
-          <a href="#activity"><Icon name="action" />Activity</a>
+          <a href="#opportunities" onClick={showDashboardSection}><Icon name="spark" />Opportunities<span className="nav-count">{opportunities.length}</span></a>
+          <a href="#clients" onClick={showDashboardSection}><Icon name="users" />Clients</a>
+          <a href="#activity" onClick={showDashboardSection}><Icon name="action" />Activity</a>
           <a className={surface === "practice-data" ? "active" : ""} href="#practice-data" onClick={(event) => { event.preventDefault(); showSurface("practice-data"); }}><Icon name="calendar" />Practice data</a>
         </nav>
         <div className="sidebar-bottom">
@@ -1022,11 +1051,11 @@ export default function Home() {
         </section>
 
         <div className="practice-tabs" role="tablist" aria-label="Practice data views">
-          <button role="tab" aria-selected={practiceDataTab === "appointments"} onClick={() => { setPracticeDataTab("appointments"); setAvailabilityEditor(null); setGuidedStep(null); }}>Appointments</button>
-          <button role="tab" aria-selected={practiceDataTab === "availability"} onClick={() => { setPracticeDataTab("availability"); setAppointmentEditor(null); setGuidedStep(null); }}>Availability</button>
+          <button id="practice-tab-appointments" role="tab" aria-selected={practiceDataTab === "appointments"} aria-controls="practice-panel-appointments" tabIndex={practiceDataTab === "appointments" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => selectPracticeDataTab("appointments")}>Appointments</button>
+          <button id="practice-tab-availability" role="tab" aria-selected={practiceDataTab === "availability"} aria-controls="practice-panel-availability" tabIndex={practiceDataTab === "availability" ? 0 : -1} onKeyDown={movePracticeDataTab} onClick={() => selectPracticeDataTab("availability")}>Availability</button>
         </div>
 
-        {practiceDataTab === "appointments" && <section className="panel appointment-ledger">
+        {practiceDataTab === "appointments" && <section id="practice-panel-appointments" className="panel appointment-ledger" role="tabpanel" aria-labelledby="practice-tab-appointments">
           <div className="panel-heading">
             <div><h2>Appointments</h2><p className="muted">{practiceWeek.label} · {practiceWorkspace.timezone}</p></div>
             {practiceSource !== "sample" && activePractitioners.length > 0 && activeServices.length > 0 && <button onClick={openNewAppointment}>Add appointment</button>}
@@ -1077,7 +1106,7 @@ export default function Home() {
           </form>}
         </section>}
 
-        {practiceDataTab === "availability" && <section className="panel availability-panel">
+        {practiceDataTab === "availability" && <section id="practice-panel-availability" className="panel availability-panel" role="tabpanel" aria-labelledby="practice-tab-availability">
           <div className="panel-heading">
             <div><h2>Weekly availability</h2><p className="muted">Closed days count as complete coverage.</p></div>
           </div>
