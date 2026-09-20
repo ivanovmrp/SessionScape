@@ -1005,7 +1005,7 @@ test("keeps the dashboard date control connected to the selected ledger week", a
   expect(screen.getByText("Sep 14–20, 2026")).toBeDefined();
 });
 
-test("keeps fixed connected metrics labeled with their fixture week", async () => {
+test("keeps connected analytics labeled with the selected week", async () => {
   const user = userEvent.setup();
   render(<Page />);
 
@@ -1013,8 +1013,10 @@ test("keeps fixed connected metrics labeled with their fixture week", async () =
   await user.click(screen.getByRole("button", { name: "Next week" }));
   await user.click(screen.getByRole("link", { name: "Overview" }));
 
-  expect(screen.getByRole("button", { name: /Sep 7–13/ })).toBeDefined();
-  expect(screen.queryByRole("button", { name: /Sep 14–20/ })).toBeNull();
+  expect(screen.getByRole("button", { name: /Sep 14–20/ })).toBeDefined();
+  expect(screen.queryByRole("button", { name: /Sep 7–13/ })).toBeNull();
+  await user.click(screen.getByRole("button", { name: /Appointments 28/ }));
+  expect(within(screen.getByRole("dialog")).getByText("Sep 14–20, 2026")).toBeDefined();
 });
 
 test("blocks availability boundaries inside a daylight-saving gap", async () => {
@@ -1178,7 +1180,7 @@ test("advances each successful guided save through appointment completion", asyn
   expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").services).toHaveLength(0);
   await user.type(screen.getByRole("textbox", { name: "Service label" }), "Deep tissue");
   await user.type(screen.getByRole("spinbutton", { name: "Default duration in minutes" }), "60");
-  await user.type(screen.getByRole("spinbutton", { name: "Default value in cents" }), "11000");
+  await user.type(screen.getByRole("spinbutton", { name: "Default value in dollars" }), "110.00");
   await user.click(screen.getByRole("button", { name: "Save service and continue" }));
 
   expect(screen.getByRole("tab", { name: "Availability" }).getAttribute("aria-selected")).toBe("true");
@@ -1357,15 +1359,15 @@ test("creates, edits, and deactivates a service with integer-cent defaults", asy
   await user.click(screen.getByRole("button", { name: "Add service" }));
   await user.type(screen.getByRole("textbox", { name: "Service label" }), "Relaxation");
   await user.type(screen.getByRole("spinbutton", { name: "Default duration in minutes" }), "60");
-  await user.type(screen.getByRole("spinbutton", { name: "Default value in cents" }), "11000");
+  await user.type(screen.getByRole("spinbutton", { name: "Default value in dollars" }), "110.00");
   await user.click(screen.getByRole("button", { name: "Save service" }));
   expect(screen.getByText("Relaxation")).toBeDefined();
   expect(screen.getByText("60 minutes · $110.00")).toBeDefined();
 
   await user.click(screen.getByRole("button", { name: "Edit service Relaxation" }));
-  const value = screen.getByRole("spinbutton", { name: "Default value in cents" });
+  const value = screen.getByRole("spinbutton", { name: "Default value in dollars" });
   await user.clear(value);
-  await user.type(value, "12000");
+  await user.type(value, "120.00");
   await user.click(screen.getByRole("button", { name: "Save service" }));
   expect(screen.getByText("60 minutes · $120.00")).toBeDefined();
 
@@ -1526,8 +1528,8 @@ test("keeps appointment identity stable through status changes and confirms dele
   await user.selectOptions(screen.getByRole("combobox", { name: "Appointment service" }), "service_relaxation01");
   await user.clear(screen.getByLabelText("Appointment duration in minutes"));
   await user.type(screen.getByLabelText("Appointment duration in minutes"), "75");
-  await user.clear(screen.getByLabelText("Appointment value in cents"));
-  await user.type(screen.getByLabelText("Appointment value in cents"), "12345");
+  await user.clear(screen.getByLabelText("Appointment value in dollars"));
+  await user.type(screen.getByLabelText("Appointment value in dollars"), "123.45");
   await user.selectOptions(screen.getByRole("combobox", { name: "Appointment status" }), "no-show");
   await user.click(screen.getByRole("button", { name: "Save appointment" }));
   let stored = JSON.parse(
@@ -1744,9 +1746,9 @@ test("blocks invalid appointment duration and value before persistence", async (
 
   await user.clear(duration);
   await user.type(duration, "60");
-  const value = screen.getByLabelText("Appointment value in cents");
+  const value = screen.getByLabelText("Appointment value in dollars");
   await user.clear(value);
-  await user.type(value, "1.5");
+  await user.type(value, "1.555");
   await user.click(screen.getByRole("button", { name: "Save appointment" }));
   expect(JSON.parse(window.localStorage.getItem(PRACTICE_WORKSPACE_STORAGE_KEYS.owner) ?? "null").appointments).toHaveLength(1);
 });
