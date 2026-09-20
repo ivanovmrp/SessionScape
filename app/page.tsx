@@ -54,7 +54,7 @@ type CatalogEditor =
       id?: string;
       label: string;
       durationMinutes: string;
-      valueCents: string;
+      valueDollars: string;
     };
 type AppointmentEditor = {
   id?: string;
@@ -63,7 +63,7 @@ type AppointmentEditor = {
   practitionerId: string;
   serviceId: string;
   durationMinutes: string;
-  valueCents: string;
+  valueDollars: string;
   status: AppointmentStatus;
   anonymousClientId: string;
   repeatedTimeChoice?: "earlier" | "later";
@@ -74,6 +74,14 @@ type AvailabilityEditor = {
   closed: boolean;
   startTime: string;
   endTime: string;
+};
+
+const centsToDollars = (cents: number) => (cents / 100).toFixed(2);
+const dollarsToCents = (value: string) => {
+  const normalized = value.trim();
+  if (!/^\d+(?:\.\d{0,2})?$/.test(normalized)) return Number.NaN;
+  const [whole, fraction = ""] = normalized.split(".");
+  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
 };
 
 const emptyWorkspace = (
@@ -179,7 +187,11 @@ export default function Home() {
     exclusions: "Cancelled, no-show, outside-availability, duplicate-ID, and inactive-catalog records are excluded where applicable.",
     classification: opportunitySummary.metrics[index].id === "capacity" ? "Estimated" : "Observed",
   })), [dashboardInput.actionContext.coverage, dashboardSource, dashboardWeek.label, opportunitySummary.metrics, sampleFixture.metrics]);
-  const fixture = useMemo(() => sampleDashboard ? sampleFixture : {
+  const fixture = useMemo(() => sampleDashboard ? {
+    ...sampleFixture,
+    metrics: sampleFixture.metrics.map((metric) => ({ ...metric, period: dashboardWeek.label })),
+    capacityMetric: { ...sampleFixture.capacityMetric, period: dashboardWeek.label },
+  } : {
     ...sampleFixture,
     status: dashboardInput.status,
     bannerTitle: dashboardSource === "owner" ? "Owner-entered practice data" : "Editable sample-derived practice data",
@@ -201,7 +213,7 @@ export default function Home() {
     returnTrendLabel: opportunitySummary.returnTrendLabel,
     days: opportunitySummary.days,
     opportunities: opportunitySummary.opportunities,
-  }, [dashboardInput, dashboardSource, manualMetrics, opportunitySummary, sampleDashboard, sampleFixture]);
+  }, [dashboardInput, dashboardSource, dashboardWeek.label, manualMetrics, opportunitySummary, sampleDashboard, sampleFixture]);
   const opportunities = opportunitySummary.opportunities;
   const unavailableRecommendations = "evidence" in dashboardInput
     ? dashboardInput.evidence.unavailableRecommendations
@@ -500,7 +512,7 @@ export default function Home() {
 
   const openGuidedService = () => {
     setCatalogError("");
-    setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueCents: "" });
+    setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueDollars: "" });
     setGuidedStep("service");
   };
 
@@ -574,7 +586,7 @@ export default function Home() {
       id: record?.id ?? generatedId("service"),
       label: catalogEditor.label.trim(),
       defaultDurationMinutes: Number(catalogEditor.durationMinutes),
-      defaultValueCents: Number(catalogEditor.valueCents),
+      defaultValueCents: dollarsToCents(catalogEditor.valueDollars),
       active: record?.active ?? true,
     };
     const services = record
@@ -649,7 +661,7 @@ export default function Home() {
       practitionerId: practitioner.id,
       serviceId: service.id,
       durationMinutes: String(service.defaultDurationMinutes),
-      valueCents: String(service.defaultValueCents),
+      valueDollars: centsToDollars(service.defaultValueCents),
       status: "scheduled",
       anonymousClientId: "",
     });
@@ -670,7 +682,7 @@ export default function Home() {
       practitionerId: record.practitionerId,
       serviceId: record.serviceId,
       durationMinutes: String(record.durationMinutes),
-      valueCents: String(record.valueCents),
+      valueDollars: centsToDollars(record.valueCents),
       status: record.status,
       anonymousClientId: record.anonymousClientId ?? "",
     });
@@ -718,7 +730,7 @@ export default function Home() {
       serviceId: appointmentEditor.serviceId,
       startAt: resolved.value,
       durationMinutes: Number(appointmentEditor.durationMinutes),
-      valueCents: Number(appointmentEditor.valueCents),
+      valueCents: dollarsToCents(appointmentEditor.valueDollars),
       status: appointmentEditor.status,
       ...(appointmentEditor.anonymousClientId
         ? { anonymousClientId: appointmentEditor.anonymousClientId }
@@ -1066,7 +1078,7 @@ export default function Home() {
               const service = practiceWorkspace.services.find(({ id }) => id === record.serviceId);
               return <li key={record.id}>
                 <span><strong>{formatAppointmentTime(record.startAt)}</strong><small>{practitioner?.label} · {service?.label}</small></span>
-                <span><strong>{record.status === "no-show" ? "No-show" : `${record.status[0].toUpperCase()}${record.status.slice(1)}`}</strong><small>{record.anonymousClientId ?? "Not linked"} · ${(record.valueCents / 100).toFixed(2)}</small></span>
+                <span><strong>{record.status === "no-show" ? "No-show" : `${record.status[0].toUpperCase()}${record.status.slice(1)}`}</strong><small>{record.anonymousClientId ?? "Not linked"} · ${centsToDollars(record.valueCents)}</small></span>
                 {practiceSource !== "sample" && <button aria-label={`Edit appointment ${formatAppointmentTime(record.startAt)}`} onClick={() => openExistingAppointment(record)}>Edit</button>}
               </li>;
             })}
@@ -1080,12 +1092,12 @@ export default function Home() {
             </select></label>
             <label>Service<select aria-label="Appointment service" value={appointmentEditor.serviceId} onChange={(event) => {
               const service = practiceWorkspace.services.find(({ id }) => id === event.target.value);
-              setAppointmentEditor({ ...appointmentEditor, serviceId: event.target.value, durationMinutes: service ? String(service.defaultDurationMinutes) : appointmentEditor.durationMinutes, valueCents: service ? String(service.defaultValueCents) : appointmentEditor.valueCents });
+              setAppointmentEditor({ ...appointmentEditor, serviceId: event.target.value, durationMinutes: service ? String(service.defaultDurationMinutes) : appointmentEditor.durationMinutes, valueDollars: service ? centsToDollars(service.defaultValueCents) : appointmentEditor.valueDollars });
             }}>
               {practiceWorkspace.services.filter((record) => record.active || (appointmentEditor.id && record.id === appointmentEditor.serviceId)).map((record) => <option key={record.id} value={record.id} disabled={!record.active}>{record.label}{!record.active ? " · inactive historical assignment" : ""}</option>)}
             </select></label>
             <label>Duration in minutes<input aria-label="Appointment duration in minutes" type="number" min="1" step="1" value={appointmentEditor.durationMinutes} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, durationMinutes: event.target.value })} /></label>
-            <label>Value in cents<input aria-label="Appointment value in cents" type="number" min="0" step="1" value={appointmentEditor.valueCents} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, valueCents: event.target.value })} /></label>
+            <label>Value in dollars<input aria-label="Appointment value in dollars" type="number" min="0" step="0.01" value={appointmentEditor.valueDollars} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, valueDollars: event.target.value })} /></label>
             <label>Appointment status<select aria-label="Appointment status" value={appointmentEditor.status} onChange={(event) => setAppointmentEditor({ ...appointmentEditor, status: event.target.value as AppointmentStatus })}>
               <option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option>
             </select></label>
@@ -1152,17 +1164,17 @@ export default function Home() {
           </div>
 
           <div className="panel catalog-panel">
-            <div className="panel-heading"><h2>Services</h2>{practiceSource !== "sample" && <button onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueCents: "" }); }}>Add service</button>}</div>
+            <div className="panel-heading"><h2>Services</h2>{practiceSource !== "sample" && <button onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "service", label: "", durationMinutes: "", valueDollars: "" }); }}>Add service</button>}</div>
             {practiceWorkspace.services.length === 0 ? <p className="muted">No services yet.</p> : <ul className="catalog-list">
               {practiceWorkspace.services.map((record) => <li key={record.id}>
-                <span><strong>{record.label}</strong><small>{record.defaultDurationMinutes} minutes · ${(record.defaultValueCents / 100).toFixed(2)}</small>{!record.active && <small>Inactive service</small>}</span>
-                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit service ${record.label}`} onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "service", id: record.id, label: record.label, durationMinutes: String(record.defaultDurationMinutes), valueCents: String(record.defaultValueCents) }); }}>Edit</button>{record.active && <button aria-label={`Deactivate service ${record.label}`} onClick={() => deactivateCatalogRecord("service", record.id)}>Deactivate</button>}</span>}
+                <span><strong>{record.label}</strong><small>{record.defaultDurationMinutes} minutes · ${centsToDollars(record.defaultValueCents)}</small>{!record.active && <small>Inactive service</small>}</span>
+                {practiceSource !== "sample" && <span className="catalog-actions"><button aria-label={`Edit service ${record.label}`} onClick={() => { setGuidedStep(null); setCatalogError(""); setCatalogEditor({ kind: "service", id: record.id, label: record.label, durationMinutes: String(record.defaultDurationMinutes), valueDollars: centsToDollars(record.defaultValueCents) }); }}>Edit</button>{record.active && <button aria-label={`Deactivate service ${record.label}`} onClick={() => deactivateCatalogRecord("service", record.id)}>Deactivate</button>}</span>}
               </li>)}
             </ul>}
             {catalogEditor?.kind === "service" && <form className={`catalog-editor${guidedStep === "service" ? " guided-editor" : ""}`} onSubmit={(event) => { event.preventDefault(); saveCatalogRecord(); }}>
               <label>Service label<input ref={serviceLabelRef} aria-label="Service label" value={catalogEditor.label} onChange={(event) => setCatalogEditor({ ...catalogEditor, label: event.target.value })} /></label>
               <label>Default duration in minutes<input aria-label="Default duration in minutes" type="number" min="1" step="1" value={catalogEditor.durationMinutes} onChange={(event) => setCatalogEditor({ ...catalogEditor, durationMinutes: event.target.value })} /></label>
-              <label>Default value in cents<input aria-label="Default value in cents" type="number" min="0" step="1" value={catalogEditor.valueCents} onChange={(event) => setCatalogEditor({ ...catalogEditor, valueCents: event.target.value })} /></label>
+              <label>Default value in dollars<input aria-label="Default value in dollars" type="number" min="0" step="0.01" value={catalogEditor.valueDollars} onChange={(event) => setCatalogEditor({ ...catalogEditor, valueDollars: event.target.value })} /></label>
               {catalogError && <p className="warning" role="alert">{catalogError}</p>}
               <div className={guidedStep === "service" ? "guided-action-bar" : undefined}><button type="button" onClick={() => { setCatalogEditor(null); setGuidedStep(null); }}>Cancel</button><button className="button-primary" type="submit">{guidedStep === "service" ? "Save service and continue" : "Save service"}</button></div>
             </form>}
@@ -1179,7 +1191,7 @@ export default function Home() {
           <div><p>Monday, September 7</p><h1>Good morning, Isla</h1></div>
           <div className="topbar-actions">
             {sampleDashboard && <label className="scenario-control"><span>Prototype state</span><select value={scenario} onChange={(event) => changeScenario(event.target.value as DataScenario)}>{(Object.keys(scenarioLabels) as DataScenario[]).map((key) => <option value={key} key={key}>{scenarioLabels[key]}</option>)}</select></label>}
-            <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{fixture.capacityMetric.period}<Icon name="chevron" size={15} /></button>
+            <button className="date-button" onClick={() => showSurface("practice-data")}><Icon name="calendar" />{dashboardWeek.label}<Icon name="chevron" size={15} /></button>
           </div>
         </header>
 
