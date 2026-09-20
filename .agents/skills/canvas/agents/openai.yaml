@@ -1,0 +1,4 @@
+policy:
+  # User-invoked only: the workflow suggests this skill after architecture-shifting
+  # ships but must never trigger it itself (mirrors Claude Code's disable-model-invocation).
+  allow_implicit_invocation: false

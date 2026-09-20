@@ -1,0 +1,28 @@
+# SDLC workflow — project Codex config.
+# Loaded only when the project is trusted; user-level ~/.codex/config.toml supplies the rest.
+# Model policy (see AGENTS.md → Model & Reasoning Routing): everything on gpt-5.6-sol,
+# session default effort medium; subagents pin their own effort in .codex/agents/*.toml;
+# xhigh is user-escalated via /model, never self-selected.
+
+model = "gpt-5.6-sol"
+model_reasoning_effort = "medium"
+
+# The workflow's AGENTS.md is ~31 KB — near the 32 KiB default instruction budget, which is
+# shared with any global ~/.codex/AGENTS.md. Doubled so the workflow never gets truncated.
+project_doc_max_bytes = 65536
+
+# Safe default for autonomous plan work: edits and commands inside the workspace run
+# freely, anything outside (network, out-of-tree writes) asks first. The guard hook in
+# .codex/hooks.json and the allowlist in .codex/rules/ do the rest.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+approvals_reviewer = "auto_review"
+
+[agents]
+# Parallel implementer fan-out ceiling; the workflow groups 1–5 stories per plan so 6 is ample.
+# Note: Codex rejects this key if the experimental `features.multi_agent_v2` flag is enabled —
+# remove max_threads if you turn that feature on (v2 manages concurrency itself).
+max_threads = 6
+# Subagents never spawn subagents (workflow rule — this enforces it).
+max_depth = 1
