@@ -1,0 +1,4 @@
+policy:
+  # User-invoked only (mirrors Claude Code's disable-model-invocation). The refine
+  # skill reuses references/GUIDE.md inline, but a full sketch session is user-triggered.
+  allow_implicit_invocation: false

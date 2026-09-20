@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)\"/.codex/hooks/block-destructive.sh",
+            "statusMessage": "Checking command against the destructive-ops guard",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

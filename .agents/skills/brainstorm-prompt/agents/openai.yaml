@@ -1,0 +1,3 @@
+policy:
+  # User-invoked only (mirrors Claude Code's disable-model-invocation).
+  allow_implicit_invocation: false
